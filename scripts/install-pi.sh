@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ ${EUID} -ne 0 ]]; then
+  echo "Run with sudo: sudo ./scripts/install-pi.sh"
+  exit 1
+fi
+
+SOURCE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+apt-get update
+apt-get install -y chromium python3-venv unclutter
+id morningbus >/dev/null 2>&1 || useradd --create-home --shell /bin/bash morningbus
+install -d -o morningbus -g morningbus /opt/pi-bus-time-display /etc/pi-bus-time-display /var/lib/pi-bus-time-display
+cp -a "${SOURCE_DIR}/." /opt/pi-bus-time-display/
+python3 -m venv /opt/pi-bus-time-display/.venv
+/opt/pi-bus-time-display/.venv/bin/pip install --no-deps /opt/pi-bus-time-display
+[[ -f /etc/pi-bus-time-display/config.toml ]] || install -m 0644 /opt/pi-bus-time-display/config.example.toml /etc/pi-bus-time-display/config.toml
+[[ -f /etc/pi-bus-time-display/secrets.env ]] || install -m 0600 -o morningbus -g morningbus /opt/pi-bus-time-display/.env.example /etc/pi-bus-time-display/secrets.env
+install -m 0644 /opt/pi-bus-time-display/systemd/*.service /etc/systemd/system/
+desktop_user=${SUDO_USER:-}
+if [[ -z ${desktop_user} || ${desktop_user} == root ]]; then
+  echo "Run this installer with sudo from the Raspberry Pi desktop user."
+  exit 1
+fi
+desktop_home=$(getent passwd "${desktop_user}" | cut -d: -f6)
+install -d -o "${desktop_user}" -g "${desktop_user}" "${desktop_home}/.config/autostart"
+install -m 0644 -o "${desktop_user}" -g "${desktop_user}" /opt/pi-bus-time-display/kiosk/pi-bus-time-display.desktop "${desktop_home}/.config/autostart/pi-bus-time-display.desktop"
+systemctl daemon-reload
+systemctl enable pi-bus-time-display.service
+echo "Installed. Edit /etc/pi-bus-time-display/config.toml and /etc/pi-bus-time-display/secrets.env, then reboot."
