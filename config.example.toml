@@ -1,0 +1,13 @@
+bus_stop_code = "83249"
+bus_stop_name = "Flamingo Valley · Siglap Rd"
+services = ["40", "42", "401"]
+walking_minutes = 7
+poll_seconds = 20
+stale_after_seconds = 75
+morning_start = "06:00"
+morning_end = "10:00"
+timezone = "Asia/Singapore"
+
+# Retained for configuration compatibility. The one-card appliance keeps running
+# Roon Bridge and changes the touchscreen to its quiet clock outside the window.
+end_action = "display"
