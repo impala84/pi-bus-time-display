@@ -1,0 +1,53 @@
+h1 {
+  display: -webkit-box;
+  max-height: 2.34em;
+  padding-bottom: 0.08em;
+  overflow: hidden;
+  font-size: clamp(32px, 4.35vw, 58px);
+  font-weight: 590;
+  line-height: 1.12;
+  letter-spacing: -0.035em;
+  text-overflow: clip;
+  white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.transport button {
+  display: grid;
+  place-items: center;
+}
+
+.transport svg {
+  width: 25px;
+  height: 25px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.transport .play svg {
+  width: 29px;
+  height: 29px;
+  stroke-width: 2;
+}
+
+.art {
+  border-radius: 12px;
+}
+
+.transport button:not(.play),
+.volume button {
+  border-radius: 14px;
+}
+
+@media (max-height: 560px) and (orientation: landscape) {
+  h1 {
+    max-height: 2.28em;
+    font-size: clamp(29px, 4vw, 42px);
+    line-height: 1.08;
+  }
+}

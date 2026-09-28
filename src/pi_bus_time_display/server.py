@@ -1,14 +1,17 @@
 from __future__ import annotations
 
 import argparse
-import base64
 import hmac
 import json
 import os
+import secrets
 import threading
+import time
+from http.cookies import SimpleCookie
 from datetime import datetime, time as wall_time
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from urllib.parse import parse_qs
 from zoneinfo import ZoneInfo
 
 from .config import Config, load_config, load_env
@@ -133,12 +136,18 @@ def display_target(config: Config, mode_path: Path) -> str:
 
 def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Path):
     static = Path(__file__).with_name("static")
+    sessions: dict[str, float] = {}
 
     class Handler(SimpleHTTPRequestHandler):
         def __init__(self, *args, **kwargs):
             super().__init__(*args, directory=str(static), **kwargs)
 
         def do_GET(self):
+            if self.path.startswith("/login.html?"):
+                self.path = "/login.html"
+            if self.path == "/api/display-target":
+                self.send_json(200, json.dumps({"target": display_target(state.config, mode_path)}).encode())
+                return
             if self.path == "/display":
                 self.send_response(302)
                 self.send_header("Location", display_target(state.config, mode_path))
@@ -146,8 +155,18 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                 self.end_headers()
                 return
             if self.path == "/admin":
+                if not self.is_authorised():
+                    self.send_response(302)
+                    self.send_header("Location", "/login.html")
+                    self.end_headers()
+                    return
                 self.send_response(302)
                 self.send_header("Location", "/admin.html")
+                self.end_headers()
+                return
+            if self.path == "/admin.html" and not self.is_authorised():
+                self.send_response(302)
+                self.send_header("Location", "/login.html")
                 self.end_headers()
                 return
             if self.path == "/api/admin/config":
@@ -173,6 +192,24 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
             super().do_GET()
 
         def do_POST(self):
+            if self.path == "/login":
+                length = min(int(self.headers.get("Content-Length", "0")), 4096)
+                form = parse_qs(self.rfile.read(length).decode("utf-8", "replace"))
+                username = form.get("username", [""])[0]
+                supplied = form.get("password", [""])[0]
+                expected = os.getenv("ADMIN_PASSWORD", "")
+                if username == "admin" and expected and hmac.compare_digest(supplied, expected):
+                    token = secrets.token_urlsafe(32)
+                    sessions[token] = time.time() + 30 * 24 * 60 * 60
+                    self.send_response(302)
+                    self.send_header("Location", "/admin")
+                    self.send_header("Set-Cookie", f"pi_bus_session={token}; Max-Age=2592000; Path=/; HttpOnly; SameSite=Strict")
+                    self.end_headers()
+                else:
+                    self.send_response(302)
+                    self.send_header("Location", "/login.html?error=1")
+                    self.end_headers()
+                return
             if self.path not in {"/api/admin/config", "/api/admin/display-mode"}:
                 self.send_error(404)
                 return
@@ -223,16 +260,20 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
             except (KeyError, TypeError, ValueError, OSError, json.JSONDecodeError) as exc:
                 self.send_json(400, json.dumps({"error": str(exc)}).encode())
 
-        def authorised(self) -> bool:
+        def is_authorised(self) -> bool:
             if self.client_address[0] in {"127.0.0.1", "::1"}:
                 return True
-            password = os.getenv("ADMIN_PASSWORD", "")
-            supplied = self.headers.get("Authorization", "")
-            expected = "Basic " + base64.b64encode(f"admin:{password}".encode()).decode()
-            if password and hmac.compare_digest(supplied, expected):
+            cookie = SimpleCookie(self.headers.get("Cookie", ""))
+            token = cookie.get("pi_bus_session")
+            if token and sessions.get(token.value, 0) > time.time():
+                return True
+            return False
+
+        def authorised(self) -> bool:
+            if self.is_authorised():
                 return True
             self.send_response(401)
-            self.send_header("WWW-Authenticate", 'Basic realm="Pi Bus Time Display"')
+            self.send_header("Content-Type", "application/json")
             self.end_headers()
             return False
 

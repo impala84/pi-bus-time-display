@@ -18,11 +18,11 @@ You need one microSD card (16 GB or larger) and an LTA DataMall AccountKey.
 6. Put the LTA key in `/etc/pi-bus-time-display/secrets.env` and review `/etc/pi-bus-time-display/config.toml`.
 7. Reboot. In the Roon app, open **Settings → Audio**, find this Raspberry Pi and enable its audio output. Then open **Settings → Extensions** and enable **Pi Bus Roon Controller**.
 
-The bus installer creates an unprivileged service account, keeps the LTA key outside the repository, restarts the data service after failures and launches Chromium full-screen in the configured Raspberry Pi desktop session. Roon's installer starts Roon Bridge at boot and manages its own updates.
+The bus installer creates an unprivileged service account, keeps the LTA key outside the repository, restarts both application services after failures and launches one persistent full-screen Chromium session. A black display shell changes between Bus, Roon and Sleep without closing the browser, exposing the desktop or showing a white loading page. Chromium uses its basic local password store so desktop keyring prompts do not interrupt the appliance. Roon's installer starts Roon Bridge at boot and manages its own updates.
 
 ## Web settings
 
-From a phone or computer on the same network, open `http://<pi-address>:8765/admin`. Sign in with username `admin` and the `ADMIN_PASSWORD` stored in `/etc/pi-bus-time-display/secrets.env`.
+From a phone or computer on the same network, open `http://<pi-address>:8765/admin`. The dedicated sign-in page uses username `admin` and the `ADMIN_PASSWORD` stored in `/etc/pi-bus-time-display/secrets.env`. Its ordinary username and password fields allow browsers and password managers to save and autofill the credentials; a successful sign-in lasts for 30 days. The touchscreen itself opens Settings directly.
 
 The settings page also acts as a remote control. Choose **Automatic**, **Bus times**, **Roon Now Playing**, or **Sleep display** to switch the touchscreen within about five seconds. A manual selection remains active until you return it to Automatic. You can also change the stop code and name, tracked services, walking time, display window, polling interval, preferred Roon zone and LTA AccountKey. Changes take effect without rebooting. The existing AccountKey is never displayed back to the browser. Because this small admin server uses ordinary HTTP, keep it on a trusted home network and choose a unique password.
 
@@ -36,7 +36,7 @@ The installer generates a unique admin password and prints it once. You can retr
 2. Find **Pi Bus Roon Controller** and choose **Enable**. This is the one-time authorisation required by Roon's extension API.
 3. In Pi Bus Settings, optionally enter the exact Roon zone name. Leave it blank to follow the currently playing zone.
 
-The controller shows album artwork rather than artist photography, track and artist text, elapsed/remaining progress, previous/play-pause/next controls, mute and volume. If the selected output exposes no adjustable volume, it shows **Fixed volume** instead. Roon Server and the Pi must be on the same network.
+The controller shows album artwork rather than artist photography, track and artist text, elapsed/remaining progress, previous/play-pause/next controls, mute and volume. Long titles use a restrained two-line treatment rather than scrolling, and transport controls use consistent SVG artwork. If the selected output exposes no adjustable volume, it shows **Fixed volume** instead. Roon Server and the Pi must be on the same network.
 
 ## Updates
 

@@ -15,6 +15,7 @@ if [[ ! -d ${app_dir}/.git ]]; then
 fi
 
 echo "Checking for Pi Bus Time Display updates…"
+install -d -o morningbus -g morningbus /var/lib/pi-bus-time-display/roon
 git -c safe.directory="${app_dir}" -C "${app_dir}" pull --ff-only
 
 "${app_dir}/.venv/bin/pip" install --no-deps "${app_dir}"

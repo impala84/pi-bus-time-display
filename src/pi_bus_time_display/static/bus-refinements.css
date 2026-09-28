@@ -1,0 +1,25 @@
+.service:nth-child(1) {
+  border-color: rgba(79, 166, 216, 0.52);
+  background: linear-gradient(90deg, rgba(45, 92, 119, 0.26), var(--panel) 34%);
+}
+
+.service:nth-child(1) .service-no { color: #4fa6d8; }
+
+.service:nth-child(2) {
+  border-color: rgba(91, 197, 139, 0.5);
+  background: linear-gradient(90deg, rgba(42, 101, 69, 0.24), var(--panel) 34%);
+}
+
+.service:nth-child(2) .service-no { color: #5bc58b; }
+
+@media (max-height: 600px) and (orientation: landscape) {
+  .service {
+    grid-template-columns: minmax(100px, 19%) 1fr;
+    padding: 10px 17px;
+  }
+
+  .service-no { font-size: 60px; }
+  .arrival { font-size: 50px; font-weight: 720; }
+  .arrival.first { font-weight: 850; }
+  .arrival small { font-size: 10px; }
+}

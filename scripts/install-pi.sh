@@ -10,7 +10,7 @@ SOURCE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 apt-get update
 apt-get install -y chromium git nodejs npm python3-venv unclutter
 id morningbus >/dev/null 2>&1 || useradd --create-home --shell /bin/bash morningbus
-install -d -o morningbus -g morningbus /opt/pi-bus-time-display /etc/pi-bus-time-display /var/lib/pi-bus-time-display
+install -d -o morningbus -g morningbus /opt/pi-bus-time-display /etc/pi-bus-time-display /var/lib/pi-bus-time-display /var/lib/pi-bus-time-display/roon
 cp -a "${SOURCE_DIR}/." /opt/pi-bus-time-display/
 python3 -m venv /opt/pi-bus-time-display/.venv
 /opt/pi-bus-time-display/.venv/bin/pip install --no-deps /opt/pi-bus-time-display

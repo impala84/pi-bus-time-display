@@ -105,7 +105,7 @@ function body(request) {
 }
 
 function serveStatic(request, response) {
-  const names = {'/': 'index.html', '/app.js': 'app.js', '/style.css': 'style.css'};
+  const names = {'/': 'index.html', '/app.js': 'app.js', '/style.css': 'style.css', '/refinements.css': 'refinements.css'};
   const name = names[new URL(request.url, 'http://localhost').pathname];
   if (!name) return false;
   const types = {'.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8'};

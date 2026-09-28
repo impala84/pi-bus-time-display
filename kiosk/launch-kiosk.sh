@@ -1,46 +1,8 @@
 #!/usr/bin/env bash
 set -u
 
-config=/etc/pi-bus-time-display/config.toml
-bus_url=http://127.0.0.1:8765/
-sleep_url=http://127.0.0.1:8765/sleep.html
-roon_url=http://127.0.0.1:8766/
-extension_dir=/opt/pi-bus-time-display/kiosk/touch-controls
-active_url=
+shell_url=http://127.0.0.1:8765/display-shell.html
 browser_pid=
-
-choose_url() {
-  python3 - "${config}" "${bus_url}" "${sleep_url}" "${roon_url}" <<'PY'
-import sys, tomllib
-from datetime import datetime, time
-from zoneinfo import ZoneInfo
-
-path, bus_url, sleep_url, roon_url = sys.argv[1:]
-with open(path, "rb") as handle:
-    config = tomllib.load(handle)
-now = datetime.now(ZoneInfo(config.get("timezone", "Asia/Singapore"))).time()
-start = time.fromisoformat(config.get("morning_start", "06:00"))
-end = time.fromisoformat(config.get("morning_end", "10:00"))
-sleep_start = time.fromisoformat(config.get("sleep_start", "23:00"))
-sleep_end = time.fromisoformat(config.get("sleep_end", "06:00"))
-sleeping = sleep_start <= now < sleep_end if sleep_start < sleep_end else now >= sleep_start or now < sleep_end
-try:
-    mode = open("/var/lib/pi-bus-time-display/display-mode", encoding="utf-8").read().strip()
-except OSError:
-    mode = "auto"
-if mode == "bus":
-    print(bus_url)
-elif mode == "sleep":
-    print(sleep_url)
-elif mode == "roon":
-    print(roon_url)
-else:
-    if sleeping:
-        print(sleep_url)
-    else:
-        print(bus_url if start <= now < end else roon_url)
-PY
-}
 
 stop_browser() {
   if [[ -n ${browser_pid} ]] && kill -0 "${browser_pid}" 2>/dev/null; then
@@ -52,14 +14,11 @@ trap stop_browser EXIT TERM INT
 
 sleep 8
 while true; do
-  wanted_url=$(choose_url 2>/dev/null || printf '%s\n' "${bus_url}")
-  if [[ ${wanted_url} != "${active_url}" ]] || [[ -z ${browser_pid} ]] || ! kill -0 "${browser_pid}" 2>/dev/null; then
-    stop_browser
+  if [[ -z ${browser_pid} ]] || ! kill -0 "${browser_pid}" 2>/dev/null; then
     chromium --kiosk --noerrdialogs --disable-infobars --disable-session-crashed-bubble \
-      --disable-extensions-except="${extension_dir}" --load-extension="${extension_dir}" \
-      --user-data-dir="${HOME}/.config/pi-bus-kiosk" "${wanted_url}" &
+      --password-store=basic --use-mock-keychain --disable-features=TranslateUI \
+      --user-data-dir="${HOME}/.config/pi-bus-kiosk" "${shell_url}" &
     browser_pid=$!
-    active_url=${wanted_url}
   fi
   sleep 5
 done
