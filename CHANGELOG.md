@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.0-rc.10 — 29 September 2026
+
+- Made updates automatically reapply the saved display and touchscreen orientation before rebooting.
+
 ## 0.3.0-rc.9 — 29 September 2026
 
 - Rotated touchscreen coordinates alongside the 180° display using libinput's calibration matrix.
