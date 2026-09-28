@@ -16,6 +16,12 @@ class DisplayModeTests(unittest.TestCase):
             path.write_text("bus\n", encoding="utf-8")
             self.assertEqual(read_display_mode(path), "bus")
 
+    def test_sleep_mode_is_read(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "display-mode"
+            path.write_text("sleep\n", encoding="utf-8")
+            self.assertEqual(read_display_mode(path), "sleep")
+
     def test_unknown_mode_defaults_to_auto(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "display-mode"

@@ -3,16 +3,18 @@ set -u
 
 config=/etc/pi-bus-time-display/config.toml
 bus_url=http://127.0.0.1:8765/
+sleep_url=http://127.0.0.1:8765/sleep.html
+extension_dir=/opt/pi-bus-time-display/kiosk/touch-controls
 active_url=
 browser_pid=
 
 choose_url() {
-  python3 - "${config}" "${bus_url}" <<'PY'
+  python3 - "${config}" "${bus_url}" "${sleep_url}" <<'PY'
 import sys, tomllib
 from datetime import datetime, time
 from zoneinfo import ZoneInfo
 
-path, bus_url = sys.argv[1:]
+path, bus_url, sleep_url = sys.argv[1:]
 with open(path, "rb") as handle:
     config = tomllib.load(handle)
 now = datetime.now(ZoneInfo(config.get("timezone", "Asia/Singapore"))).time()
@@ -25,6 +27,8 @@ except OSError:
     mode = "auto"
 if mode == "bus":
     print(bus_url)
+elif mode == "sleep":
+    print(sleep_url)
 elif mode == "roon" and roon_url:
     print(roon_url)
 else:
@@ -46,6 +50,7 @@ while true; do
   if [[ ${wanted_url} != "${active_url}" ]] || [[ -z ${browser_pid} ]] || ! kill -0 "${browser_pid}" 2>/dev/null; then
     stop_browser
     chromium --kiosk --noerrdialogs --disable-infobars --disable-session-crashed-bubble \
+      --disable-extensions-except="${extension_dir}" --load-extension="${extension_dir}" \
       --user-data-dir="${HOME}/.config/pi-bus-kiosk" "${wanted_url}" &
     browser_pid=$!
     active_url=${wanted_url}

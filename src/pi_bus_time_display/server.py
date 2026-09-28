@@ -101,7 +101,7 @@ def update_secret(path: Path, key: str, value: str) -> None:
 def read_display_mode(path: Path) -> str:
     try:
         mode = path.read_text(encoding="utf-8").strip()
-        return mode if mode in {"auto", "bus", "roon"} else "auto"
+        return mode if mode in {"auto", "bus", "roon", "sleep"} else "auto"
     except OSError:
         return "auto"
 
@@ -152,8 +152,8 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                 data = json.loads(self.rfile.read(length))
                 if self.path == "/api/admin/display-mode":
                     mode = str(data.get("mode", ""))
-                    if mode not in {"auto", "bus", "roon"}:
-                        raise ValueError("Display mode must be auto, bus or roon")
+                    if mode not in {"auto", "bus", "roon", "sleep"}:
+                        raise ValueError("Display mode must be auto, bus, roon or sleep")
                     if mode == "roon" and not state.config.roon_display_url:
                         raise ValueError("Add the Roon Display URL before switching to Roon Now Playing")
                     mode_path.parent.mkdir(parents=True, exist_ok=True)
@@ -191,6 +191,8 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                 self.send_json(400, json.dumps({"error": str(exc)}).encode())
 
         def authorised(self) -> bool:
+            if self.client_address[0] in {"127.0.0.1", "::1"}:
+                return True
             password = os.getenv("ADMIN_PASSWORD", "")
             supplied = self.headers.get("Authorization", "")
             expected = "Basic " + base64.b64encode(f"admin:{password}".encode()).decode()
