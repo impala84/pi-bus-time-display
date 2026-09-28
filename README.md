@@ -46,7 +46,7 @@ After the initial installation, update the appliance with one command:
 sudo pi-bus-update
 ```
 
-The updater accepts only a fast-forward update from the configured GitHub repository, reinstalls the application, refreshes both service definitions, verifies that the Roon controller started and prints its recent service log if startup fails. Your settings and secrets remain untouched in `/etc/pi-bus-time-display/`. Releases use semantic versions, shown at the top of the Settings page and recorded in [CHANGELOG.md](CHANGELOG.md); this release is **v0.2.0**. If the kiosk has cached an older screen, refresh it or reboot once.
+The updater accepts only a fast-forward update from the configured GitHub repository, reinstalls the application, refreshes both service definitions, verifies that both HTTP services respond and prints the relevant service log if startup fails. Your settings and secrets remain untouched in `/etc/pi-bus-time-display/`. Releases use semantic versions, shown at the top of the Settings page and recorded in [CHANGELOG.md](CHANGELOG.md); this release is **v0.2.1**. If the kiosk has cached an older screen, reboot once.
 
 ### Official touchscreen
 

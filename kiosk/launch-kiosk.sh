@@ -12,11 +12,15 @@ stop_browser() {
 }
 trap stop_browser EXIT TERM INT
 
-sleep 8
+until python3 -c 'import urllib.request; urllib.request.urlopen("http://127.0.0.1:8765/api/status", timeout=1).read()' >/dev/null 2>&1; do
+  sleep 1
+done
+
 while true; do
   if [[ -z ${browser_pid} ]] || ! kill -0 "${browser_pid}" 2>/dev/null; then
     chromium --kiosk --noerrdialogs --disable-infobars --disable-session-crashed-bubble \
       --password-store=basic --use-mock-keychain --disable-features=TranslateUI \
+      --force-dark-mode --default-background-color=000000 \
       --user-data-dir="${HOME}/.config/pi-bus-kiosk" "${shell_url}" &
     browser_pid=$!
   fi

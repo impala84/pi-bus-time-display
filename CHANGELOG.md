@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.1 — 28 September 2026
+
+- Prevented Chromium from launching before the main display service responds.
+- Changed Chromium's initial background to black so startup cannot flash a white page.
+- Made the updater wait for and verify both HTTP services, printing their logs on failure.
+
 ## 0.2.0 — 28 September 2026
 
 - Replaced the bus summary panel with two much larger service rows.

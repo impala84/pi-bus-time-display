@@ -28,10 +28,24 @@ systemctl restart pi-bus-time-display.service
 systemctl enable pi-bus-roon-controller.service
 systemctl restart pi-bus-roon-controller.service
 
-if ! systemctl is-active --quiet pi-bus-roon-controller.service; then
-  echo "Roon controller did not start. Recent service log:"
-  journalctl -u pi-bus-roon-controller.service -n 25 --no-pager
-  exit 1
-fi
+wait_for_url() {
+  local name=$1
+  local url=$2
+  local service=$3
+  local attempt
+  for attempt in {1..30}; do
+    if python3 -c 'import sys, urllib.request; urllib.request.urlopen(sys.argv[1], timeout=1).read()' "${url}" >/dev/null 2>&1; then
+      echo "${name} is ready."
+      return 0
+    fi
+    sleep 1
+  done
+  echo "${name} did not become ready. Recent service log:"
+  journalctl -u "${service}" -n 40 --no-pager
+  return 1
+}
 
-echo "Pi Bus Time Display v0.2.0 is installed and both services are running."
+wait_for_url "Main display" "http://127.0.0.1:8765/api/status" "pi-bus-time-display.service"
+wait_for_url "Roon controller" "http://127.0.0.1:8766/api/state" "pi-bus-roon-controller.service"
+
+echo "Pi Bus Time Display v0.2.1 is installed and both services are responding."
