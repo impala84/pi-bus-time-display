@@ -24,7 +24,7 @@ The bus installer creates an unprivileged service account, keeps the LTA key out
 
 From a phone or computer on the same network, open `http://<pi-address>:8765/admin`. Sign in with username `admin` and the `ADMIN_PASSWORD` stored in `/etc/pi-bus-time-display/secrets.env`.
 
-The settings page lets you change the stop code and name, tracked services, walking time, display window, polling interval, Roon Display URL and LTA AccountKey. Changes take effect without rebooting. The existing AccountKey is never displayed back to the browser. Because this small admin server uses ordinary HTTP, keep it on a trusted home network and choose a unique password.
+The settings page also acts as a remote control. Choose **Automatic**, **Bus times**, or **Roon Now Playing** to switch the touchscreen within about five seconds. A manual selection remains active until you return it to Automatic. You can also change the stop code and name, tracked services, walking time, display window, polling interval, Roon Display URL and LTA AccountKey. Changes take effect without rebooting. The existing AccountKey is never displayed back to the browser. Because this small admin server uses ordinary HTTP, keep it on a trusted home network and choose a unique password.
 
 The installer generates a unique admin password and prints it once. You can retrieve or change it later in `/etc/pi-bus-time-display/secrets.env`.
 

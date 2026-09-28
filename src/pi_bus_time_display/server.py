@@ -98,7 +98,15 @@ def update_secret(path: Path, key: str, value: str) -> None:
     os.environ[key] = value
 
 
-def make_handler(state: State, config_path: Path, env_path: Path):
+def read_display_mode(path: Path) -> str:
+    try:
+        mode = path.read_text(encoding="utf-8").strip()
+        return mode if mode in {"auto", "bus", "roon"} else "auto"
+    except OSError:
+        return "auto"
+
+
+def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Path):
     static = Path(__file__).with_name("static")
 
     class Handler(SimpleHTTPRequestHandler):
@@ -120,6 +128,7 @@ def make_handler(state: State, config_path: Path, env_path: Path):
                     "services": list(config.services), "walking_minutes": config.walking_minutes,
                     "poll_seconds": config.poll_seconds, "morning_start": config.morning_start,
                     "morning_end": config.morning_end, "roon_display_url": config.roon_display_url,
+                    "display_mode": read_display_mode(mode_path),
                     "has_lta_key": bool(os.getenv("LTA_ACCOUNT_KEY")),
                 }).encode()
                 self.send_json(200, body)
@@ -131,7 +140,7 @@ def make_handler(state: State, config_path: Path, env_path: Path):
             super().do_GET()
 
         def do_POST(self):
-            if self.path != "/api/admin/config":
+            if self.path not in {"/api/admin/config", "/api/admin/display-mode"}:
                 self.send_error(404)
                 return
             if not self.authorised():
@@ -141,6 +150,16 @@ def make_handler(state: State, config_path: Path, env_path: Path):
                 if length > 16_384:
                     raise ValueError("Request is too large")
                 data = json.loads(self.rfile.read(length))
+                if self.path == "/api/admin/display-mode":
+                    mode = str(data.get("mode", ""))
+                    if mode not in {"auto", "bus", "roon"}:
+                        raise ValueError("Display mode must be auto, bus or roon")
+                    if mode == "roon" and not state.config.roon_display_url:
+                        raise ValueError("Add the Roon Display URL before switching to Roon Now Playing")
+                    mode_path.parent.mkdir(parents=True, exist_ok=True)
+                    mode_path.write_text(mode + "\n", encoding="utf-8")
+                    self.send_json(200, json.dumps({"ok": True, "display_mode": mode}).encode())
+                    return
                 current = state.config
                 candidate = Config(
                     bus_stop_code=str(data["bus_stop_code"]).strip(),
@@ -203,6 +222,7 @@ def main() -> None:
     parser.add_argument("--simulate", action="store_true")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8765)
+    parser.add_argument("--state-dir", type=Path, default=Path(".state"))
     args = parser.parse_args()
     load_env(args.env)
     config = load_config(args.config)
@@ -211,7 +231,7 @@ def main() -> None:
     state = State(config)
     stop = threading.Event()
     threading.Thread(target=poll, args=(state, stop), daemon=True).start()
-    server = ThreadingHTTPServer((args.host, args.port), make_handler(state, args.config, args.env))
+    server = ThreadingHTTPServer((args.host, args.port), make_handler(state, args.config, args.env, args.state_dir / "display-mode"))
     try:
         server.serve_forever()
     except KeyboardInterrupt:

@@ -19,7 +19,16 @@ now = datetime.now(ZoneInfo(config.get("timezone", "Asia/Singapore"))).time()
 start = time.fromisoformat(config.get("morning_start", "06:00"))
 end = time.fromisoformat(config.get("morning_end", "10:00"))
 roon_url = config.get("roon_display_url", "").strip()
-print(bus_url if start <= now < end or not roon_url else roon_url)
+try:
+    mode = open("/var/lib/pi-bus-time-display/display-mode", encoding="utf-8").read().strip()
+except OSError:
+    mode = "auto"
+if mode == "bus":
+    print(bus_url)
+elif mode == "roon" and roon_url:
+    print(roon_url)
+else:
+    print(bus_url if start <= now < end or not roon_url else roon_url)
 PY
 }
 
@@ -41,5 +50,5 @@ while true; do
     browser_pid=$!
     active_url=${wanted_url}
   fi
-  sleep 30
+  sleep 5
 done
