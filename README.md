@@ -16,7 +16,8 @@ You need one microSD card (16 GB or larger) and an LTA DataMall AccountKey.
 4. Run `sudo ./scripts/install-pi.sh`.
 5. Run `sudo ./scripts/install-roon-bridge.sh`. This uses Roon's official installer for the detected ARM architecture.
 6. Put the LTA key in `/etc/pi-bus-time-display/secrets.env` and review `/etc/pi-bus-time-display/config.toml`.
-7. Reboot. In the Roon app, open **Settings → Audio**, find this Raspberry Pi and enable its audio output. Then open **Settings → Extensions** and enable **Pi Bus Roon Controller**.
+7. Run `sudo pi-bus-appliance-mode enable` to replace the full desktop with the lightweight kiosk session.
+8. Reboot. In the Roon app, open **Settings → Audio**, find this Raspberry Pi and enable its audio output. Then open **Settings → Extensions** and enable **Pi Bus Roon Controller**.
 
 The bus installer creates an unprivileged service account, keeps the LTA key outside the repository and launches a lightweight native GTK4 touchscreen. Chromium is not installed or used. The native application changes between Bus, Roon, Settings and Sleep without browser loading screens, desktop flashes or keyring prompts. Roon's installer starts Roon Bridge at boot and manages its own updates.
 
@@ -26,7 +27,7 @@ From a phone or computer on the same network, open `http://<pi-address>:8765/adm
 
 The web admin is organised into **Schedule**, **Bus stop**, **Roon** and **System**. It controls display schedules, stop and LTA credentials, Now Playing preferences, Roon Bridge start/stop/restart, device name, Wi-Fi and software updates. Web authentication can be renamed, reset or disabled under System; disabling it exposes every setting to the home network. The existing AccountKey and Wi-Fi password are never displayed back to the browser. Because this admin server uses ordinary HTTP, keep it on a trusted home network and use authentication unless the network itself is trusted.
 
-On the touchscreen, **SETTINGS** is always at top left and **SLEEP** is at top right. The bottom navigation switches directly between **Now Playing** and **Bus Times**. Tap anywhere on the sleeping screen to wake it. Touchscreen Settings intentionally exposes only safe status and update controls; schedules, credentials, bus configuration, Roon service control and network settings remain in the authenticated web admin.
+On the touchscreen, tap the title at top left for Settings and tap the clock at top right to sleep. The bottom navigation switches directly between **Now Playing** and **Bus Times**. By default sleep powers off the display backlight; touch remains active, so tap anywhere to wake it. Enable **Show clock while sleeping** under Schedule if you prefer a black clock screen instead. Touchscreen Settings intentionally exposes only safe status and update controls; schedules, credentials, bus configuration, Roon service control and network settings remain in the authenticated web admin.
 
 The installer generates a unique admin password and prints it once. You can retrieve or change it later in `/etc/pi-bus-time-display/secrets.env`.
 
@@ -46,11 +47,29 @@ After the initial installation, update the appliance with one command:
 sudo pi-bus-update
 ```
 
-The updater follows the supported `main` branch, preserves any local checkout differences in a recoverable Git stash, reinstalls the application, refreshes its services, and verifies that both HTTP services respond. Updates can be started from the protected web System section or the restricted touchscreen Settings screen. Your settings and secrets remain untouched in `/etc/pi-bus-time-display/`. Releases use semantic versions, shown in Settings and recorded in [CHANGELOG.md](CHANGELOG.md). The GTK preview is **v0.3.0rc5**.
+The updater follows the supported `main` branch, preserves any local checkout differences in a recoverable Git stash, reinstalls the application, refreshes its services, verifies both HTTP services and reboots automatically. Updates can be started from the protected web System section or the restricted touchscreen Settings screen. Your settings and secrets remain untouched in `/etc/pi-bus-time-display/`. Releases use semantic versions, shown in Settings and recorded in [CHANGELOG.md](CHANGELOG.md). The GTK preview is **v0.3.0rc6**.
+
+## Lightweight appliance mode
+
+The ordinary Raspberry Pi desktop is useful for initial setup but unnecessary in daily use. Enable the included Cage-based Wayland kiosk after installation:
+
+```sh
+sudo pi-bus-appliance-mode enable
+sudo reboot
+```
+
+This boots to a minimal compositor running only Pi Bus, while networking, SSH, Roon Bridge and web administration continue normally. It disables the graphical desktop without uninstalling it, so recovery is simple:
+
+```sh
+sudo pi-bus-appliance-mode disable
+sudo reboot
+```
+
+Check the current mode with `sudo pi-bus-appliance-mode status`.
 
 ### Official touchscreen
 
-Current Raspberry Pi OS releases normally detect the official display automatically. Set rotation in Screen Configuration if necessary, and disable screen blanking under Raspberry Pi Configuration.
+Current Raspberry Pi OS releases normally detect the official display automatically. Set rotation in Screen Configuration if necessary before enabling appliance mode. Pi Bus manages backlight sleep itself.
 
 ## Configuration
 

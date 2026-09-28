@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+app_dir=/opt/pi-bus-time-display
+user_file=/etc/pi-bus-time-display/display-user
+service=/etc/systemd/system/pi-bus-native.service
+
+if [[ ${EUID} -ne 0 ]]; then
+  echo "Run with sudo: sudo pi-bus-appliance-mode enable"
+  exit 1
+fi
+
+case ${1:-} in
+  enable)
+    display_user=${SUDO_USER:-}
+    if [[ -z ${display_user} || ${display_user} == root ]]; then
+      [[ -f ${user_file} ]] && display_user=$(<"${user_file}")
+    fi
+    if [[ -z ${display_user} || ${display_user} == root ]] || ! id "${display_user}" >/dev/null 2>&1; then
+      echo "Run this once with sudo from the Raspberry Pi desktop user."
+      exit 1
+    fi
+    apt-get update
+    apt-get install -y cage
+    install -d -m 0755 /etc/pi-bus-time-display
+    printf '%s\n' "${display_user}" >"${user_file}"
+    sed "s/@DISPLAY_USER@/${display_user}/g" "${app_dir}/systemd/pi-bus-native.service.in" >"${service}.tmp"
+    install -m 0644 "${service}.tmp" "${service}"
+    rm -f "${service}.tmp"
+    systemctl daemon-reload
+    systemctl enable pi-bus-native.service
+    systemctl disable display-manager.service >/dev/null 2>&1 || true
+    systemctl set-default multi-user.target
+    echo "Appliance mode enabled. Reboot to start Pi Bus without the desktop."
+    ;;
+  disable)
+    systemctl disable pi-bus-native.service >/dev/null 2>&1 || true
+    systemctl set-default graphical.target
+    systemctl enable display-manager.service >/dev/null 2>&1 || true
+    echo "Desktop mode restored. Reboot to apply it."
+    ;;
+  status)
+    echo "Default boot: $(systemctl get-default)"
+    systemctl is-enabled pi-bus-native.service 2>/dev/null || true
+    ;;
+  *)
+    echo "Usage: sudo pi-bus-appliance-mode enable|disable|status"
+    exit 2
+    ;;
+esac

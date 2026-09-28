@@ -35,6 +35,7 @@ install -m 0644 "${app_dir}/systemd/pi-bus-system-action.service" /etc/systemd/s
 install -m 0644 "${app_dir}/systemd/pi-bus-system-action.path" /etc/systemd/system/pi-bus-system-action.path
 install -m 0755 "${app_dir}/scripts/pi-bus-update" /usr/local/sbin/pi-bus-update
 install -m 0755 "${app_dir}/scripts/pi-bus-system-action" /usr/local/sbin/pi-bus-system-action
+install -m 0755 "${app_dir}/scripts/pi-bus-appliance-mode" /usr/local/sbin/pi-bus-appliance-mode
 chmod 0755 "${app_dir}/native-display/pi_bus_native.py"
 
 desktop_user=${SUDO_USER:-}
@@ -71,5 +72,7 @@ wait_for_url() {
 wait_for_url "Main display" "http://127.0.0.1:8765/api/status" "pi-bus-time-display.service"
 wait_for_url "Roon controller" "http://127.0.0.1:8766/api/state" "pi-bus-roon-controller.service"
 
-echo "Pi Bus Time Display native GTK build is installed and both services are responding."
-echo "Reboot once to launch the native display."
+echo "Pi Bus Time Display is installed and both services are responding."
+echo "Rebooting to activate the update…"
+sync
+systemctl reboot

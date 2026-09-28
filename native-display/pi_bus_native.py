@@ -30,8 +30,8 @@ button { border: 0; box-shadow: none; background-image: none; outline: none; }
 .service-no, .arrival { font-size: 82px; font-weight: 720; font-variant-numeric: tabular-nums; }
 .service-no { font-weight: 760; }.service-blue .service-no { color: #55a9d7; }.service-green .service-no { color: #61c68f; }
 .arrival-sub { color: #7f8b87; font-size: 10px; font-weight: 650; }.muted { color: #78837f; font-size: 11px; font-weight: 400; }
-.nav { padding-top: 5px; }.nav button { min-height: 46px; border-radius: 8px; background: #18211f; color: #9aa6a2; font-size: 15px; font-weight: 750; }
-.nav button.active { background: #1c302a; color: #6ed9ae; }.artwork { border-radius: 12px; }.roon-title { font-size: 35px; font-weight: 620; }.roon-artist { color: #b6c0bc; font-size: 18px; }
+.nav { padding-top: 3px; }.nav button { min-height: 40px; border: 0; border-bottom: 5px solid transparent; border-radius: 0; background: transparent; color: #7f8b87; font-size: 14px; font-weight: 700; }
+.nav button.active { border-bottom-color: #6ed9ae; background: transparent; color: #dfe4e1; }.artwork { border-radius: 12px; }.roon-title { font-size: 35px; font-weight: 620; }.roon-artist { color: #b6c0bc; font-size: 18px; }
 .transport button { min-width: 50px; min-height: 50px; border-radius: 25px; padding: 0; background: #18211f; color: #e4e7e4; }.transport .play { min-width: 68px; min-height: 68px; border-radius: 34px; background: #285f4d; }
 .progress trough, .volume trough { min-height: 7px; border: 0; box-shadow: none; border-radius: 4px; background: #303a37; }.progress highlight, .volume highlight { border: 0; box-shadow: none; background: #6ed9ae; }.time { color: #87928e; font-size: 12px; }
 .sleep { background: #000; }.sleep-clock { font-size: 112px; font-weight: 550; }.settings-title { font-size: 32px; font-weight: 650; }
@@ -76,6 +76,7 @@ class Display(Gtk.Application):
         self.volume_updating = False
         self.seek_updating = False
         self.seek_timeout = None
+        self.screen_powered = None
 
     def label(self, text="", css=None, x=0):
         widget = Gtk.Label(label=text, xalign=x)
@@ -135,13 +136,14 @@ class Display(Gtk.Application):
         page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8); page.add_css_class("page")
         self.zone = self.label("ROON NOW PLAYING", "eyebrow"); self.roon_clock = self.label("--:--", "clock", 1); page.append(self.header(self.zone, self.roon_clock))
         content = Gtk.Box(spacing=26); content.set_vexpand(True); content.set_margin_start(8); content.set_margin_end(8); content.set_margin_top(8); content.set_margin_bottom(8)
-        self.artwork = Gtk.Picture(); self.artwork.add_css_class("artwork"); self.artwork.set_size_request(288, 288); self.artwork.set_content_fit(Gtk.ContentFit.COVER); content.append(self.artwork)
+        self.artwork = Gtk.Picture(); self.artwork.add_css_class("artwork"); self.artwork.set_size_request(280, 280); self.artwork.set_valign(Gtk.Align.CENTER); self.artwork.set_content_fit(Gtk.ContentFit.COVER); content.append(self.artwork)
         centre = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=7); centre.set_valign(Gtk.Align.CENTER); centre.set_hexpand(True)
         self.title = self.label("Waiting for Roon…", "roon-title", .5); self.title.set_wrap(True); self.title.set_lines(2); self.title.set_justify(Gtk.Justification.CENTER)
         self.artist = self.label("Enable Pi Bus Roon Controller in Roon", "roon-artist", .5); self.artist.set_wrap(True); self.artist.set_justify(Gtk.Justification.CENTER); centre.append(self.title); centre.append(self.artist)
         self.progress = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 0, 1, 1); self.progress.add_css_class("progress"); self.progress.set_draw_value(False); self.progress.set_sensitive(False); self.progress.connect("value-changed", self.change_seek); centre.append(self.progress)
         times = Gtk.Box(); self.elapsed = self.label("0:00", "time"); self.remaining = self.label("−0:00", "time", 1); self.remaining.set_hexpand(True); times.append(self.elapsed); times.append(self.remaining); centre.append(times)
         self.controls = Gtk.Box(spacing=14); self.controls.set_halign(Gtk.Align.CENTER); self.controls.add_css_class("transport")
+        self.controls.set_margin_top(6); self.controls.set_margin_bottom(16)
         self.prev = self.icon_button("media-skip-backward-symbolic", lambda *_: self.control("previous")); self.play = self.icon_button("media-playback-start-symbolic", lambda *_: self.control("playpause"), "play"); self.next = self.icon_button("media-skip-forward-symbolic", lambda *_: self.control("next"))
         self.prev.set_size_request(50, 50); self.prev.set_valign(Gtk.Align.CENTER); self.play.set_size_request(68, 68); self.play.set_valign(Gtk.Align.CENTER); self.next.set_size_request(50, 50); self.next.set_valign(Gtk.Align.CENTER)
         self.controls.append(self.prev); self.controls.append(self.play); self.controls.append(self.next); centre.append(self.controls)
@@ -189,9 +191,9 @@ class Display(Gtk.Application):
                 pass
         if self.settings_open:
             return False
-        if target == "/sleep.html": self.stack.set_visible_child_name("sleep")
-        elif target == "/" or target.endswith(":8765/"): self.last_mode = "bus"; self.stack.set_visible_child_name("bus")
-        else: self.last_mode = "roon"; self.stack.set_visible_child_name("roon")
+        if target == "/sleep.html": self.stack.set_visible_child_name("sleep"); self.set_screen_power(bool(config.get("sleep_show_clock", False)))
+        elif target == "/" or target.endswith(":8765/"): self.set_screen_power(True); self.last_mode = "bus"; self.stack.set_visible_child_name("bus")
+        else: self.set_screen_power(True); self.last_mode = "roon"; self.stack.set_visible_child_name("roon")
         return False
 
     def render_bus(self, data):
@@ -230,8 +232,8 @@ class Display(Gtk.Application):
 
     def open_settings(self, *_): self.settings_open = True; self.stack.set_visible_child_name("settings")
     def close_settings(self, *_): self.settings_open = False; self.stack.set_visible_child_name(self.last_mode)
-    def sleep(self, *_): self.settings_open = False; self.stack.set_visible_child_name("sleep"); threading.Thread(target=post_json, args=(BUS + "/api/admin/display-mode", {"mode": "sleep"}), daemon=True).start()
-    def wake(self, *_): self.set_mode(self.last_mode or "auto")
+    def sleep(self, *_): self.settings_open = False; self.stack.set_visible_child_name("sleep"); self.set_screen_power(bool(self.settings_data.get("sleep_show_clock", False))); threading.Thread(target=post_json, args=(BUS + "/api/admin/display-mode", {"mode": "sleep"}), daemon=True).start()
+    def wake(self, *_): self.set_screen_power(True); self.set_mode(self.last_mode or "auto")
     def control(self, action): threading.Thread(target=post_json, args=(ROON + "/api/control", {"action": action}), daemon=True).start()
     def format_time(self, seconds): return f"{seconds // 60}:{seconds % 60:02d}"
     def change_volume(self, scale):
@@ -250,6 +252,12 @@ class Display(Gtk.Application):
         self.seek_timeout = None
         threading.Thread(target=post_json, args=(ROON + "/api/seek", {"seconds": seconds}), daemon=True).start()
         return False
+
+    def set_screen_power(self, powered):
+        if powered == self.screen_powered:
+            return
+        self.screen_powered = powered
+        threading.Thread(target=post_json, args=(BUS + "/api/device/screen-power", {"powered": powered}), daemon=True).start()
 
     def request_update(self, *_):
         self.update_button.set_sensitive(False); self.device_status.set_text("Update requested…")

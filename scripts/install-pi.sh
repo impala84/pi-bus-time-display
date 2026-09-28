@@ -27,6 +27,7 @@ install -m 0644 /opt/pi-bus-time-display/systemd/*.service /etc/systemd/system/
 install -m 0644 /opt/pi-bus-time-display/systemd/*.path /etc/systemd/system/
 install -m 0755 /opt/pi-bus-time-display/scripts/pi-bus-update /usr/local/sbin/pi-bus-update
 install -m 0755 /opt/pi-bus-time-display/scripts/pi-bus-system-action /usr/local/sbin/pi-bus-system-action
+install -m 0755 /opt/pi-bus-time-display/scripts/pi-bus-appliance-mode /usr/local/sbin/pi-bus-appliance-mode
 desktop_user=${SUDO_USER:-}
 if [[ -z ${desktop_user} || ${desktop_user} == root ]]; then
   echo "Run this installer with sudo from the Raspberry Pi desktop user."

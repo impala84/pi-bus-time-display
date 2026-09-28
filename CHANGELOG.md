@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.0-rc.6 — 29 September 2026
+
+- Made software updates reboot automatically after successful service verification.
+- Made sleep physically power down the official touchscreen backlight, while retaining touch-to-wake and the optional clock mode.
+- Added a reversible Cage-based appliance mode that boots Pi Bus without loading the Raspberry Pi desktop.
+- Replaced bottom navigation panels with understated active-view underlines.
+- Reduced and re-centred album artwork and improved spacing around the transport controls.
+
 ## 0.3.0-rc.5 — 29 September 2026
 
 - Distinguished the Now Playing controller from the Roon Bridge audio endpoint in web administration.

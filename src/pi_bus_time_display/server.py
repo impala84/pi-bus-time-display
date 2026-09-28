@@ -310,6 +310,15 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                 write_control_request(mode_path.parent, {"action": "update"})
                 self.send_json(202, b'{"ok":true}')
                 return
+            if self.path == "/api/device/screen-power":
+                if self.client_address[0] not in {"127.0.0.1", "::1"}:
+                    self.send_json(403, b'{"error":"Touchscreen only"}')
+                    return
+                length = min(int(self.headers.get("Content-Length", "0")), 4096)
+                data = json.loads(self.rfile.read(length) or b"{}")
+                write_control_request(mode_path.parent, {"action": "display_on" if data.get("powered") else "display_off"})
+                self.send_json(202, b'{"ok":true}')
+                return
             if self.path not in {"/api/admin/config", "/api/admin/display-mode", "/api/admin/system-action", "/api/admin/password"}:
                 self.send_error(404)
                 return
