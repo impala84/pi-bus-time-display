@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.0-rc.3 — 29 September 2026
+
+- Made appliance updates preserve local checkout differences automatically instead of failing when an installed file has changed.
+- Made installed appliances follow the supported `main` branch after the native GTK build became the primary release.
+
 ## 0.3.0-rc.2 — 29 September 2026
 
 - Matched the native display typography to the Inter-based web administration and installed Inter automatically.

@@ -14,7 +14,13 @@ if [[ ! -d ${app_dir}/.git ]]; then
 fi
 
 echo "Checking for Pi Bus Time Display updates…"
-git -c safe.directory="${app_dir}" -C "${app_dir}" pull --ff-only
+if [[ -n $(git -c safe.directory="${app_dir}" -C "${app_dir}" status --porcelain) ]]; then
+  backup_name="pi-bus-update backup $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  echo "Preserving local appliance changes as: ${backup_name}"
+  git -c safe.directory="${app_dir}" -C "${app_dir}" stash push --include-untracked --message "${backup_name}"
+fi
+git -c safe.directory="${app_dir}" -C "${app_dir}" fetch origin main
+git -c safe.directory="${app_dir}" -C "${app_dir}" checkout -B main origin/main
 
 echo "Installing native display runtime…"
 apt-get update
