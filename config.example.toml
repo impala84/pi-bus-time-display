@@ -6,6 +6,8 @@ poll_seconds = 20
 stale_after_seconds = 75
 morning_start = "06:00"
 morning_end = "10:00"
+sleep_start = "23:00"
+sleep_end = "06:00"
 timezone = "Asia/Singapore"
 roon_display_url = ""
 

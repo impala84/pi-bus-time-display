@@ -20,6 +20,9 @@ with open(path, "rb") as handle:
 now = datetime.now(ZoneInfo(config.get("timezone", "Asia/Singapore"))).time()
 start = time.fromisoformat(config.get("morning_start", "06:00"))
 end = time.fromisoformat(config.get("morning_end", "10:00"))
+sleep_start = time.fromisoformat(config.get("sleep_start", "23:00"))
+sleep_end = time.fromisoformat(config.get("sleep_end", "06:00"))
+sleeping = sleep_start <= now < sleep_end if sleep_start < sleep_end else now >= sleep_start or now < sleep_end
 roon_url = config.get("roon_display_url", "").strip()
 try:
     mode = open("/var/lib/pi-bus-time-display/display-mode", encoding="utf-8").read().strip()
@@ -32,7 +35,10 @@ elif mode == "sleep":
 elif mode == "roon" and roon_url:
     print(roon_url)
 else:
-    print(bus_url if start <= now < end or not roon_url else roon_url)
+    if sleeping:
+        print(sleep_url)
+    else:
+        print(bus_url if start <= now < end or not roon_url else roon_url)
 PY
 }
 

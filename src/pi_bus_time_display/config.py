@@ -16,6 +16,8 @@ class Config:
     stale_after_seconds: int = 75
     morning_start: str = "06:00"
     morning_end: str = "10:00"
+    sleep_start: str = "23:00"
+    sleep_end: str = "06:00"
     timezone: str = "Asia/Singapore"
     roon_display_url: str = ""
     end_action: str = "display"

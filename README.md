@@ -26,7 +26,7 @@ From a phone or computer on the same network, open `http://<pi-address>:8765/adm
 
 The settings page also acts as a remote control. Choose **Automatic**, **Bus times**, **Roon Now Playing**, or **Sleep display** to switch the touchscreen within about five seconds. A manual selection remains active until you return it to Automatic. You can also change the stop code and name, tracked services, walking time, display window, polling interval, Roon Display URL and LTA AccountKey. Changes take effect without rebooting. The existing AccountKey is never displayed back to the browser. Because this small admin server uses ordinary HTTP, keep it on a trusted home network and choose a unique password.
 
-On the touchscreen, tap **SETTINGS** in the top-right corner. The same control appears over Roon Now Playing, so no address or keyboard is needed. **Sleep display** makes the screen black while leaving Roon Bridge and the bus service running; tap the discreet **WAKE** target in the bottom-right corner to return to Settings. Local touchscreen access opens directly, while access from another device still requires the admin password.
+On the touchscreen, tap **SETTINGS** in the top-right corner. The same control appears over Roon Now Playing, so no address or keyboard is needed. **Sleep display** makes the screen black while leaving Roon Bridge and the bus service running; tap the discreet **WAKE** target in the bottom-right corner to return to Settings. Automatic mode also follows the configurable **Sleep from** and **Wake at** times (23:00–06:00 by default). Local touchscreen access opens directly, while access from another device still requires the admin password.
 
 The installer generates a unique admin password and prints it once. You can retrieve or change it later in `/etc/pi-bus-time-display/secrets.env`.
 
@@ -62,6 +62,7 @@ Edit `/etc/pi-bus-time-display/config.toml`:
 - `walking_minutes`: time from home to the stop
 - `poll_seconds`: defaults to 20 seconds, matching LTA's published refresh cadence
 - `morning_start` and `morning_end`: touchscreen bus-display window
+- `sleep_start` and `sleep_end`: automatic black-screen window
 
 Restart after changes with `sudo systemctl restart pi-bus-time-display`.
 

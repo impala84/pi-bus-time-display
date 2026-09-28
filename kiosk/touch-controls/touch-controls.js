@@ -1,5 +1,11 @@
 (() => {
   if (document.getElementById('pi-bus-settings-button')) return;
+  document.documentElement.style.overflow = 'hidden';
+  document.documentElement.style.height = '100%';
+  if (document.body) {
+    document.body.style.overflow = 'hidden';
+    document.body.style.height = '100%';
+  }
   const button = document.createElement('a');
   button.id = 'pi-bus-settings-button';
   button.href = 'http://127.0.0.1:8765/admin';

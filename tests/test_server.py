@@ -1,8 +1,11 @@
 import tempfile
 import unittest
+from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
-from pi_bus_time_display.server import read_display_mode
+from pi_bus_time_display.config import Config
+from pi_bus_time_display.server import display_target, read_display_mode, within_sleep_window
 
 
 class DisplayModeTests(unittest.TestCase):
@@ -27,6 +30,26 @@ class DisplayModeTests(unittest.TestCase):
             path = Path(directory) / "display-mode"
             path.write_text("surprise\n", encoding="utf-8")
             self.assertEqual(read_display_mode(path), "auto")
+
+    def test_roon_mode_targets_configured_web_display(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "display-mode"
+            path.write_text("roon\n", encoding="utf-8")
+            config = Config(roon_display_url="http://10.0.0.2:9330/display/")
+            self.assertEqual(display_target(config, path), "http://10.0.0.2:9330/display/")
+
+    def test_sleep_mode_targets_black_screen(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "display-mode"
+            path.write_text("sleep\n", encoding="utf-8")
+            self.assertEqual(display_target(Config(), path), "/sleep.html")
+
+    def test_overnight_sleep_window_crosses_midnight(self):
+        config = Config(sleep_start="23:00", sleep_end="06:00")
+        timezone = ZoneInfo("Asia/Singapore")
+        self.assertTrue(within_sleep_window(config, datetime(2026, 9, 28, 23, 30, tzinfo=timezone)))
+        self.assertTrue(within_sleep_window(config, datetime(2026, 9, 29, 5, 59, tzinfo=timezone)))
+        self.assertFalse(within_sleep_window(config, datetime(2026, 9, 29, 6, 0, tzinfo=timezone)))
 
 
 if __name__ == "__main__":

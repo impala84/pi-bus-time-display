@@ -43,6 +43,13 @@ def within_window(config: Config, now: datetime) -> bool:
     return start <= now.timetz().replace(tzinfo=None) < end
 
 
+def within_sleep_window(config: Config, now: datetime) -> bool:
+    current = now.timetz().replace(tzinfo=None)
+    start = wall_time.fromisoformat(config.sleep_start)
+    end = wall_time.fromisoformat(config.sleep_end)
+    return start <= current < end if start < end else current >= start or current < end
+
+
 def poll(state: State, stop: threading.Event) -> None:
     while not stop.is_set():
         config = state.config
@@ -72,6 +79,8 @@ def write_config(path: Path, config: Config) -> None:
         f"stale_after_seconds = {config.stale_after_seconds}",
         f"morning_start = {json.dumps(config.morning_start)}",
         f"morning_end = {json.dumps(config.morning_end)}",
+        f"sleep_start = {json.dumps(config.sleep_start)}",
+        f"sleep_end = {json.dumps(config.sleep_end)}",
         f"timezone = {json.dumps(config.timezone)}",
         f"roon_display_url = {json.dumps(config.roon_display_url)}",
         f"end_action = {json.dumps(config.end_action)}",
@@ -106,6 +115,21 @@ def read_display_mode(path: Path) -> str:
         return "auto"
 
 
+def display_target(config: Config, mode_path: Path) -> str:
+    mode = read_display_mode(mode_path)
+    if mode == "sleep":
+        return "/sleep.html"
+    if mode == "roon" and config.roon_display_url:
+        return config.roon_display_url
+    if mode == "auto":
+        now = datetime.now(ZoneInfo(config.timezone))
+        if within_sleep_window(config, now):
+            return "/sleep.html"
+        if config.roon_display_url and not within_window(config, now):
+            return config.roon_display_url
+    return "/"
+
+
 def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Path):
     static = Path(__file__).with_name("static")
 
@@ -114,6 +138,12 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
             super().__init__(*args, directory=str(static), **kwargs)
 
         def do_GET(self):
+            if self.path == "/display":
+                self.send_response(302)
+                self.send_header("Location", display_target(state.config, mode_path))
+                self.send_header("Cache-Control", "no-store")
+                self.end_headers()
+                return
             if self.path == "/admin":
                 self.send_response(302)
                 self.send_header("Location", "/admin.html")
@@ -127,7 +157,8 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                     "bus_stop_code": config.bus_stop_code, "bus_stop_name": config.bus_stop_name,
                     "services": list(config.services), "walking_minutes": config.walking_minutes,
                     "poll_seconds": config.poll_seconds, "morning_start": config.morning_start,
-                    "morning_end": config.morning_end, "roon_display_url": config.roon_display_url,
+                    "morning_end": config.morning_end, "sleep_start": config.sleep_start,
+                    "sleep_end": config.sleep_end, "roon_display_url": config.roon_display_url,
                     "display_mode": read_display_mode(mode_path),
                     "has_lta_key": bool(os.getenv("LTA_ACCOUNT_KEY")),
                 }).encode()
@@ -168,6 +199,7 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                     walking_minutes=int(data["walking_minutes"]), poll_seconds=int(data["poll_seconds"]),
                     stale_after_seconds=current.stale_after_seconds,
                     morning_start=str(data["morning_start"]), morning_end=str(data["morning_end"]),
+                    sleep_start=str(data["sleep_start"]), sleep_end=str(data["sleep_end"]),
                     timezone=current.timezone, roon_display_url=str(data.get("roon_display_url", "")).strip(),
                     end_action="display", simulate=current.simulate,
                 )
@@ -179,6 +211,8 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                     raise ValueError("Polling must be between 5 and 300 seconds")
                 wall_time.fromisoformat(candidate.morning_start)
                 wall_time.fromisoformat(candidate.morning_end)
+                wall_time.fromisoformat(candidate.sleep_start)
+                wall_time.fromisoformat(candidate.sleep_end)
                 if candidate.roon_display_url and not candidate.roon_display_url.startswith("http://"):
                     raise ValueError("Roon Display URL must begin with http://")
                 write_config(config_path, candidate)
