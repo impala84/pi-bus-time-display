@@ -94,6 +94,7 @@ def write_config(path: Path, config: Config) -> None:
         f"sleep_when_roon_idle = {str(config.sleep_when_roon_idle).lower()}",
         f"roon_show_controls = {str(config.roon_show_controls).lower()}",
         f"roon_show_clock = {str(config.roon_show_clock).lower()}",
+        f"sleep_show_clock = {str(config.sleep_show_clock).lower()}",
         f"end_action = {json.dumps(config.end_action)}",
         "",
     ))
@@ -250,6 +251,7 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                     "sleep_when_roon_idle": config.sleep_when_roon_idle,
                     "roon_show_controls": config.roon_show_controls,
                     "roon_show_clock": config.roon_show_clock,
+                    "sleep_show_clock": config.sleep_show_clock,
                     "app_version": __version__,
                     "admin_username": os.getenv("ADMIN_USERNAME", "admin"),
                     "admin_auth_enabled": os.getenv("ADMIN_AUTH_ENABLED", "true").lower() != "false",
@@ -367,6 +369,7 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                     sleep_when_roon_idle=bool(data.get("sleep_when_roon_idle", False)),
                     roon_show_controls=bool(data.get("roon_show_controls", True)),
                     roon_show_clock=bool(data.get("roon_show_clock", True)),
+                    sleep_show_clock=bool(data.get("sleep_show_clock", False)),
                     end_action="display", simulate=current.simulate,
                 )
                 if not candidate.bus_stop_code.isdigit() or len(candidate.bus_stop_code) != 5:

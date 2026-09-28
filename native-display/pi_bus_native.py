@@ -17,18 +17,23 @@ ROON = "http://127.0.0.1:8766"
 TZ = ZoneInfo("Asia/Singapore")
 
 CSS = b"""
-window { background: #0b1110; color: #f4f0e6; font-family: sans-serif; }
+window { background: #0b1110; color: #f4f0e6; font-family: Inter, Cantarell, sans-serif; }
+button { border: 0; box-shadow: none; background-image: none; outline: none; }
 .page { padding: 14px 20px 10px; }.eyebrow { color: #97a39f; font-size: 11px; font-weight: 700; letter-spacing: 2px; }
 .clock { font-size: 31px; font-weight: 600; }.stop { font-size: 25px; font-weight: 700; }
-.utility { min-width: 92px; min-height: 38px; border-radius: 8px; background: #18211f; color: #f4f0e6; font-size: 11px; font-weight: 800; }
+.header-hotspot { min-height: 42px; padding: 0; border: 0; box-shadow: none; background: transparent; background-image: none; }
+.header-hotspot:hover, .header-hotspot:active { background: transparent; box-shadow: none; }
+.header-title { padding-left: 0; }.header-clock { padding-right: 0; }
+.utility { min-width: 92px; min-height: 38px; border-radius: 7px; background: #18211f; color: #d9dedb; font-size: 11px; font-weight: 750; }
 .service { background: #131c1a; border: 1px solid #26312e; border-radius: 14px; padding: 5px 16px; }
-.service-blue { border-color: #326d8d; background: #112027; }.service-green { border-color: #327653; background: #102219; }
-.service-no { font-size: 88px; font-weight: 800; }.service-blue .service-no { color: #4fa6d8; }.service-green .service-no { color: #5bc58b; }
-.arrival { font-size: 76px; font-weight: 720; }.arrival-sub { color: #97a39f; font-size: 10px; font-weight: 700; }.muted { color: #97a39f; font-size: 11px; }
+.service-blue { border-color: #28566e; background: #112027; }.service-green { border-color: #285e43; background: #102219; }
+.service-no, .arrival { font-size: 82px; font-weight: 720; font-variant-numeric: tabular-nums; }
+.service-no { font-weight: 760; }.service-blue .service-no { color: #55a9d7; }.service-green .service-no { color: #61c68f; }
+.arrival-sub { color: #7f8b87; font-size: 10px; font-weight: 650; }.muted { color: #78837f; font-size: 11px; font-weight: 400; }
 .nav { padding-top: 5px; }.nav button { min-height: 46px; border-radius: 8px; background: #18211f; color: #9aa6a2; font-size: 15px; font-weight: 750; }
 .nav button.active { background: #285f4d; color: #f4f0e6; }.artwork { border-radius: 12px; }.roon-title { font-size: 35px; font-weight: 620; }.roon-artist { color: #b6c0bc; font-size: 18px; }
-.transport button { min-width: 76px; min-height: 52px; border-radius: 13px; font-size: 22px; }.transport .play { min-width: 92px; background: #285f4d; }
-.progress trough, .volume trough { min-height: 7px; border-radius: 4px; background: #303a37; }.progress progress, .volume highlight { background: #6ef0be; }.time { color: #97a39f; font-size: 12px; }
+.transport button { min-width: 54px; min-height: 54px; border-radius: 50%; padding: 0; background: #18211f; color: #e4e7e4; }.transport .play { min-width: 70px; min-height: 70px; border-radius: 50%; background: #285f4d; }
+.progress trough, .volume trough { min-height: 7px; border: 0; box-shadow: none; border-radius: 4px; background: #303a37; }.progress progress, .volume highlight { border: 0; box-shadow: none; background: #6ed9ae; }.time { color: #87928e; font-size: 12px; }
 .sleep { background: #000; }.sleep-clock { font-size: 112px; font-weight: 550; }.settings-title { font-size: 32px; font-weight: 650; }
 .settings-card { background: #131c1a; border: 1px solid #26312e; border-radius: 14px; padding: 16px; }.settings-action { min-height: 54px; border-radius: 12px; background: #285f4d; color: #f4f0e6; font-weight: 750; }
 """
@@ -83,21 +88,29 @@ class Display(Gtk.Application):
         widget.connect("clicked", callback)
         return widget
 
+    def icon_button(self, icon, callback, css=""):
+        widget = Gtk.Button()
+        if css:
+            widget.add_css_class(css)
+        widget.set_child(Gtk.Image.new_from_icon_name(icon))
+        widget.connect("clicked", callback)
+        return widget
+
     def do_activate(self):
         provider = Gtk.CssProvider(); provider.load_from_data(CSS)
         Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
         self.window = Gtk.ApplicationWindow(application=self); self.window.set_decorated(False); self.window.set_default_size(800, 480); self.window.fullscreen()
-        self.stack = Gtk.Stack(transition_type=Gtk.StackTransitionType.CROSSFADE, transition_duration=150)
+        self.stack = Gtk.Stack(transition_type=Gtk.StackTransitionType.NONE, transition_duration=0)
         self.stack.add_named(self.build_bus(), "bus"); self.stack.add_named(self.build_roon(), "roon"); self.stack.add_named(self.build_settings(), "settings"); self.stack.add_named(self.build_sleep(), "sleep")
         self.window.set_child(self.stack); self.window.present()
         GLib.timeout_add_seconds(1, self.tick); GLib.timeout_add_seconds(2, self.start_poll); self.tick(); self.start_poll()
 
     def header(self, centre, clock):
         row = Gtk.Box(spacing=10)
-        row.append(self.button("SETTINGS", self.open_settings))
-        centre.set_hexpand(True); row.append(centre)
-        clock.set_size_request(92, -1); row.append(clock)
-        row.append(self.button("SLEEP", self.sleep))
+        centre.set_xalign(0)
+        title = Gtk.Button(); title.add_css_class("header-hotspot"); title.add_css_class("header-title"); title.set_child(centre); title.set_hexpand(True); title.connect("clicked", self.open_settings); row.append(title)
+        clock.set_xalign(1)
+        clock_button = Gtk.Button(); clock_button.add_css_class("header-hotspot"); clock_button.add_css_class("header-clock"); clock_button.set_child(clock); clock_button.connect("clicked", self.sleep); row.append(clock_button)
         return row
 
     def navigation(self, active):
@@ -110,7 +123,7 @@ class Display(Gtk.Application):
 
     def build_bus(self):
         page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=7); page.add_css_class("page")
-        self.bus_clock = self.label("--:--", "clock", 1); page.append(self.header(self.label("PI BUS TIME DISPLAY", "eyebrow", .5), self.bus_clock))
+        self.bus_clock = self.label("--:--", "clock", 1); page.append(self.header(self.label("PI BUS TIME DISPLAY", "eyebrow"), self.bus_clock))
         self.stop = self.label("Connecting…", "stop", .5); page.append(self.stop)
         self.services = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=7); self.services.set_vexpand(True); page.append(self.services)
         footer = Gtk.Box(); self.bus_status = self.label("Starting", "muted"); self.updated = self.label("", "muted", 1); self.updated.set_hexpand(True); footer.append(self.bus_status); footer.append(self.updated); page.append(footer)
@@ -118,7 +131,7 @@ class Display(Gtk.Application):
 
     def build_roon(self):
         page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8); page.add_css_class("page")
-        self.zone = self.label("ROON NOW PLAYING", "eyebrow", .5); self.roon_clock = self.label("--:--", "clock", 1); page.append(self.header(self.zone, self.roon_clock))
+        self.zone = self.label("ROON NOW PLAYING", "eyebrow"); self.roon_clock = self.label("--:--", "clock", 1); page.append(self.header(self.zone, self.roon_clock))
         content = Gtk.Box(spacing=18); content.set_vexpand(True)
         self.artwork = Gtk.Picture(); self.artwork.add_css_class("artwork"); self.artwork.set_size_request(275, 275); self.artwork.set_content_fit(Gtk.ContentFit.COVER); content.append(self.artwork)
         centre = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=7); centre.set_valign(Gtk.Align.CENTER); centre.set_hexpand(True)
@@ -127,7 +140,7 @@ class Display(Gtk.Application):
         self.progress = Gtk.ProgressBar(); self.progress.add_css_class("progress"); centre.append(self.progress)
         times = Gtk.Box(); self.elapsed = self.label("0:00", "time"); self.remaining = self.label("−0:00", "time", 1); self.remaining.set_hexpand(True); times.append(self.elapsed); times.append(self.remaining); centre.append(times)
         self.controls = Gtk.Box(spacing=14); self.controls.set_halign(Gtk.Align.CENTER); self.controls.add_css_class("transport")
-        self.prev = self.button("◀◀", lambda *_: self.control("previous"), ""); self.play = self.button("▶", lambda *_: self.control("playpause"), "play"); self.next = self.button("▶▶", lambda *_: self.control("next"), "")
+        self.prev = self.icon_button("media-skip-backward-symbolic", lambda *_: self.control("previous")); self.play = self.icon_button("media-playback-start-symbolic", lambda *_: self.control("playpause"), "play"); self.next = self.icon_button("media-skip-forward-symbolic", lambda *_: self.control("next"))
         self.controls.append(self.prev); self.controls.append(self.play); self.controls.append(self.next); centre.append(self.controls)
         volume_row = Gtk.Box(spacing=10); volume_row.append(self.label("VOL", "eyebrow")); self.volume = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 0, 100, 1); self.volume.add_css_class("volume"); self.volume.set_hexpand(True); self.volume.set_draw_value(False); self.volume.connect("value-changed", self.change_volume); volume_row.append(self.volume); self.volume_value = self.label("—", "time", 1); volume_row.append(self.volume_value); centre.append(volume_row)
         content.append(centre); page.append(content); page.append(self.navigation("roon")); return page
@@ -144,7 +157,7 @@ class Display(Gtk.Application):
     def build_sleep(self):
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4); box.add_css_class("sleep"); box.set_halign(Gtk.Align.FILL); box.set_valign(Gtk.Align.FILL); box.set_hexpand(True); box.set_vexpand(True)
         centre = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4); centre.set_halign(Gtk.Align.CENTER); centre.set_valign(Gtk.Align.CENTER); centre.set_hexpand(True); centre.set_vexpand(True)
-        self.sleep_clock = self.label("--:--", "sleep-clock", .5); centre.append(self.sleep_clock); centre.append(self.label("TAP ANYWHERE TO WAKE", "eyebrow", .5)); box.append(centre)
+        self.sleep_clock = self.label("--:--", "sleep-clock", .5); centre.append(self.sleep_clock); self.sleep_hint = self.label("TAP ANYWHERE TO WAKE", "eyebrow", .5); centre.append(self.sleep_hint); box.append(centre)
         gesture = Gtk.GestureClick(); gesture.connect("released", self.wake); box.add_controller(gesture); return box
 
     def tick(self):
@@ -163,6 +176,7 @@ class Display(Gtk.Application):
     def apply(self, target, status, roon, config, system, image_key, image):
         self.settings_data = config
         self.controls.set_visible(config.get("roon_show_controls", True)); self.roon_clock.set_visible(config.get("roon_show_clock", True))
+        show_sleep_clock = config.get("sleep_show_clock", False); self.sleep_clock.set_visible(show_sleep_clock); self.sleep_hint.set_visible(show_sleep_clock)
         self.device_status.set_text(f"v{system.get('app_version', '—')}  ·  {system.get('update_status', 'Ready')}")
         self.render_bus(status); self.render_roon(roon)
         if image:
@@ -183,10 +197,10 @@ class Display(Gtk.Application):
         while child := self.services.get_first_child(): self.services.remove(child)
         for index, service in enumerate(data.get("services", [])[:2]):
             row = Gtk.Box(spacing=12); row.add_css_class("service"); row.add_css_class("service-blue" if index == 0 else "service-green"); row.set_vexpand(True)
-            number = self.label(str(service.get("service", "")), "service-no"); number.set_size_request(125, -1); row.append(number)
+            number = self.label(str(service.get("service", "")), "service-no"); number.set_size_request(125, -1); number.set_valign(Gtk.Align.START); row.append(number)
             arrivals = Gtk.Box(spacing=8); arrivals.set_hexpand(True)
             for arrival in service.get("arrivals", [])[:3]:
-                col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL); minutes = arrival.get("minutes"); col.append(self.label("Due" if minutes == 0 else str(minutes), "arrival", .5)); col.append(self.label("MIN · LIVE" if arrival.get("monitored") else "MIN · AFTER", "arrival-sub", .5)); col.set_hexpand(True); arrivals.append(col)
+                col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL); col.set_valign(Gtk.Align.START); minutes = arrival.get("minutes"); col.append(self.label("Due" if minutes == 0 else str(minutes), "arrival", .5)); col.append(self.label("MIN · LIVE" if arrival.get("monitored") else "MIN · AFTER", "arrival-sub", .5)); col.set_hexpand(True); arrivals.append(col)
             row.append(arrivals); self.services.append(row)
         self.bus_status.set_text("Live from LTA DataMall" if data.get("status") == "ok" and not data.get("stale") else "Offline / last known arrivals")
         updated = data.get("updated_at"); self.updated.set_text("Updated " + updated[11:19] if updated else "")
@@ -194,10 +208,10 @@ class Display(Gtk.Application):
     def render_roon(self, data):
         self.state = data; zone = (data or {}).get("zone")
         if not zone:
-            self.zone.set_text("ROON"); self.title.set_text("Waiting for Roon"); self.artist.set_text("Start playback in Roon"); self.prev.set_sensitive(False); self.play.set_sensitive(False); self.next.set_sensitive(False); self.progress.set_fraction(0); self.volume.set_sensitive(False); return
+            self.zone.set_text(self.settings_data.get("roon_zone_name") or "ROON"); self.title.set_text("Nothing playing" if (data or {}).get("connected") else "Roon unavailable"); self.artist.set_text(""); self.prev.set_sensitive(False); self.play.set_sensitive(False); self.next.set_sensitive(False); self.progress.set_fraction(0); self.volume.set_sensitive(False); self.artwork.set_paintable(None); return
         playing = zone.get("now_playing") or {}; lines = playing.get("three_line") or playing.get("two_line") or playing.get("one_line") or {}
         self.zone.set_text(zone.get("name") or "ROON"); self.title.set_text(lines.get("line1") or "Nothing playing"); self.artist.set_text(" · ".join(filter(None, (lines.get("line2"), lines.get("line3")))) or "Roon")
-        self.play.set_label("❚❚" if zone.get("state") == "playing" else "▶"); self.prev.set_sensitive(bool(zone.get("can_previous"))); self.next.set_sensitive(bool(zone.get("can_next"))); self.play.set_sensitive(bool(zone.get("can_play") or zone.get("can_pause")))
+        self.play.set_child(Gtk.Image.new_from_icon_name("media-playback-pause-symbolic" if zone.get("state") == "playing" else "media-playback-start-symbolic")); self.prev.set_sensitive(bool(zone.get("can_previous"))); self.next.set_sensitive(bool(zone.get("can_next"))); self.play.set_sensitive(bool(zone.get("can_play") or zone.get("can_pause")))
         elapsed = int(zone.get("seek_position") or 0); length = int(playing.get("length") or 0); self.progress.set_fraction(min(1, elapsed / length) if length else 0); self.elapsed.set_text(self.format_time(elapsed)); self.remaining.set_text("−" + self.format_time(max(0, length - elapsed)))
         output = zone.get("output") or {}; volume = output.get("volume") or {}; value = volume.get("value"); self.volume_updating = True; self.volume.set_sensitive(value is not None); self.volume.set_value(float(value or 0)); self.volume_value.set_text(str(value) if value is not None else "FIXED"); self.volume_updating = False
 

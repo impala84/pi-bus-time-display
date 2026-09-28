@@ -24,6 +24,7 @@ class Config:
     sleep_when_roon_idle: bool = False
     roon_show_controls: bool = True
     roon_show_clock: bool = True
+    sleep_show_clock: bool = False
     end_action: str = "display"
     simulate: bool = False
 

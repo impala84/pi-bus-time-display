@@ -46,7 +46,7 @@ After the initial installation, update the appliance with one command:
 sudo pi-bus-update
 ```
 
-The updater accepts only a fast-forward update from the configured GitHub branch, reinstalls the application, refreshes its services, and verifies that both HTTP services respond. Updates can be started from the protected web System section or the restricted touchscreen Settings screen. Your settings and secrets remain untouched in `/etc/pi-bus-time-display/`. Releases use semantic versions, shown in Settings and recorded in [CHANGELOG.md](CHANGELOG.md). The GTK preview is **v0.3.0rc1**.
+The updater accepts only a fast-forward update from the configured GitHub branch, reinstalls the application, refreshes its services, and verifies that both HTTP services respond. Updates can be started from the protected web System section or the restricted touchscreen Settings screen. Your settings and secrets remain untouched in `/etc/pi-bus-time-display/`. Releases use semantic versions, shown in Settings and recorded in [CHANGELOG.md](CHANGELOG.md). The GTK preview is **v0.3.0rc2**.
 
 ### Official touchscreen
 

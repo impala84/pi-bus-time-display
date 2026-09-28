@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.0-rc.2 — 29 September 2026
+
+- Matched the native display typography to the Inter-based web administration and installed Inter automatically.
+- Replaced visible main-screen utility buttons with large invisible title and clock touch targets.
+- Removed page-transition animation and softened borders, status text and navigation chrome.
+- Aligned and enlarged bus service and arrival figures on a shared baseline.
+- Restored circular symbolic Roon transport controls and improved connected-but-idle wording.
+- Added an optional completely black sleep screen while retaining tap-anywhere wake.
+
 ## 0.3.0-rc.1 — 29 September 2026
 
 - Replaced the Chromium kiosk with a lightweight native GTK4 touchscreen.

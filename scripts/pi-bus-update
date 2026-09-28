@@ -18,7 +18,7 @@ git -c safe.directory="${app_dir}" -C "${app_dir}" pull --ff-only
 
 echo "Installing native display runtime…"
 apt-get update
-apt-get install -y python3-gi gir1.2-gtk-4.0
+apt-get install -y python3-gi gir1.2-gtk-4.0 fonts-inter
 install -d -o morningbus -g morningbus /var/lib/pi-bus-time-display/roon
 
 "${app_dir}/.venv/bin/pip" install --no-deps "${app_dir}"
