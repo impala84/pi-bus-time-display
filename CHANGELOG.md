@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.0-rc.11 — 29 September 2026
+
+- URL-encoded Roon image keys so artwork containing reserved URL characters loads reliably.
+- Reset the native artwork cache when playback or artwork disappears, allowing the same cover to load again when playback resumes.
+
 ## 0.3.0-rc.10 — 29 September 2026
 
 - Made updates automatically reapply the saved display and touchscreen orientation before rebooting.

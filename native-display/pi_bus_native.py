@@ -6,6 +6,7 @@ import json
 import threading
 import urllib.request
 from datetime import datetime
+from urllib.parse import quote
 from zoneinfo import ZoneInfo
 
 import gi
@@ -175,7 +176,7 @@ class Display(Gtk.Application):
 
     def poll(self):
         target = get_json(BUS + "/api/display-target") or {}; status = get_json(BUS + "/api/status"); roon = get_json(ROON + "/api/state"); config = get_json(BUS + "/api/admin/config") or {}; system = get_json(BUS + "/api/admin/system") or {}
-        zone = (roon or {}).get("zone") or {}; key = (zone.get("now_playing") or {}).get("image_key"); image = get_bytes(f"{ROON}/api/image?key={key}") if key and key != self.image_key else None
+        zone = (roon or {}).get("zone") or {}; key = (zone.get("now_playing") or {}).get("image_key"); image = get_bytes(f"{ROON}/api/image?key={quote(key, safe='')}") if key and key != self.image_key else None
         GLib.idle_add(self.apply, target.get("target", "/"), status, roon, config, system, key, image); self.polling = False
 
     def apply(self, target, status, roon, config, system, image_key, image):
@@ -220,8 +221,10 @@ class Display(Gtk.Application):
                 self.title.set_text("Authorise in Roon"); self.artist.set_text("Settings → Extensions → Pi Bus Roon Controller")
             else:
                 self.title.set_text("Nothing playing"); self.artist.set_text("No Roon zones are available")
-            self.prev.set_sensitive(False); self.play.set_sensitive(False); self.next.set_sensitive(False); self.seek_updating = True; self.progress.set_value(0); self.progress.set_sensitive(False); self.seek_updating = False; self.volume.set_sensitive(False); self.artwork.set_paintable(None); return
+            self.prev.set_sensitive(False); self.play.set_sensitive(False); self.next.set_sensitive(False); self.seek_updating = True; self.progress.set_value(0); self.progress.set_sensitive(False); self.seek_updating = False; self.volume.set_sensitive(False); self.artwork.set_paintable(None); self.image_key = None; return
         playing = zone.get("now_playing") or {}; lines = playing.get("three_line") or playing.get("two_line") or playing.get("one_line") or {}
+        if not playing.get("image_key"):
+            self.artwork.set_paintable(None); self.image_key = None
         self.zone.set_text(zone.get("name") or "ROON"); self.title.set_text(lines.get("line1") or "Nothing playing"); self.artist.set_text(" · ".join(filter(None, (lines.get("line2"), lines.get("line3")))) or "Roon")
         self.play.set_child(Gtk.Image.new_from_icon_name("media-playback-pause-symbolic" if zone.get("state") == "playing" else "media-playback-start-symbolic")); self.prev.set_sensitive(bool(zone.get("can_previous"))); self.next.set_sensitive(bool(zone.get("can_next"))); self.play.set_sensitive(bool(zone.get("can_play") or zone.get("can_pause")))
         elapsed = int(zone.get("seek_position") or 0); length = int(playing.get("length") or 0); self.seek_updating = True; self.progress.set_range(0, max(1, length)); self.progress.set_value(min(elapsed, length) if length else 0); self.progress.set_sensitive(bool(zone.get("can_seek") and length)); self.seek_updating = False; self.elapsed.set_text(self.format_time(elapsed)); self.remaining.set_text("−" + self.format_time(max(0, length - elapsed)))
