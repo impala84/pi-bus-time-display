@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.0-rc.4 — 29 September 2026
+
+- Replaced raw command exceptions on touchscreen system actions with concise, useful failure messages while retaining full output in the service log.
+
 ## 0.3.0-rc.3 — 29 September 2026
 
 - Made appliance updates preserve local checkout differences automatically instead of failing when an installed file has changed.
