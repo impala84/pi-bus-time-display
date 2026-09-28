@@ -20,6 +20,7 @@ class Config:
     sleep_end: str = "06:00"
     timezone: str = "Asia/Singapore"
     roon_display_url: str = ""
+    roon_zone_name: str = ""
     end_action: str = "display"
     simulate: bool = False
 

@@ -31,12 +31,11 @@ class DisplayModeTests(unittest.TestCase):
             path.write_text("surprise\n", encoding="utf-8")
             self.assertEqual(read_display_mode(path), "auto")
 
-    def test_roon_mode_targets_configured_web_display(self):
+    def test_roon_mode_targets_custom_controller(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "display-mode"
             path.write_text("roon\n", encoding="utf-8")
-            config = Config(roon_display_url="http://10.0.0.2:9330/display/")
-            self.assertEqual(display_target(config, path), "http://10.0.0.2:9330/display/")
+            self.assertEqual(display_target(Config(), path), "http://127.0.0.1:8766/")
 
     def test_sleep_mode_targets_black_screen(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -83,6 +83,7 @@ def write_config(path: Path, config: Config) -> None:
         f"sleep_end = {json.dumps(config.sleep_end)}",
         f"timezone = {json.dumps(config.timezone)}",
         f"roon_display_url = {json.dumps(config.roon_display_url)}",
+        f"roon_zone_name = {json.dumps(config.roon_zone_name)}",
         f"end_action = {json.dumps(config.end_action)}",
         "",
     ))
@@ -119,14 +120,14 @@ def display_target(config: Config, mode_path: Path) -> str:
     mode = read_display_mode(mode_path)
     if mode == "sleep":
         return "/sleep.html"
-    if mode == "roon" and config.roon_display_url:
-        return config.roon_display_url
+    if mode == "roon":
+        return "http://127.0.0.1:8766/"
     if mode == "auto":
         now = datetime.now(ZoneInfo(config.timezone))
         if within_sleep_window(config, now):
             return "/sleep.html"
-        if config.roon_display_url and not within_window(config, now):
-            return config.roon_display_url
+        if not within_window(config, now):
+            return "http://127.0.0.1:8766/"
     return "/"
 
 
@@ -159,6 +160,7 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                     "poll_seconds": config.poll_seconds, "morning_start": config.morning_start,
                     "morning_end": config.morning_end, "sleep_start": config.sleep_start,
                     "sleep_end": config.sleep_end, "roon_display_url": config.roon_display_url,
+                    "roon_zone_name": config.roon_zone_name,
                     "display_mode": read_display_mode(mode_path),
                     "has_lta_key": bool(os.getenv("LTA_ACCOUNT_KEY")),
                 }).encode()
@@ -185,8 +187,6 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                     mode = str(data.get("mode", ""))
                     if mode not in {"auto", "bus", "roon", "sleep"}:
                         raise ValueError("Display mode must be auto, bus, roon or sleep")
-                    if mode == "roon" and not state.config.roon_display_url:
-                        raise ValueError("Add the Roon Display URL before switching to Roon Now Playing")
                     mode_path.parent.mkdir(parents=True, exist_ok=True)
                     mode_path.write_text(mode + "\n", encoding="utf-8")
                     self.send_json(200, json.dumps({"ok": True, "display_mode": mode}).encode())
@@ -200,7 +200,8 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                     stale_after_seconds=current.stale_after_seconds,
                     morning_start=str(data["morning_start"]), morning_end=str(data["morning_end"]),
                     sleep_start=str(data["sleep_start"]), sleep_end=str(data["sleep_end"]),
-                    timezone=current.timezone, roon_display_url=str(data.get("roon_display_url", "")).strip(),
+                    timezone=current.timezone, roon_display_url=current.roon_display_url,
+                    roon_zone_name=str(data.get("roon_zone_name", "")).strip(),
                     end_action="display", simulate=current.simulate,
                 )
                 if not candidate.bus_stop_code.isdigit() or len(candidate.bus_stop_code) != 5:
@@ -213,8 +214,6 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                 wall_time.fromisoformat(candidate.morning_end)
                 wall_time.fromisoformat(candidate.sleep_start)
                 wall_time.fromisoformat(candidate.sleep_end)
-                if candidate.roon_display_url and not candidate.roon_display_url.startswith("http://"):
-                    raise ValueError("Roon Display URL must begin with http://")
                 write_config(config_path, candidate)
                 account_key = str(data.get("lta_account_key", "")).strip()
                 if account_key:

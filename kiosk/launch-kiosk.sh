@@ -4,17 +4,18 @@ set -u
 config=/etc/pi-bus-time-display/config.toml
 bus_url=http://127.0.0.1:8765/
 sleep_url=http://127.0.0.1:8765/sleep.html
+roon_url=http://127.0.0.1:8766/
 extension_dir=/opt/pi-bus-time-display/kiosk/touch-controls
 active_url=
 browser_pid=
 
 choose_url() {
-  python3 - "${config}" "${bus_url}" "${sleep_url}" <<'PY'
+  python3 - "${config}" "${bus_url}" "${sleep_url}" "${roon_url}" <<'PY'
 import sys, tomllib
 from datetime import datetime, time
 from zoneinfo import ZoneInfo
 
-path, bus_url, sleep_url = sys.argv[1:]
+path, bus_url, sleep_url, roon_url = sys.argv[1:]
 with open(path, "rb") as handle:
     config = tomllib.load(handle)
 now = datetime.now(ZoneInfo(config.get("timezone", "Asia/Singapore"))).time()
@@ -23,7 +24,6 @@ end = time.fromisoformat(config.get("morning_end", "10:00"))
 sleep_start = time.fromisoformat(config.get("sleep_start", "23:00"))
 sleep_end = time.fromisoformat(config.get("sleep_end", "06:00"))
 sleeping = sleep_start <= now < sleep_end if sleep_start < sleep_end else now >= sleep_start or now < sleep_end
-roon_url = config.get("roon_display_url", "").strip()
 try:
     mode = open("/var/lib/pi-bus-time-display/display-mode", encoding="utf-8").read().strip()
 except OSError:
@@ -32,13 +32,13 @@ if mode == "bus":
     print(bus_url)
 elif mode == "sleep":
     print(sleep_url)
-elif mode == "roon" and roon_url:
+elif mode == "roon":
     print(roon_url)
 else:
     if sleeping:
         print(sleep_url)
     else:
-        print(bus_url if start <= now < end or not roon_url else roon_url)
+        print(bus_url if start <= now < end else roon_url)
 PY
 }
 

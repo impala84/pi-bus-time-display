@@ -18,9 +18,12 @@ echo "Checking for Pi Bus Time Display updates…"
 git -c safe.directory="${app_dir}" -C "${app_dir}" pull --ff-only
 
 "${app_dir}/.venv/bin/pip" install --no-deps "${app_dir}"
+npm --prefix "${app_dir}/roon-controller" install --omit=dev
 install -m 0644 "${app_dir}/systemd/pi-bus-time-display.service" /etc/systemd/system/pi-bus-time-display.service
+install -m 0644 "${app_dir}/systemd/pi-bus-roon-controller.service" /etc/systemd/system/pi-bus-roon-controller.service
 install -m 0755 "${app_dir}/scripts/pi-bus-update" /usr/local/sbin/pi-bus-update
 systemctl daemon-reload
 systemctl restart pi-bus-time-display.service
+systemctl enable --now pi-bus-roon-controller.service
 
 echo "Pi Bus Time Display is up to date. Refresh the screen if it does not update within a few seconds."

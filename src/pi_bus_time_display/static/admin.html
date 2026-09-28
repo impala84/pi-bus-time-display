@@ -12,7 +12,7 @@
     <section><h2>Morning</h2><div class="row"><label>Show from<input name="morning_start" type="time" required></label><label>Until<input name="morning_end" type="time" required></label></div><label>Walking time<input name="walking_minutes" type="number" min="0" max="60" required><small>Minutes from home to the stop.</small></label><label>Refresh every<input name="poll_seconds" type="number" min="5" max="300" required><small>20 seconds matches LTA's update cadence.</small></label></section>
     <section><h2>Overnight</h2><div class="row"><label>Sleep from<input name="sleep_start" type="time" required></label><label>Wake at<input name="sleep_end" type="time" required></label></div><small>Used when the screen is in Automatic mode.</small></section>
     <section><h2>LTA DataMall</h2><label>AccountKey<input name="lta_account_key" type="password" autocomplete="new-password" placeholder="Leave blank to keep the existing key"><small id="key-status"></small></label></section>
-    <section><h2>Roon Now Playing</h2><label>Web Display URL<input name="roon_display_url" type="url" placeholder="http://192.168.1.20:9330/display/"><small>Copy this from Roon → Settings → Displays.</small></label></section>
+    <section><h2>Roon Now Playing</h2><label>Zone name<input name="roon_zone_name" placeholder="Living Room"><small>Use the exact Roon zone name. Leave blank to follow the currently playing zone.</small></label></section>
     <p id="message" role="status"></p><button type="submit">Save settings</button>
   </form>
 </main><script src="/admin.js"></script></body>

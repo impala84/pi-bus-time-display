@@ -10,6 +10,7 @@ sleep_start = "23:00"
 sleep_end = "06:00"
 timezone = "Asia/Singapore"
 roon_display_url = ""
+roon_zone_name = ""
 
 # Retained for configuration compatibility. The one-card appliance keeps running
 # Roon Bridge and changes the touchscreen to its quiet clock outside the window.

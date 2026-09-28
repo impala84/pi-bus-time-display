@@ -8,14 +8,16 @@ fi
 
 SOURCE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 apt-get update
-apt-get install -y chromium python3-venv unclutter
+apt-get install -y chromium git nodejs npm python3-venv unclutter
 id morningbus >/dev/null 2>&1 || useradd --create-home --shell /bin/bash morningbus
 install -d -o morningbus -g morningbus /opt/pi-bus-time-display /etc/pi-bus-time-display /var/lib/pi-bus-time-display
 cp -a "${SOURCE_DIR}/." /opt/pi-bus-time-display/
 python3 -m venv /opt/pi-bus-time-display/.venv
 /opt/pi-bus-time-display/.venv/bin/pip install --no-deps /opt/pi-bus-time-display
+npm --prefix /opt/pi-bus-time-display/roon-controller install --omit=dev
 [[ -f /etc/pi-bus-time-display/config.toml ]] || install -m 0640 -o morningbus -g morningbus /opt/pi-bus-time-display/config.example.toml /etc/pi-bus-time-display/config.toml
 [[ -f /etc/pi-bus-time-display/secrets.env ]] || install -m 0600 -o morningbus -g morningbus /opt/pi-bus-time-display/.env.example /etc/pi-bus-time-display/secrets.env
+[[ -f /etc/pi-bus-time-display/roon.env ]] || install -m 0640 -o morningbus -g morningbus /dev/null /etc/pi-bus-time-display/roon.env
 if grep -q '^ADMIN_PASSWORD=change-me-now$' /etc/pi-bus-time-display/secrets.env; then
   admin_password=$(openssl rand -hex 8)
   sed -i "s/^ADMIN_PASSWORD=change-me-now$/ADMIN_PASSWORD=${admin_password}/" /etc/pi-bus-time-display/secrets.env
@@ -35,5 +37,6 @@ chmod 0755 /opt/pi-bus-time-display/kiosk/launch-kiosk.sh
 usermod -a -G morningbus "${desktop_user}"
 systemctl daemon-reload
 systemctl enable pi-bus-time-display.service
+systemctl enable pi-bus-roon-controller.service
 echo "Installed. Edit /etc/pi-bus-time-display/config.toml and /etc/pi-bus-time-display/secrets.env, then reboot."
 echo "Future application updates: sudo pi-bus-update"
