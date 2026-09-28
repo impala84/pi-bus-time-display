@@ -66,6 +66,9 @@ def display_power(powered: bool) -> None:
                 power.write_text("4", encoding="ascii")
     if not powered:
         saved_path.write_text(json.dumps(saved), encoding="utf-8")
+    vcgencmd = Path("/usr/bin/vcgencmd")
+    if vcgencmd.exists():
+        subprocess.run([str(vcgencmd), "display_power", "1" if powered else "0"], check=False)
 
 
 def main() -> None:

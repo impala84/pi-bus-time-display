@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.0-rc.9 — 29 September 2026
+
+- Rotated touchscreen coordinates alongside the 180° display using libinput's calibration matrix.
+- Suppressed non-touch pointer devices in appliance mode so Cage removes the mouse cursor.
+- Strengthened physical display sleep with repeated backlight requests and the Raspberry Pi display-power fallback.
+
 ## 0.3.0-rc.8 — 29 September 2026
 
 - Extended the display-orientation setting to the Raspberry Pi kernel console so the boot splash and GTK kiosk share the same orientation.

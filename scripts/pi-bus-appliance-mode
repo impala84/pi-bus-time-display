@@ -5,6 +5,7 @@ app_dir=/opt/pi-bus-time-display
 user_file=/etc/pi-bus-time-display/display-user
 service=/etc/systemd/system/pi-bus-native.service
 transform_file=/etc/pi-bus-time-display/display-transform
+input_rules=/etc/udev/rules.d/99-pi-bus-kiosk-input.rules
 
 install_service() {
   local display_user=$1
@@ -31,6 +32,25 @@ set_boot_rotation() {
   rm -f "${cmdline}.tmp"
 }
 
+configure_input() {
+  local transform=$1
+  {
+    echo 'ACTION=="remove", GOTO="pi_bus_input_end"'
+    if [[ ${transform} == 180 ]]; then
+      echo 'ENV{ID_INPUT_TOUCHSCREEN}=="1", ENV{LIBINPUT_CALIBRATION_MATRIX}="-1 0 1 0 -1 1", GOTO="pi_bus_input_end"'
+    else
+      echo 'ENV{ID_INPUT_TOUCHSCREEN}=="1", GOTO="pi_bus_input_end"'
+    fi
+    echo 'ENV{ID_INPUT_MOUSE}=="1", ENV{LIBINPUT_IGNORE_DEVICE}="1"'
+    echo 'ENV{ID_INPUT_TOUCHPAD}=="1", ENV{LIBINPUT_IGNORE_DEVICE}="1"'
+    echo 'LABEL="pi_bus_input_end"'
+  } >"${input_rules}.tmp"
+  install -m 0644 "${input_rules}.tmp" "${input_rules}"
+  rm -f "${input_rules}.tmp"
+  udevadm control --reload-rules
+  udevadm trigger --subsystem-match=input
+}
+
 if [[ ${EUID} -ne 0 ]]; then
   echo "Run with sudo: sudo pi-bus-appliance-mode enable"
   exit 1
@@ -52,6 +72,7 @@ case ${1:-} in
     printf '%s\n' "${display_user}" >"${user_file}"
     [[ -f ${transform_file} ]] || printf '180\n' >"${transform_file}"
     set_boot_rotation "$(<"${transform_file}")"
+    configure_input "$(<"${transform_file}")"
     install_service "${display_user}"
     systemctl enable pi-bus-native.service
     systemctl disable display-manager.service >/dev/null 2>&1 || true
@@ -72,6 +93,7 @@ case ${1:-} in
     fi
     printf '%s\n' "${transform}" >"${transform_file}"
     set_boot_rotation "${transform}"
+    configure_input "${transform}"
     display_user=$(<"${user_file}")
     install_service "${display_user}"
     systemctl restart pi-bus-native.service

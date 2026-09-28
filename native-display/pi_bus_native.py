@@ -258,6 +258,13 @@ class Display(Gtk.Application):
             return
         self.screen_powered = powered
         threading.Thread(target=post_json, args=(BUS + "/api/device/screen-power", {"powered": powered}), daemon=True).start()
+        if not powered:
+            GLib.timeout_add_seconds(2, self.confirm_screen_off)
+
+    def confirm_screen_off(self):
+        if self.screen_powered is False:
+            threading.Thread(target=post_json, args=(BUS + "/api/device/screen-power", {"powered": False}), daemon=True).start()
+        return False
 
     def request_update(self, *_):
         self.update_button.set_sensitive(False); self.device_status.set_text("Update requested…")
