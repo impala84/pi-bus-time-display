@@ -31,6 +31,7 @@ class State:
             "now": now.isoformat(), "stop_name": self.config.bus_stop_name,
             "stop_code": self.config.bus_stop_code, "walking_minutes": self.config.walking_minutes,
             "window_active": within_window(self.config, now),
+            "roon_display_url": self.config.roon_display_url,
             "stale": bool(self.last_success and (now - self.last_success).total_seconds() > self.config.stale_after_seconds),
         })
         return result
@@ -72,6 +73,7 @@ def write_config(path: Path, config: Config) -> None:
         f"morning_start = {json.dumps(config.morning_start)}",
         f"morning_end = {json.dumps(config.morning_end)}",
         f"timezone = {json.dumps(config.timezone)}",
+        f"roon_display_url = {json.dumps(config.roon_display_url)}",
         f"end_action = {json.dumps(config.end_action)}",
         "",
     ))
@@ -117,7 +119,8 @@ def make_handler(state: State, config_path: Path, env_path: Path):
                     "bus_stop_code": config.bus_stop_code, "bus_stop_name": config.bus_stop_name,
                     "services": list(config.services), "walking_minutes": config.walking_minutes,
                     "poll_seconds": config.poll_seconds, "morning_start": config.morning_start,
-                    "morning_end": config.morning_end, "has_lta_key": bool(os.getenv("LTA_ACCOUNT_KEY")),
+                    "morning_end": config.morning_end, "roon_display_url": config.roon_display_url,
+                    "has_lta_key": bool(os.getenv("LTA_ACCOUNT_KEY")),
                 }).encode()
                 self.send_json(200, body)
                 return
@@ -146,7 +149,8 @@ def make_handler(state: State, config_path: Path, env_path: Path):
                     walking_minutes=int(data["walking_minutes"]), poll_seconds=int(data["poll_seconds"]),
                     stale_after_seconds=current.stale_after_seconds,
                     morning_start=str(data["morning_start"]), morning_end=str(data["morning_end"]),
-                    timezone=current.timezone, end_action="display", simulate=current.simulate,
+                    timezone=current.timezone, roon_display_url=str(data.get("roon_display_url", "")).strip(),
+                    end_action="display", simulate=current.simulate,
                 )
                 if not candidate.bus_stop_code.isdigit() or len(candidate.bus_stop_code) != 5:
                     raise ValueError("Bus stop code must be five digits")
@@ -156,6 +160,8 @@ def make_handler(state: State, config_path: Path, env_path: Path):
                     raise ValueError("Polling must be between 5 and 300 seconds")
                 wall_time.fromisoformat(candidate.morning_start)
                 wall_time.fromisoformat(candidate.morning_end)
+                if candidate.roon_display_url and not candidate.roon_display_url.startswith("http://"):
+                    raise ValueError("Roon Display URL must begin with http://")
                 write_config(config_path, candidate)
                 account_key = str(data.get("lta_account_key", "")).strip()
                 if account_key:

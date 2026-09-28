@@ -17,6 +17,7 @@ class Config:
     morning_start: str = "06:00"
     morning_end: str = "10:00"
     timezone: str = "Asia/Singapore"
+    roon_display_url: str = ""
     end_action: str = "display"
     simulate: bool = False
 

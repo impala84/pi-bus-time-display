@@ -31,6 +31,8 @@ fi
 desktop_home=$(getent passwd "${desktop_user}" | cut -d: -f6)
 install -d -o "${desktop_user}" -g "${desktop_user}" "${desktop_home}/.config/autostart"
 install -m 0644 -o "${desktop_user}" -g "${desktop_user}" /opt/pi-bus-time-display/kiosk/pi-bus-time-display.desktop "${desktop_home}/.config/autostart/pi-bus-time-display.desktop"
+chmod 0755 /opt/pi-bus-time-display/kiosk/launch-kiosk.sh
+usermod -a -G morningbus "${desktop_user}"
 systemctl daemon-reload
 systemctl enable pi-bus-time-display.service
 echo "Installed. Edit /etc/pi-bus-time-display/config.toml and /etc/pi-bus-time-display/secrets.env, then reboot."

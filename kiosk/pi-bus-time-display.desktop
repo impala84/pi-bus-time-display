@@ -2,6 +2,6 @@
 Type=Application
 Name=Pi Bus Time Display
 Comment=Full-screen bus display
-Exec=sh -c 'sleep 8; chromium --kiosk --noerrdialogs --disable-infobars --disable-session-crashed-bubble --incognito http://127.0.0.1:8765/'
+Exec=/opt/pi-bus-time-display/kiosk/launch-kiosk.sh
 Terminal=false
 X-GNOME-Autostart-enabled=true

@@ -1,8 +1,8 @@
 # Pi Bus Time Display
 
-A single-card Raspberry Pi appliance that runs **Roon Bridge all day** and turns the official touchscreen into a highly legible Singapore bus display each morning.
+A single-card Raspberry Pi appliance that runs **Roon Bridge all day**, turns the official touchscreen into a highly legible Singapore bus display each morning, then returns it to Roon Now Playing.
 
-The included configuration is ready for **Flamingo Valley, Siglap Road (83249)** and services **40, 42 and 401**. From 06:00–10:00 it shows the next useful bus, three arrivals per service, wheelchair accessibility, vehicle type, occupancy, live/scheduled status and a walking-time-aware **LEAVE IN / LEAVE NOW** instruction. Outside that window it shows a quiet clock while Roon Bridge continues running normally.
+The included configuration is ready for **Flamingo Valley, Siglap Road (83249)** and services **40, 42 and 401**. From 06:00–10:00 it shows the next useful bus, three arrivals per service and a walking-time-aware **LEAVE IN / LEAVE NOW** instruction. Outside that window it shows Roon's browser-based Now Playing display while Roon Bridge continues running normally.
 
 This deliberately replaces RoPieee. It does not try to fork or preserve RoPieee; the public RoPieee repository does not contain its full appliance build. If necessary, the card can simply be reflashed with RoPieee later.
 
@@ -24,9 +24,17 @@ The bus installer creates an unprivileged service account, keeps the LTA key out
 
 From a phone or computer on the same network, open `http://<pi-address>:8765/admin`. Sign in with username `admin` and the `ADMIN_PASSWORD` stored in `/etc/pi-bus-time-display/secrets.env`.
 
-The settings page lets you change the stop code and name, tracked services, walking time, display window, polling interval and LTA AccountKey. Changes take effect without rebooting. The existing AccountKey is never displayed back to the browser. Because this small admin server uses ordinary HTTP, keep it on a trusted home network and choose a unique password.
+The settings page lets you change the stop code and name, tracked services, walking time, display window, polling interval, Roon Display URL and LTA AccountKey. Changes take effect without rebooting. The existing AccountKey is never displayed back to the browser. Because this small admin server uses ordinary HTTP, keep it on a trusted home network and choose a unique password.
 
 The installer generates a unique admin password and prints it once. You can retrieve or change it later in `/etc/pi-bus-time-display/secrets.env`.
+
+### Connect Roon Now Playing
+
+1. In the Roon app, open **Settings → Displays** and copy the Web Display URL. It normally resembles `http://<roon-server-address>:9330/display/`; do not use `127.0.0.1` because that refers to the Pi itself.
+2. Paste that URL into the Pi Bus web settings page.
+3. When the Pi browser appears in Roon, associate it with the Pi's audio zone and choose **Start On Playback**.
+
+Roon documents browser displays as a supported way to show Now Playing information and lyrics. The Roon Server and Pi must be able to reach each other on the same network.
 
 ## Updates
 
@@ -87,6 +95,7 @@ PYTHONPATH=src python3 -m unittest discover -s tests -v
 - [LTA DataMall API guide](https://datamall.lta.gov.sg/content/dam/datamall/datasets/LTA_DataMall_API_User_Guide.pdf) — Bus Arrival v3 fields, 20-second update frequency and rounding guidance.
 - [Roon's Linux installation guide](https://help.roonlabs.com/portal/en/kb/articles/linux-install) — official ARMv8/ARMv7 installers and service behaviour.
 - [Roon system requirements](https://help.roonlabs.com/portal/en/kb/articles/faq-what-are-the-minimum-requirements) — current Raspberry Pi OS support for Roon Bridge.
+- [Roon Displays](https://help.roonlabs.com/portal/en/kb/articles/displays) — supported browser-based Now Playing displays and zone association.
 
 ## Licence
 

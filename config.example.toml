@@ -7,6 +7,7 @@ stale_after_seconds = 75
 morning_start = "06:00"
 morning_end = "10:00"
 timezone = "Asia/Singapore"
+roon_display_url = ""
 
 # Retained for configuration compatibility. The one-card appliance keeps running
 # Roon Bridge and changes the touchscreen to its quiet clock outside the window.
