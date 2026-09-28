@@ -5,14 +5,14 @@
   <title>Pi Bus Time Display · Settings</title><link rel="stylesheet" href="/admin.css">
 </head>
 <body><main>
-  <header><p>PI BUS TIME DISPLAY</p><h1>Settings</h1><a href="/display">View display</a></header>
+  <header><p>PI BUS TIME DISPLAY <span id="version"></span></p><h1>Settings</h1><a href="/display">View display</a></header>
   <form id="settings">
     <section><h2>Screen now</h2><div class="mode-buttons" role="group" aria-label="Display mode"><button type="button" data-mode="auto">Automatic</button><button type="button" data-mode="bus">Bus times</button><button type="button" data-mode="roon">Roon Now Playing</button><button type="button" data-mode="sleep">Sleep display</button></div><small>Manual choices stay active until you select Automatic.</small></section>
     <section><h2>Bus stop</h2><label>Stop code<input name="bus_stop_code" inputmode="numeric" maxlength="5" required></label><label>Display name<input name="bus_stop_name" required></label><label>Services<input name="services" placeholder="40, 42, 401"><small>Comma-separated; leave empty to show every service at the stop.</small></label></section>
     <section><h2>Morning</h2><div class="row"><label>Show from<input name="morning_start" type="time" required></label><label>Until<input name="morning_end" type="time" required></label></div><label>Walking time<input name="walking_minutes" type="number" min="0" max="60" required><small>Minutes from home to the stop.</small></label><label>Refresh every<input name="poll_seconds" type="number" min="5" max="300" required><small>20 seconds matches LTA's update cadence.</small></label></section>
     <section><h2>Overnight</h2><div class="row"><label>Sleep from<input name="sleep_start" type="time" required></label><label>Wake at<input name="sleep_end" type="time" required></label></div><small>Used when the screen is in Automatic mode.</small></section>
     <section><h2>LTA DataMall</h2><label>AccountKey<input name="lta_account_key" type="password" autocomplete="new-password" placeholder="Leave blank to keep the existing key"><small id="key-status"></small></label></section>
-    <section><h2>Roon Now Playing</h2><label>Zone name<input name="roon_zone_name" placeholder="Living Room"><small>Use the exact Roon zone name. Leave blank to follow the currently playing zone.</small></label></section>
+    <section><h2>Roon Now Playing</h2><label>Zone name<input name="roon_zone_name" placeholder="Living Room"><small>Use the exact Roon zone name. Leave blank to follow the currently playing zone.</small></label><label class="check"><input name="sleep_when_roon_idle" type="checkbox"> Sleep the display when Roon is not playing</label><small>In Automatic mode, playback wakes the Roon screen and pausing or stopping returns it to sleep.</small></section>
     <p id="message" role="status"></p><button type="submit">Save settings</button>
   </form>
 </main><script src="/admin.js"></script></body>

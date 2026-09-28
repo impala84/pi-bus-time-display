@@ -1,6 +1,6 @@
 bus_stop_code = "83249"
 bus_stop_name = "Flamingo Valley · Siglap Rd"
-services = ["40", "42", "401"]
+services = ["40", "42"]
 walking_minutes = 7
 poll_seconds = 20
 stale_after_seconds = 75
@@ -11,6 +11,7 @@ sleep_end = "06:00"
 timezone = "Asia/Singapore"
 roon_display_url = ""
 roon_zone_name = ""
+sleep_when_roon_idle = false
 
 # Retained for configuration compatibility. The one-card appliance keeps running
 # Roon Bridge and changes the touchscreen to its quiet clock outside the window.

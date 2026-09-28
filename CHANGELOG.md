@@ -1,0 +1,16 @@
+# Changelog
+
+## 0.2.0 — 28 September 2026
+
+- Replaced the bus summary panel with two much larger service rows.
+- Added a proper password-manager-compatible admin login page.
+- Added a persistent display shell for seamless Bus, Roon and Sleep switching.
+- Added a dark, automatically recovering screen when the Roon controller is unavailable.
+- Made the Roon service create its own working directory and report startup failures during updates.
+- Changed Roon dependencies to immutable public HTTPS downloads.
+- Added optional sleep while Roon is idle, waking automatically for playback.
+- Refined Roon typography, transport icons and control shapes.
+
+## 0.1.0 — 28 September 2026
+
+- Initial Raspberry Pi bus display, web settings, kiosk service and Roon integration.

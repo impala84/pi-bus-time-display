@@ -1,14 +1,14 @@
 {
   "name": "pi-bus-roon-controller",
-  "version": "1.0.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Touch-first Roon Now Playing controller for Pi Bus Time Display",
   "main": "server.js",
   "scripts": {"start": "node server.js"},
   "dependencies": {
-    "node-roon-api": "github:RoonLabs/node-roon-api#055dae6c2ac45b6c738aa3b9e5ac1fd722ed60e8",
-    "node-roon-api-image": "github:RoonLabs/node-roon-api-image#a5f0efaf2dfb5457e91abe326c3a40d865131d32",
-    "node-roon-api-status": "github:RoonLabs/node-roon-api-status",
-    "node-roon-api-transport": "github:RoonLabs/node-roon-api-transport#2ee60008a4cdb90c34ff3de58bb4b949067f1d20"
+    "node-roon-api": "https://github.com/RoonLabs/node-roon-api/archive/055dae6c2ac45b6c738aa3b9e5ac1fd722ed60e8.tar.gz",
+    "node-roon-api-image": "https://github.com/RoonLabs/node-roon-api-image/archive/a5f0efaf2dfb5457e91abe326c3a40d865131d32.tar.gz",
+    "node-roon-api-status": "https://github.com/RoonLabs/node-roon-api-status/archive/504c918d6da267e03fbb4337befa71ca3d3c7526.tar.gz",
+    "node-roon-api-transport": "https://github.com/RoonLabs/node-roon-api-transport/archive/2ee60008a4cdb90c34ff3de58bb4b949067f1d20.tar.gz"
   }
 }

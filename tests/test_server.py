@@ -35,7 +35,13 @@ class DisplayModeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "display-mode"
             path.write_text("roon\n", encoding="utf-8")
-            self.assertEqual(display_target(Config(), path), "http://127.0.0.1:8766/")
+            self.assertEqual(display_target(Config(), path, {"zone": {"state": "playing"}}), "http://127.0.0.1:8766/")
+
+    def test_roon_mode_uses_dark_fallback_when_controller_is_down(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "display-mode"
+            path.write_text("roon\n", encoding="utf-8")
+            self.assertEqual(display_target(Config(), path, None), "/roon-unavailable.html")
 
     def test_sleep_mode_targets_black_screen(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -49,6 +55,15 @@ class DisplayModeTests(unittest.TestCase):
         self.assertTrue(within_sleep_window(config, datetime(2026, 9, 28, 23, 30, tzinfo=timezone)))
         self.assertTrue(within_sleep_window(config, datetime(2026, 9, 29, 5, 59, tzinfo=timezone)))
         self.assertFalse(within_sleep_window(config, datetime(2026, 9, 29, 6, 0, tzinfo=timezone)))
+
+    def test_auto_sleeps_when_configured_zone_is_idle(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "display-mode"
+            path.write_text("auto\n", encoding="utf-8")
+            config = Config(sleep_when_roon_idle=True)
+            evening = datetime(2026, 9, 28, 20, 0, tzinfo=ZoneInfo("Asia/Singapore"))
+            self.assertEqual(display_target(config, path, {"zone": {"state": "paused"}}, evening), "/sleep.html")
+            self.assertEqual(display_target(config, path, {"zone": {"state": "playing"}}, evening), "http://127.0.0.1:8766/")
 
 
 if __name__ == "__main__":

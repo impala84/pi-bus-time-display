@@ -25,6 +25,13 @@ install -m 0644 "${app_dir}/systemd/pi-bus-roon-controller.service" /etc/systemd
 install -m 0755 "${app_dir}/scripts/pi-bus-update" /usr/local/sbin/pi-bus-update
 systemctl daemon-reload
 systemctl restart pi-bus-time-display.service
-systemctl enable --now pi-bus-roon-controller.service
+systemctl enable pi-bus-roon-controller.service
+systemctl restart pi-bus-roon-controller.service
 
-echo "Pi Bus Time Display is up to date. Refresh the screen if it does not update within a few seconds."
+if ! systemctl is-active --quiet pi-bus-roon-controller.service; then
+  echo "Roon controller did not start. Recent service log:"
+  journalctl -u pi-bus-roon-controller.service -n 25 --no-pager
+  exit 1
+fi
+
+echo "Pi Bus Time Display v0.2.0 is installed and both services are running."

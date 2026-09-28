@@ -2,7 +2,7 @@
 
 A single-card Raspberry Pi appliance that runs **Roon Bridge all day**, turns the official touchscreen into a highly legible Singapore bus display each morning, then returns it to Roon Now Playing.
 
-The included configuration is ready for **Flamingo Valley, Siglap Road (83249)** and services **40, 42 and 401**. From 06:00–10:00 it shows the next useful bus, three arrivals per service and a walking-time-aware **LEAVE IN / LEAVE NOW** instruction. Outside that window it shows a custom Roon controller with album artwork, metadata, progress, playback and volume controls while Roon Bridge continues running normally.
+The included configuration is ready for **Flamingo Valley, Siglap Road (83249)** and services **40 and 42**. From 06:00–10:00 it shows two large, colour-separated service rows with three arrivals each. Outside that window it shows a custom Roon controller with album artwork, metadata, progress, playback and volume controls while Roon Bridge continues running normally.
 
 This deliberately replaces RoPieee. It does not try to fork or preserve RoPieee; the public RoPieee repository does not contain its full appliance build. If necessary, the card can simply be reflashed with RoPieee later.
 
@@ -24,7 +24,7 @@ The bus installer creates an unprivileged service account, keeps the LTA key out
 
 From a phone or computer on the same network, open `http://<pi-address>:8765/admin`. The dedicated sign-in page uses username `admin` and the `ADMIN_PASSWORD` stored in `/etc/pi-bus-time-display/secrets.env`. Its ordinary username and password fields allow browsers and password managers to save and autofill the credentials; a successful sign-in lasts for 30 days. The touchscreen itself opens Settings directly.
 
-The settings page also acts as a remote control. Choose **Automatic**, **Bus times**, **Roon Now Playing**, or **Sleep display** to switch the touchscreen within about five seconds. A manual selection remains active until you return it to Automatic. You can also change the stop code and name, tracked services, walking time, display window, polling interval, preferred Roon zone and LTA AccountKey. Changes take effect without rebooting. The existing AccountKey is never displayed back to the browser. Because this small admin server uses ordinary HTTP, keep it on a trusted home network and choose a unique password.
+The settings page also acts as a remote control. Choose **Automatic**, **Bus times**, **Roon Now Playing**, or **Sleep display** to switch the touchscreen within about five seconds. A manual selection remains active until you return it to Automatic. You can also change the stop code and name, tracked services, walking time, display window, polling interval, preferred Roon zone and LTA AccountKey. **Sleep when Roon is not playing** makes Automatic mode wake for playback and return to a black screen when playback stops. Changes take effect without rebooting. The existing AccountKey is never displayed back to the browser. Because this small admin server uses ordinary HTTP, keep it on a trusted home network and choose a unique password.
 
 On the touchscreen, tap **SETTINGS** in the top-right corner. The same control appears over Roon Now Playing, so no address or keyboard is needed. **Sleep display** makes the screen black while leaving Roon Bridge and the bus service running; tap the discreet **WAKE** target in the bottom-right corner to return to Settings. Automatic mode also follows the configurable **Sleep from** and **Wake at** times (23:00–06:00 by default). Local touchscreen access opens directly, while access from another device still requires the admin password.
 
@@ -46,7 +46,7 @@ After the initial installation, update the appliance with one command:
 sudo pi-bus-update
 ```
 
-The updater accepts only a fast-forward update from the configured GitHub repository, reinstalls the application, refreshes its service definition and restarts it. Your settings and secrets remain untouched in `/etc/pi-bus-time-display/`. If the kiosk has cached an older screen, refresh it or reboot once.
+The updater accepts only a fast-forward update from the configured GitHub repository, reinstalls the application, refreshes both service definitions, verifies that the Roon controller started and prints its recent service log if startup fails. Your settings and secrets remain untouched in `/etc/pi-bus-time-display/`. Releases use semantic versions, shown at the top of the Settings page and recorded in [CHANGELOG.md](CHANGELOG.md); this release is **v0.2.0**. If the kiosk has cached an older screen, refresh it or reboot once.
 
 ### Official touchscreen
 
@@ -64,6 +64,7 @@ Edit `/etc/pi-bus-time-display/config.toml`:
 - `morning_start` and `morning_end`: touchscreen bus-display window
 - `sleep_start` and `sleep_end`: automatic black-screen window
 - `roon_zone_name`: exact preferred Roon zone; blank follows the playing zone
+- `sleep_when_roon_idle`: sleep outside the bus window unless the selected Roon zone is playing
 
 Restart after changes with `sudo systemctl restart pi-bus-time-display`.
 

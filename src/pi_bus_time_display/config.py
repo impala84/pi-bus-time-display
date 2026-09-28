@@ -21,6 +21,7 @@ class Config:
     timezone: str = "Asia/Singapore"
     roon_display_url: str = ""
     roon_zone_name: str = ""
+    sleep_when_roon_idle: bool = False
     end_action: str = "display"
     simulate: bool = False
 

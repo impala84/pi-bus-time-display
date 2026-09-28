@@ -7,6 +7,7 @@ import os
 import secrets
 import threading
 import time
+import urllib.request
 from http.cookies import SimpleCookie
 from datetime import datetime, time as wall_time
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -17,6 +18,7 @@ from zoneinfo import ZoneInfo
 from .config import Config, load_config, load_env
 from .domain import normalise
 from .lta import LTAError, fetch, simulated
+from . import __version__
 
 
 class State:
@@ -87,6 +89,7 @@ def write_config(path: Path, config: Config) -> None:
         f"timezone = {json.dumps(config.timezone)}",
         f"roon_display_url = {json.dumps(config.roon_display_url)}",
         f"roon_zone_name = {json.dumps(config.roon_zone_name)}",
+        f"sleep_when_roon_idle = {str(config.sleep_when_roon_idle).lower()}",
         f"end_action = {json.dumps(config.end_action)}",
         "",
     ))
@@ -119,17 +122,39 @@ def read_display_mode(path: Path) -> str:
         return "auto"
 
 
-def display_target(config: Config, mode_path: Path) -> str:
+def roon_status() -> dict | None:
+    try:
+        with urllib.request.urlopen("http://127.0.0.1:8766/api/state", timeout=0.35) as response:
+            return json.load(response)
+    except (OSError, ValueError):
+        return None
+
+
+_CHECK_ROON = object()
+
+
+def display_target(
+    config: Config,
+    mode_path: Path,
+    roon: dict | None | object = _CHECK_ROON,
+    now: datetime | None = None,
+) -> str:
     mode = read_display_mode(mode_path)
     if mode == "sleep":
         return "/sleep.html"
+    if mode in {"roon", "auto"} and roon is _CHECK_ROON:
+        roon = roon_status()
     if mode == "roon":
-        return "http://127.0.0.1:8766/"
+        return "http://127.0.0.1:8766/" if roon is not None else "/roon-unavailable.html"
     if mode == "auto":
-        now = datetime.now(ZoneInfo(config.timezone))
+        now = now or datetime.now(ZoneInfo(config.timezone))
         if within_sleep_window(config, now):
             return "/sleep.html"
         if not within_window(config, now):
+            if roon is None:
+                return "/roon-unavailable.html"
+            if config.sleep_when_roon_idle and isinstance(roon, dict) and roon.get("zone", {}).get("state") != "playing":
+                return "/sleep.html"
             return "http://127.0.0.1:8766/"
     return "/"
 
@@ -180,6 +205,8 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                     "morning_end": config.morning_end, "sleep_start": config.sleep_start,
                     "sleep_end": config.sleep_end, "roon_display_url": config.roon_display_url,
                     "roon_zone_name": config.roon_zone_name,
+                    "sleep_when_roon_idle": config.sleep_when_roon_idle,
+                    "app_version": __version__,
                     "display_mode": read_display_mode(mode_path),
                     "has_lta_key": bool(os.getenv("LTA_ACCOUNT_KEY")),
                 }).encode()
@@ -239,6 +266,7 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                     sleep_start=str(data["sleep_start"]), sleep_end=str(data["sleep_end"]),
                     timezone=current.timezone, roon_display_url=current.roon_display_url,
                     roon_zone_name=str(data.get("roon_zone_name", "")).strip(),
+                    sleep_when_roon_idle=bool(data.get("sleep_when_roon_idle", False)),
                     end_action="display", simulate=current.simulate,
                 )
                 if not candidate.bus_stop_code.isdigit() or len(candidate.bus_stop_code) != 5:

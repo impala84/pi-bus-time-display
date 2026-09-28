@@ -18,8 +18,13 @@
     padding: 10px 17px;
   }
 
-  .service-no { font-size: 60px; }
-  .arrival { font-size: 50px; font-weight: 720; }
+  .service { min-height: 170px; grid-template-columns: minmax(130px, 21%) 1fr; }
+  .service-no { font-size: 112px; line-height: .82; }
+  .arrival { font-size: 102px; font-weight: 720; line-height: .82; }
   .arrival.first { font-weight: 850; }
-  .arrival small { font-size: 10px; }
+  .arrival small { font-size: 11px; margin-top: 9px; }
 }
+
+main { grid-template-rows: auto minmax(0, 1fr) auto; }
+.services { align-content: center; gap: clamp(16px, 4vh, 34px); }
+.service { min-height: clamp(150px, 29vh, 250px); }

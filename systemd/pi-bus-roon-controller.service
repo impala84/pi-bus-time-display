@@ -7,6 +7,7 @@ Wants=network-online.target
 Type=simple
 User=morningbus
 Group=morningbus
+ExecStartPre=+/usr/bin/install -d -o morningbus -g morningbus /var/lib/pi-bus-time-display/roon
 WorkingDirectory=/var/lib/pi-bus-time-display/roon
 Environment=NODE_ENV=production
 EnvironmentFile=-/etc/pi-bus-time-display/roon.env
