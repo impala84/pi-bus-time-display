@@ -47,7 +47,7 @@ After the initial installation, update the appliance with one command:
 sudo pi-bus-update
 ```
 
-The updater follows the supported `main` branch, preserves any local checkout differences in a recoverable Git stash, reinstalls the application, refreshes its services, verifies both HTTP services and reboots automatically. Updates can be started from the protected web System section or the restricted touchscreen Settings screen. Your settings and secrets remain untouched in `/etc/pi-bus-time-display/`. Releases use semantic versions, shown in Settings and recorded in [CHANGELOG.md](CHANGELOG.md). The GTK preview is **v0.3.0rc6**.
+The updater follows the supported `main` branch, preserves any local checkout differences in a recoverable Git stash, reinstalls the application, refreshes its services, verifies both HTTP services and reboots automatically. Updates can be started from the protected web System section or the restricted touchscreen Settings screen. Your settings and secrets remain untouched in `/etc/pi-bus-time-display/`. Releases use semantic versions, shown in Settings and recorded in [CHANGELOG.md](CHANGELOG.md). The GTK preview is **v0.3.0rc7**.
 
 ## Lightweight appliance mode
 
@@ -66,6 +66,8 @@ sudo reboot
 ```
 
 Check the current mode with `sudo pi-bus-appliance-mode status`.
+
+Display orientation can be changed remotely under **System → Display**. The equivalent recovery command is `sudo pi-bus-appliance-mode rotate 180`; use `normal` instead of `180` to turn rotation off.
 
 ### Official touchscreen
 

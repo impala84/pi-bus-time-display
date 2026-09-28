@@ -4,6 +4,15 @@ set -euo pipefail
 app_dir=/opt/pi-bus-time-display
 user_file=/etc/pi-bus-time-display/display-user
 service=/etc/systemd/system/pi-bus-native.service
+transform_file=/etc/pi-bus-time-display/display-transform
+
+install_service() {
+  local display_user=$1
+  sed "s/@DISPLAY_USER@/${display_user}/g" "${app_dir}/systemd/pi-bus-native.service.in" >"${service}.tmp"
+  install -m 0644 "${service}.tmp" "${service}"
+  rm -f "${service}.tmp"
+  systemctl daemon-reload
+}
 
 if [[ ${EUID} -ne 0 ]]; then
   echo "Run with sudo: sudo pi-bus-appliance-mode enable"
@@ -21,13 +30,11 @@ case ${1:-} in
       exit 1
     fi
     apt-get update
-    apt-get install -y cage
+    apt-get install -y cage wlr-randr
     install -d -m 0755 /etc/pi-bus-time-display
     printf '%s\n' "${display_user}" >"${user_file}"
-    sed "s/@DISPLAY_USER@/${display_user}/g" "${app_dir}/systemd/pi-bus-native.service.in" >"${service}.tmp"
-    install -m 0644 "${service}.tmp" "${service}"
-    rm -f "${service}.tmp"
-    systemctl daemon-reload
+    [[ -f ${transform_file} ]] || printf '180\n' >"${transform_file}"
+    install_service "${display_user}"
     systemctl enable pi-bus-native.service
     systemctl disable display-manager.service >/dev/null 2>&1 || true
     systemctl set-default multi-user.target
@@ -39,12 +46,24 @@ case ${1:-} in
     systemctl enable display-manager.service >/dev/null 2>&1 || true
     echo "Desktop mode restored. Reboot to apply it."
     ;;
+  rotate)
+    transform=${2:-}
+    if [[ ! ${transform} =~ ^(normal|90|180|270)$ ]]; then
+      echo "Rotation must be normal, 90, 180 or 270."
+      exit 2
+    fi
+    printf '%s\n' "${transform}" >"${transform_file}"
+    display_user=$(<"${user_file}")
+    install_service "${display_user}"
+    systemctl restart pi-bus-native.service
+    echo "Display rotation set to ${transform}."
+    ;;
   status)
     echo "Default boot: $(systemctl get-default)"
     systemctl is-enabled pi-bus-native.service 2>/dev/null || true
     ;;
   *)
-    echo "Usage: sudo pi-bus-appliance-mode enable|disable|status"
+    echo "Usage: sudo pi-bus-appliance-mode enable|disable|status|rotate <normal|90|180|270>"
     exit 2
     ;;
 esac

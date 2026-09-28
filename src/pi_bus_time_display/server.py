@@ -185,6 +185,10 @@ def system_snapshot(state_dir: Path) -> dict:
     except OSError:
         update_status = "Ready"
     try:
+        display_rotation = Path("/etc/pi-bus-time-display/display-transform").read_text(encoding="utf-8").strip()
+    except OSError:
+        display_rotation = "normal"
+    try:
         with urllib.request.urlopen("http://127.0.0.1:8766/api/state", timeout=.5) as response:
             controller = json.load(response)
         if controller.get("connected"):
@@ -200,6 +204,7 @@ def system_snapshot(state_dir: Path) -> dict:
         "roon_bridge": roon_service,
         "roon_controller": roon_controller,
         "update_status": update_status,
+        "display_rotation": display_rotation,
         "app_version": __version__,
     }
 
@@ -355,7 +360,7 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                     return
                 if self.path == "/api/admin/system-action":
                     action = str(data.get("action", ""))
-                    allowed = {"update", "roon_start", "roon_stop", "roon_restart", "set_hostname", "set_wifi"}
+                    allowed = {"update", "roon_start", "roon_stop", "roon_restart", "set_hostname", "set_wifi", "set_rotation"}
                     if action not in allowed:
                         raise ValueError("Unknown system action")
                     request = {"action": action}
@@ -364,6 +369,8 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                     if action == "set_wifi":
                         request["ssid"] = str(data.get("ssid", "")).strip()
                         request["password"] = str(data.get("password", ""))
+                    if action == "set_rotation":
+                        request["transform"] = "180" if data.get("rotated") else "normal"
                     write_control_request(mode_path.parent, request)
                     self.send_json(202, json.dumps({"ok": True, "status": "queued"}).encode())
                     return

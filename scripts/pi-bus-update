@@ -37,6 +37,7 @@ install -m 0755 "${app_dir}/scripts/pi-bus-update" /usr/local/sbin/pi-bus-update
 install -m 0755 "${app_dir}/scripts/pi-bus-system-action" /usr/local/sbin/pi-bus-system-action
 install -m 0755 "${app_dir}/scripts/pi-bus-appliance-mode" /usr/local/sbin/pi-bus-appliance-mode
 chmod 0755 "${app_dir}/native-display/pi_bus_native.py"
+chmod 0755 "${app_dir}/scripts/pi-bus-cage-launch"
 
 desktop_user=${SUDO_USER:-}
 if [[ -n ${desktop_user} && ${desktop_user} != root ]]; then

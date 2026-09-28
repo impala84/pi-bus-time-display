@@ -38,6 +38,7 @@ install -d -o "${desktop_user}" -g "${desktop_user}" "${desktop_home}/.config/au
 install -m 0644 -o "${desktop_user}" -g "${desktop_user}" /opt/pi-bus-time-display/native-display/pi-bus-native.desktop "${desktop_home}/.config/autostart/pi-bus-native.desktop"
 rm -f "${desktop_home}/.config/autostart/pi-bus-time-display.desktop"
 chmod 0755 /opt/pi-bus-time-display/native-display/pi_bus_native.py
+chmod 0755 /opt/pi-bus-time-display/scripts/pi-bus-cage-launch
 usermod -a -G morningbus "${desktop_user}"
 systemctl daemon-reload
 systemctl enable pi-bus-time-display.service

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.0-rc.7 — 29 September 2026
+
+- Added persistent appliance-mode display rotation with a simple 180° switch under System → Display.
+- Added a command-line rotation recovery option and made 180° the initial appliance-mode orientation for this touchscreen mounting.
+
 ## 0.3.0-rc.6 — 29 September 2026
 
 - Made software updates reboot automatically after successful service verification.

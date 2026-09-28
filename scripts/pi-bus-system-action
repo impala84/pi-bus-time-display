@@ -81,6 +81,12 @@ def main() -> None:
     elif action in {"display_on", "display_off"}:
         display_power(action == "display_on")
         report("Display awake." if action == "display_on" else "Display asleep.")
+    elif action == "set_rotation":
+        transform = str(data.get("transform", "normal"))
+        if transform not in {"normal", "180"}:
+            raise ValueError("Invalid display rotation")
+        run(["/usr/local/sbin/pi-bus-appliance-mode", "rotate", transform])
+        report("Display rotation updated.")
     elif action in {"roon_start", "roon_stop", "roon_restart"}:
         verb = action.removeprefix("roon_")
         run(["systemctl", verb, roon_service()])
