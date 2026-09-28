@@ -18,15 +18,15 @@ You need one microSD card (16 GB or larger) and an LTA DataMall AccountKey.
 6. Put the LTA key in `/etc/pi-bus-time-display/secrets.env` and review `/etc/pi-bus-time-display/config.toml`.
 7. Reboot. In the Roon app, open **Settings → Audio**, find this Raspberry Pi and enable its audio output. Then open **Settings → Extensions** and enable **Pi Bus Roon Controller**.
 
-The bus installer creates an unprivileged service account, keeps the LTA key outside the repository, restarts both application services after failures and launches one persistent full-screen Chromium session. A black display shell changes between Bus, Roon and Sleep without closing the browser, exposing the desktop or showing a white loading page. Chromium uses its basic local password store so desktop keyring prompts do not interrupt the appliance. Roon's installer starts Roon Bridge at boot and manages its own updates.
+The bus installer creates an unprivileged service account, keeps the LTA key outside the repository and launches a lightweight native GTK4 touchscreen. Chromium is not installed or used. The native application changes between Bus, Roon, Settings and Sleep without browser loading screens, desktop flashes or keyring prompts. Roon's installer starts Roon Bridge at boot and manages its own updates.
 
 ## Web settings
 
 From a phone or computer on the same network, open `http://<pi-address>:8765/admin`. The dedicated sign-in page uses username `admin` and the `ADMIN_PASSWORD` stored in `/etc/pi-bus-time-display/secrets.env`. Its ordinary username and password fields allow browsers and password managers to save and autofill the credentials; a successful sign-in lasts for 30 days. The touchscreen itself opens Settings directly.
 
-The settings page also acts as a remote control. Choose **Automatic**, **Bus times**, **Roon Now Playing**, or **Sleep display** to switch the touchscreen within about five seconds. A manual selection remains active until you return it to Automatic. You can also change the stop code and name, tracked services, walking time, display window, polling interval, preferred Roon zone and LTA AccountKey. **Sleep when Roon is not playing** makes Automatic mode wake for playback and return to a black screen when playback stops. Changes take effect without rebooting. The existing AccountKey is never displayed back to the browser. Because this small admin server uses ordinary HTTP, keep it on a trusted home network and choose a unique password.
+The web admin is organised into **Schedule**, **Bus stop**, **Roon** and **System**. It controls display schedules, stop and LTA credentials, Now Playing preferences, Roon Bridge start/stop/restart, device name, Wi-Fi and software updates. Web authentication can be renamed, reset or disabled under System; disabling it exposes every setting to the home network. The existing AccountKey and Wi-Fi password are never displayed back to the browser. Because this admin server uses ordinary HTTP, keep it on a trusted home network and use authentication unless the network itself is trusted.
 
-On the touchscreen, tap **SETTINGS** in the top-right corner. The same control appears over Roon Now Playing, so no address or keyboard is needed. **Sleep display** makes the screen black while leaving Roon Bridge and the bus service running; tap the discreet **WAKE** target in the bottom-right corner to return to Settings. Automatic mode also follows the configurable **Sleep from** and **Wake at** times (23:00–06:00 by default). Local touchscreen access opens directly, while access from another device still requires the admin password.
+On the touchscreen, **SETTINGS** is always at top left and **SLEEP** is at top right. The bottom navigation switches directly between **Now Playing** and **Bus Times**. Tap anywhere on the sleeping screen to wake it. Touchscreen Settings intentionally exposes only safe status and update controls; schedules, credentials, bus configuration, Roon service control and network settings remain in the authenticated web admin.
 
 The installer generates a unique admin password and prints it once. You can retrieve or change it later in `/etc/pi-bus-time-display/secrets.env`.
 
@@ -46,7 +46,7 @@ After the initial installation, update the appliance with one command:
 sudo pi-bus-update
 ```
 
-The updater accepts only a fast-forward update from the configured GitHub repository, reinstalls the application, refreshes both service definitions, verifies that both HTTP services respond and prints the relevant service log if startup fails. Your settings and secrets remain untouched in `/etc/pi-bus-time-display/`. Releases use semantic versions, shown at the top of the Settings page and recorded in [CHANGELOG.md](CHANGELOG.md); this release is **v0.2.1**. If the kiosk has cached an older screen, reboot once.
+The updater accepts only a fast-forward update from the configured GitHub branch, preserves any local checkout differences in a recoverable Git stash, reinstalls the application, refreshes its services, and verifies that both HTTP services respond. Updates can be started from the protected web System section or the restricted touchscreen Settings screen. Your settings and secrets remain untouched in `/etc/pi-bus-time-display/`. Releases use semantic versions, shown in Settings and recorded in [CHANGELOG.md](CHANGELOG.md). The GTK preview is **v0.3.0rc3**.
 
 ### Official touchscreen
 
@@ -87,7 +87,7 @@ This is also the quickest design-preview loop: leave simulation running, refresh
 
 The browser never receives the LTA key. If LTA or the network fails, the display retains the last successful arrivals and marks them offline/stale. The backend validates configuration, floors arrival minutes following LTA's published guidance, and polls no faster than configured.
 
-Roon Bridge uses ALSA directly and runs independently of the Chromium display. The controller uses Roon's official extension services for transport, volume and artwork, and listens only on the Pi's loopback interface. Raspberry Pi OS 64-bit uses Roon's supported ARMv8 build; the helper selects ARMv7 only on a 32-bit system.
+Roon Bridge uses ALSA directly and runs independently of the GTK display. The controller uses Roon's official extension services for transport, volume and artwork, and listens only on the Pi's loopback interface. Raspberry Pi OS 64-bit uses Roon's supported ARMv8 build; the helper selects ARMv7 only on a 32-bit system.
 
 ## Tests
 

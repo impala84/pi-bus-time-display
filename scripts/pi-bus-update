@@ -7,7 +7,6 @@ if [[ ${EUID} -ne 0 ]]; then
   echo "Run with sudo: sudo pi-bus-update"
   exit 1
 fi
-
 if [[ ! -d ${app_dir}/.git ]]; then
   echo "Pi Bus Time Display is not a Git checkout in ${app_dir}."
   echo "Run the current install-pi.sh once to enable one-command updates."
@@ -15,15 +14,39 @@ if [[ ! -d ${app_dir}/.git ]]; then
 fi
 
 echo "Checking for Pi Bus Time Display updates…"
+if [[ -n $(git -c safe.directory="${app_dir}" -C "${app_dir}" status --porcelain) ]]; then
+  backup_name="pi-bus-update backup $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  echo "Preserving local appliance changes as: ${backup_name}"
+  git -c safe.directory="${app_dir}" -C "${app_dir}" stash push --include-untracked --message "${backup_name}"
+fi
+git -c safe.directory="${app_dir}" -C "${app_dir}" fetch origin main
+git -c safe.directory="${app_dir}" -C "${app_dir}" checkout -B main origin/main
+
+echo "Installing native display runtime…"
+apt-get update
+apt-get install -y python3-gi gir1.2-gtk-4.0 fonts-inter
 install -d -o morningbus -g morningbus /var/lib/pi-bus-time-display/roon
-git -c safe.directory="${app_dir}" -C "${app_dir}" pull --ff-only
 
 "${app_dir}/.venv/bin/pip" install --no-deps "${app_dir}"
 npm --prefix "${app_dir}/roon-controller" install --omit=dev
 install -m 0644 "${app_dir}/systemd/pi-bus-time-display.service" /etc/systemd/system/pi-bus-time-display.service
 install -m 0644 "${app_dir}/systemd/pi-bus-roon-controller.service" /etc/systemd/system/pi-bus-roon-controller.service
+install -m 0644 "${app_dir}/systemd/pi-bus-system-action.service" /etc/systemd/system/pi-bus-system-action.service
+install -m 0644 "${app_dir}/systemd/pi-bus-system-action.path" /etc/systemd/system/pi-bus-system-action.path
 install -m 0755 "${app_dir}/scripts/pi-bus-update" /usr/local/sbin/pi-bus-update
+install -m 0755 "${app_dir}/scripts/pi-bus-system-action" /usr/local/sbin/pi-bus-system-action
+chmod 0755 "${app_dir}/native-display/pi_bus_native.py"
+
+desktop_user=${SUDO_USER:-}
+if [[ -n ${desktop_user} && ${desktop_user} != root ]]; then
+  desktop_home=$(getent passwd "${desktop_user}" | cut -d: -f6)
+  install -d -o "${desktop_user}" -g "${desktop_user}" "${desktop_home}/.config/autostart"
+  install -m 0644 -o "${desktop_user}" -g "${desktop_user}" "${app_dir}/native-display/pi-bus-native.desktop" "${desktop_home}/.config/autostart/pi-bus-native.desktop"
+  rm -f "${desktop_home}/.config/autostart/pi-bus-time-display.desktop"
+fi
+
 systemctl daemon-reload
+systemctl enable --now pi-bus-system-action.path
 systemctl restart pi-bus-time-display.service
 systemctl enable pi-bus-roon-controller.service
 systemctl restart pi-bus-roon-controller.service
@@ -48,4 +71,5 @@ wait_for_url() {
 wait_for_url "Main display" "http://127.0.0.1:8765/api/status" "pi-bus-time-display.service"
 wait_for_url "Roon controller" "http://127.0.0.1:8766/api/state" "pi-bus-roon-controller.service"
 
-echo "Pi Bus Time Display v0.2.1 is installed and both services are responding."
+echo "Pi Bus Time Display native GTK build is installed and both services are responding."
+echo "Reboot once to launch the native display."

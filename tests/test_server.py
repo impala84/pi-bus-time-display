@@ -5,7 +5,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from pi_bus_time_display.config import Config
-from pi_bus_time_display.server import display_target, read_display_mode, within_sleep_window
+from pi_bus_time_display.server import display_target, read_display_mode, within_sleep_window, write_control_request
 
 
 class DisplayModeTests(unittest.TestCase):
@@ -64,6 +64,13 @@ class DisplayModeTests(unittest.TestCase):
             evening = datetime(2026, 9, 28, 20, 0, tzinfo=ZoneInfo("Asia/Singapore"))
             self.assertEqual(display_target(config, path, {"zone": {"state": "paused"}}, evening), "/sleep.html")
             self.assertEqual(display_target(config, path, {"zone": {"state": "playing"}}, evening), "http://127.0.0.1:8766/")
+
+    def test_touchscreen_update_request_is_atomic_json(self):
+        with tempfile.TemporaryDirectory() as directory:
+            state_dir = Path(directory)
+            write_control_request(state_dir, {"action": "update"})
+            self.assertEqual((state_dir / "system-action-request.json").read_text(encoding="utf-8"), '{"action": "update"}')
+            self.assertFalse((state_dir / "system-action-request.tmp").exists())
 
 
 if __name__ == "__main__":

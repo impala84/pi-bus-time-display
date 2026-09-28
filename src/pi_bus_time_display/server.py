@@ -5,6 +5,8 @@ import hmac
 import json
 import os
 import secrets
+import socket
+import subprocess
 import threading
 import time
 import urllib.request
@@ -90,6 +92,9 @@ def write_config(path: Path, config: Config) -> None:
         f"roon_display_url = {json.dumps(config.roon_display_url)}",
         f"roon_zone_name = {json.dumps(config.roon_zone_name)}",
         f"sleep_when_roon_idle = {str(config.sleep_when_roon_idle).lower()}",
+        f"roon_show_controls = {str(config.roon_show_controls).lower()}",
+        f"roon_show_clock = {str(config.roon_show_clock).lower()}",
+        f"sleep_show_clock = {str(config.sleep_show_clock).lower()}",
         f"end_action = {json.dumps(config.end_action)}",
         "",
     ))
@@ -159,6 +164,44 @@ def display_target(
     return "/"
 
 
+def command_output(command: list[str]) -> str:
+    try:
+        return subprocess.run(command, capture_output=True, text=True, timeout=2, check=False).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        return ""
+
+
+def system_snapshot(state_dir: Path) -> dict:
+    roon_service = "unknown"
+    for name in ("roonbridge.service", "RoonBridge.service"):
+        status = command_output(["systemctl", "is-active", name])
+        if status and status != "unknown":
+            roon_service = status
+            break
+    wifi = command_output(["nmcli", "-t", "-f", "active,ssid", "dev", "wifi"])
+    active_wifi = next((line.split(":", 1)[1] for line in wifi.splitlines() if line.startswith("yes:")), "")
+    try:
+        update_status = (state_dir / "system-action-status").read_text(encoding="utf-8").strip()
+    except OSError:
+        update_status = "Ready"
+    return {
+        "hostname": socket.gethostname(),
+        "wifi_ssid": active_wifi,
+        "roon_bridge": roon_service,
+        "update_status": update_status,
+        "app_version": __version__,
+    }
+
+
+def write_control_request(state_dir: Path, request: dict) -> None:
+    state_dir.mkdir(parents=True, exist_ok=True)
+    temporary = state_dir / "system-action-request.tmp"
+    target = state_dir / "system-action-request.json"
+    temporary.write_text(json.dumps(request), encoding="utf-8")
+    os.chmod(temporary, 0o600)
+    temporary.replace(target)
+
+
 def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Path):
     static = Path(__file__).with_name("static")
     sessions: dict[str, float] = {}
@@ -206,10 +249,21 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                     "sleep_end": config.sleep_end, "roon_display_url": config.roon_display_url,
                     "roon_zone_name": config.roon_zone_name,
                     "sleep_when_roon_idle": config.sleep_when_roon_idle,
+                    "roon_show_controls": config.roon_show_controls,
+                    "roon_show_clock": config.roon_show_clock,
+                    "sleep_show_clock": config.sleep_show_clock,
                     "app_version": __version__,
+                    "admin_username": os.getenv("ADMIN_USERNAME", "admin"),
+                    "admin_auth_enabled": os.getenv("ADMIN_AUTH_ENABLED", "true").lower() != "false",
                     "display_mode": read_display_mode(mode_path),
                     "has_lta_key": bool(os.getenv("LTA_ACCOUNT_KEY")),
                 }).encode()
+                self.send_json(200, body)
+                return
+            if self.path == "/api/admin/system":
+                if not self.authorised():
+                    return
+                body = json.dumps(system_snapshot(mode_path.parent)).encode()
                 self.send_json(200, body)
                 return
             if self.path == "/api/status":
@@ -225,7 +279,8 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                 username = form.get("username", [""])[0]
                 supplied = form.get("password", [""])[0]
                 expected = os.getenv("ADMIN_PASSWORD", "")
-                if username == "admin" and expected and hmac.compare_digest(supplied, expected):
+                expected_username = os.getenv("ADMIN_USERNAME", "admin")
+                if hmac.compare_digest(username, expected_username) and expected and hmac.compare_digest(supplied, expected):
                     token = secrets.token_urlsafe(32)
                     sessions[token] = time.time() + 30 * 24 * 60 * 60
                     self.send_response(302)
@@ -237,7 +292,14 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                     self.send_header("Location", "/login.html?error=1")
                     self.end_headers()
                 return
-            if self.path not in {"/api/admin/config", "/api/admin/display-mode"}:
+            if self.path == "/api/device/update":
+                if self.client_address[0] not in {"127.0.0.1", "::1"}:
+                    self.send_json(403, b'{"error":"Touchscreen only"}')
+                    return
+                write_control_request(mode_path.parent, {"action": "update"})
+                self.send_json(202, b'{"ok":true}')
+                return
+            if self.path not in {"/api/admin/config", "/api/admin/display-mode", "/api/admin/system-action", "/api/admin/password"}:
                 self.send_error(404)
                 return
             if not self.authorised():
@@ -247,6 +309,44 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                 if length > 16_384:
                     raise ValueError("Request is too large")
                 data = json.loads(self.rfile.read(length))
+                if self.path == "/api/admin/password":
+                    username = str(data.get("username", "")).strip()
+                    password = str(data.get("password", ""))
+                    enabled = bool(data.get("enabled", True))
+                    if not (3 <= len(username) <= 32) or not all(character.isalnum() or character in "-_" for character in username):
+                        raise ValueError("Username must be 3–32 letters, numbers, hyphens or underscores")
+                    if password and len(password) < 10:
+                        raise ValueError("Password must contain at least 10 characters")
+                    if enabled and not password and not os.getenv("ADMIN_PASSWORD", ""):
+                        raise ValueError("Set a password before enabling web sign-in")
+                    update_secret(env_path, "ADMIN_USERNAME", username)
+                    if password:
+                        update_secret(env_path, "ADMIN_PASSWORD", password)
+                    update_secret(env_path, "ADMIN_AUTH_ENABLED", "true" if enabled else "false")
+                    sessions.clear()
+                    body = b'{"ok":true}'
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json")
+                    self.send_header("Cache-Control", "no-store")
+                    self.send_header("Set-Cookie", "pi_bus_session=; Max-Age=0; Path=/; HttpOnly; SameSite=Strict")
+                    self.send_header("Content-Length", str(len(body)))
+                    self.end_headers()
+                    self.wfile.write(body)
+                    return
+                if self.path == "/api/admin/system-action":
+                    action = str(data.get("action", ""))
+                    allowed = {"update", "roon_start", "roon_stop", "roon_restart", "set_hostname", "set_wifi"}
+                    if action not in allowed:
+                        raise ValueError("Unknown system action")
+                    request = {"action": action}
+                    if action == "set_hostname":
+                        request["hostname"] = str(data.get("hostname", "")).strip()
+                    if action == "set_wifi":
+                        request["ssid"] = str(data.get("ssid", "")).strip()
+                        request["password"] = str(data.get("password", ""))
+                    write_control_request(mode_path.parent, request)
+                    self.send_json(202, json.dumps({"ok": True, "status": "queued"}).encode())
+                    return
                 if self.path == "/api/admin/display-mode":
                     mode = str(data.get("mode", ""))
                     if mode not in {"auto", "bus", "roon", "sleep"}:
@@ -267,6 +367,9 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                     timezone=current.timezone, roon_display_url=current.roon_display_url,
                     roon_zone_name=str(data.get("roon_zone_name", "")).strip(),
                     sleep_when_roon_idle=bool(data.get("sleep_when_roon_idle", False)),
+                    roon_show_controls=bool(data.get("roon_show_controls", True)),
+                    roon_show_clock=bool(data.get("roon_show_clock", True)),
+                    sleep_show_clock=bool(data.get("sleep_show_clock", False)),
                     end_action="display", simulate=current.simulate,
                 )
                 if not candidate.bus_stop_code.isdigit() or len(candidate.bus_stop_code) != 5:
@@ -290,6 +393,8 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
 
         def is_authorised(self) -> bool:
             if self.client_address[0] in {"127.0.0.1", "::1"}:
+                return True
+            if os.getenv("ADMIN_AUTH_ENABLED", "true").lower() == "false":
                 return True
             cookie = SimpleCookie(self.headers.get("Cookie", ""))
             token = cookie.get("pi_bus_session")

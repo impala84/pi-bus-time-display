@@ -22,6 +22,9 @@ class Config:
     roon_display_url: str = ""
     roon_zone_name: str = ""
     sleep_when_roon_idle: bool = False
+    roon_show_controls: bool = True
+    roon_show_clock: bool = True
+    sleep_show_clock: bool = False
     end_action: str = "display"
     simulate: bool = False
 

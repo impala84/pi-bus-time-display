@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.3.0-rc.3 — 29 September 2026
+
+- Made appliance updates preserve local checkout differences automatically instead of failing when an installed file has changed.
+- Made installed appliances follow the supported `main` branch after the native GTK build became the primary release.
+
+## 0.3.0-rc.2 — 29 September 2026
+
+- Matched the native display typography to the Inter-based web administration and installed Inter automatically.
+- Replaced visible main-screen utility buttons with large invisible title and clock touch targets.
+- Removed page-transition animation and softened borders, status text and navigation chrome.
+- Aligned and enlarged bus service and arrival figures on a shared baseline.
+- Restored circular symbolic Roon transport controls and improved connected-but-idle wording.
+- Added an optional completely black sleep screen while retaining tap-anywhere wake.
+
+## 0.3.0-rc.1 — 29 September 2026
+
+- Replaced the Chromium kiosk with a lightweight native GTK4 touchscreen.
+- Added persistent Bus Times and Now Playing navigation, corner Settings and Sleep actions, and tap-anywhere wake.
+- Added a restricted touchscreen settings screen with safe, one-tap software updates.
+- Restored native Roon artwork, progress, playback and volume controls.
+- Reorganised web administration into Schedule, Bus Stop, Roon and System sections.
+- Added authenticated Roon Bridge controls, hostname, Wi-Fi and software-update actions.
+- Added configurable web username/password management and optional authentication.
+
 ## 0.2.1 — 28 September 2026
 
 - Prevented Chromium from launching before the main display service responds.
