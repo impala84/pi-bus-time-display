@@ -27,6 +27,8 @@ def fetch(account_key: str, stop: str, timeout: float = 10) -> dict:
 
 def simulated(now: datetime, services: tuple[str, ...]) -> dict:
     numbers = services or ("40", "42", "401")
+    if now.weekday() < 5:
+        numbers = tuple(number for number in numbers if number != "401")
     offsets = ((5, 14, 27), (9, 18, 31), (12, 23, 38))
     loads = ("SEA", "SDA", "LSD")
     result = []

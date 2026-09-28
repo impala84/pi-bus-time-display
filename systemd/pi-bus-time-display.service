@@ -9,14 +9,14 @@ User=morningbus
 Group=morningbus
 WorkingDirectory=/opt/pi-bus-time-display
 Environment=PYTHONUNBUFFERED=1
-ExecStart=/opt/pi-bus-time-display/.venv/bin/pi-bus-time-display --config /etc/pi-bus-time-display/config.toml --env /etc/pi-bus-time-display/secrets.env --host 127.0.0.1
+ExecStart=/opt/pi-bus-time-display/.venv/bin/pi-bus-time-display --config /etc/pi-bus-time-display/config.toml --env /etc/pi-bus-time-display/secrets.env --host 0.0.0.0
 Restart=always
 RestartSec=3
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/var/lib/pi-bus-time-display
+ReadWritePaths=/var/lib/pi-bus-time-display /etc/pi-bus-time-display
 
 [Install]
 WantedBy=multi-user.target

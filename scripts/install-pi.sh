@@ -14,8 +14,13 @@ install -d -o morningbus -g morningbus /opt/pi-bus-time-display /etc/pi-bus-time
 cp -a "${SOURCE_DIR}/." /opt/pi-bus-time-display/
 python3 -m venv /opt/pi-bus-time-display/.venv
 /opt/pi-bus-time-display/.venv/bin/pip install --no-deps /opt/pi-bus-time-display
-[[ -f /etc/pi-bus-time-display/config.toml ]] || install -m 0644 /opt/pi-bus-time-display/config.example.toml /etc/pi-bus-time-display/config.toml
+[[ -f /etc/pi-bus-time-display/config.toml ]] || install -m 0640 -o morningbus -g morningbus /opt/pi-bus-time-display/config.example.toml /etc/pi-bus-time-display/config.toml
 [[ -f /etc/pi-bus-time-display/secrets.env ]] || install -m 0600 -o morningbus -g morningbus /opt/pi-bus-time-display/.env.example /etc/pi-bus-time-display/secrets.env
+if grep -q '^ADMIN_PASSWORD=change-me-now$' /etc/pi-bus-time-display/secrets.env; then
+  admin_password=$(openssl rand -hex 8)
+  sed -i "s/^ADMIN_PASSWORD=change-me-now$/ADMIN_PASSWORD=${admin_password}/" /etc/pi-bus-time-display/secrets.env
+  echo "Web settings password: ${admin_password}"
+fi
 install -m 0644 /opt/pi-bus-time-display/systemd/*.service /etc/systemd/system/
 desktop_user=${SUDO_USER:-}
 if [[ -z ${desktop_user} || ${desktop_user} == root ]]; then

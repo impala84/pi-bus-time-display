@@ -20,6 +20,14 @@ You need one microSD card (16 GB or larger) and an LTA DataMall AccountKey.
 
 The bus installer creates an unprivileged service account, keeps the LTA key outside the repository, restarts the data service after failures and launches Chromium full-screen in the configured Raspberry Pi desktop session. Roon's installer starts Roon Bridge at boot and manages its own updates.
 
+## Web settings
+
+From a phone or computer on the same network, open `http://<pi-address>:8765/admin`. Sign in with username `admin` and the `ADMIN_PASSWORD` stored in `/etc/pi-bus-time-display/secrets.env`.
+
+The settings page lets you change the stop code and name, tracked services, walking time, display window, polling interval and LTA AccountKey. Changes take effect without rebooting. The existing AccountKey is never displayed back to the browser. Because this small admin server uses ordinary HTTP, keep it on a trusted home network and choose a unique password.
+
+The installer generates a unique admin password and prints it once. You can retrieve or change it later in `/etc/pi-bus-time-display/secrets.env`.
+
 ### Official touchscreen
 
 Current Raspberry Pi OS releases normally detect the official display automatically. Set rotation in Screen Configuration if necessary, and disable screen blanking under Raspberry Pi Configuration.
@@ -49,6 +57,8 @@ cp config.example.toml config.toml
 ```
 
 Open <http://127.0.0.1:8765>. For live data, copy `.env.example` to `.env`, add the AccountKey and start without `--simulate`.
+
+This is also the quickest design-preview loop: leave simulation running, refresh the browser after a code change, and no Raspberry Pi rebuild is needed.
 
 ## Reliability and privacy
 
