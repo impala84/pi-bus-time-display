@@ -184,10 +184,21 @@ def system_snapshot(state_dir: Path) -> dict:
         update_status = (state_dir / "system-action-status").read_text(encoding="utf-8").strip()
     except OSError:
         update_status = "Ready"
+    try:
+        with urllib.request.urlopen("http://127.0.0.1:8766/api/state", timeout=.5) as response:
+            controller = json.load(response)
+        if controller.get("connected"):
+            zone = controller.get("zone") or {}
+            roon_controller = f"Connected · {zone.get('name')}" if zone.get("name") else "Connected · no zones"
+        else:
+            roon_controller = "Waiting for authorisation"
+    except (OSError, ValueError, json.JSONDecodeError):
+        roon_controller = "Unavailable"
     return {
         "hostname": socket.gethostname(),
         "wifi_ssid": active_wifi,
         "roon_bridge": roon_service,
+        "roon_controller": roon_controller,
         "update_status": update_status,
         "app_version": __version__,
     }

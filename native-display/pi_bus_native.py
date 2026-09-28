@@ -31,9 +31,9 @@ button { border: 0; box-shadow: none; background-image: none; outline: none; }
 .service-no { font-weight: 760; }.service-blue .service-no { color: #55a9d7; }.service-green .service-no { color: #61c68f; }
 .arrival-sub { color: #7f8b87; font-size: 10px; font-weight: 650; }.muted { color: #78837f; font-size: 11px; font-weight: 400; }
 .nav { padding-top: 5px; }.nav button { min-height: 46px; border-radius: 8px; background: #18211f; color: #9aa6a2; font-size: 15px; font-weight: 750; }
-.nav button.active { background: #285f4d; color: #f4f0e6; }.artwork { border-radius: 12px; }.roon-title { font-size: 35px; font-weight: 620; }.roon-artist { color: #b6c0bc; font-size: 18px; }
-.transport button { min-width: 54px; min-height: 54px; border-radius: 50%; padding: 0; background: #18211f; color: #e4e7e4; }.transport .play { min-width: 70px; min-height: 70px; border-radius: 50%; background: #285f4d; }
-.progress trough, .volume trough { min-height: 7px; border: 0; box-shadow: none; border-radius: 4px; background: #303a37; }.progress progress, .volume highlight { border: 0; box-shadow: none; background: #6ed9ae; }.time { color: #87928e; font-size: 12px; }
+.nav button.active { background: #1c302a; color: #6ed9ae; }.artwork { border-radius: 12px; }.roon-title { font-size: 35px; font-weight: 620; }.roon-artist { color: #b6c0bc; font-size: 18px; }
+.transport button { min-width: 50px; min-height: 50px; border-radius: 25px; padding: 0; background: #18211f; color: #e4e7e4; }.transport .play { min-width: 68px; min-height: 68px; border-radius: 34px; background: #285f4d; }
+.progress trough, .volume trough { min-height: 7px; border: 0; box-shadow: none; border-radius: 4px; background: #303a37; }.progress highlight, .volume highlight { border: 0; box-shadow: none; background: #6ed9ae; }.time { color: #87928e; font-size: 12px; }
 .sleep { background: #000; }.sleep-clock { font-size: 112px; font-weight: 550; }.settings-title { font-size: 32px; font-weight: 650; }
 .settings-card { background: #131c1a; border: 1px solid #26312e; border-radius: 14px; padding: 16px; }.settings-action { min-height: 54px; border-radius: 12px; background: #285f4d; color: #f4f0e6; font-weight: 750; }
 """
@@ -74,6 +74,8 @@ class Display(Gtk.Application):
         self.settings_data = {}
         self.image_key = None
         self.volume_updating = False
+        self.seek_updating = False
+        self.seek_timeout = None
 
     def label(self, text="", css=None, x=0):
         widget = Gtk.Label(label=text, xalign=x)
@@ -132,15 +134,16 @@ class Display(Gtk.Application):
     def build_roon(self):
         page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8); page.add_css_class("page")
         self.zone = self.label("ROON NOW PLAYING", "eyebrow"); self.roon_clock = self.label("--:--", "clock", 1); page.append(self.header(self.zone, self.roon_clock))
-        content = Gtk.Box(spacing=18); content.set_vexpand(True)
-        self.artwork = Gtk.Picture(); self.artwork.add_css_class("artwork"); self.artwork.set_size_request(275, 275); self.artwork.set_content_fit(Gtk.ContentFit.COVER); content.append(self.artwork)
+        content = Gtk.Box(spacing=26); content.set_vexpand(True); content.set_margin_start(8); content.set_margin_end(8); content.set_margin_top(8); content.set_margin_bottom(8)
+        self.artwork = Gtk.Picture(); self.artwork.add_css_class("artwork"); self.artwork.set_size_request(288, 288); self.artwork.set_content_fit(Gtk.ContentFit.COVER); content.append(self.artwork)
         centre = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=7); centre.set_valign(Gtk.Align.CENTER); centre.set_hexpand(True)
         self.title = self.label("Waiting for Roon…", "roon-title", .5); self.title.set_wrap(True); self.title.set_lines(2); self.title.set_justify(Gtk.Justification.CENTER)
         self.artist = self.label("Enable Pi Bus Roon Controller in Roon", "roon-artist", .5); self.artist.set_wrap(True); self.artist.set_justify(Gtk.Justification.CENTER); centre.append(self.title); centre.append(self.artist)
-        self.progress = Gtk.ProgressBar(); self.progress.add_css_class("progress"); centre.append(self.progress)
+        self.progress = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 0, 1, 1); self.progress.add_css_class("progress"); self.progress.set_draw_value(False); self.progress.set_sensitive(False); self.progress.connect("value-changed", self.change_seek); centre.append(self.progress)
         times = Gtk.Box(); self.elapsed = self.label("0:00", "time"); self.remaining = self.label("−0:00", "time", 1); self.remaining.set_hexpand(True); times.append(self.elapsed); times.append(self.remaining); centre.append(times)
         self.controls = Gtk.Box(spacing=14); self.controls.set_halign(Gtk.Align.CENTER); self.controls.add_css_class("transport")
         self.prev = self.icon_button("media-skip-backward-symbolic", lambda *_: self.control("previous")); self.play = self.icon_button("media-playback-start-symbolic", lambda *_: self.control("playpause"), "play"); self.next = self.icon_button("media-skip-forward-symbolic", lambda *_: self.control("next"))
+        self.prev.set_size_request(50, 50); self.prev.set_valign(Gtk.Align.CENTER); self.play.set_size_request(68, 68); self.play.set_valign(Gtk.Align.CENTER); self.next.set_size_request(50, 50); self.next.set_valign(Gtk.Align.CENTER)
         self.controls.append(self.prev); self.controls.append(self.play); self.controls.append(self.next); centre.append(self.controls)
         volume_row = Gtk.Box(spacing=10); volume_row.append(self.label("VOL", "eyebrow")); self.volume = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 0, 100, 1); self.volume.add_css_class("volume"); self.volume.set_hexpand(True); self.volume.set_draw_value(False); self.volume.connect("value-changed", self.change_volume); volume_row.append(self.volume); self.volume_value = self.label("—", "time", 1); volume_row.append(self.volume_value); centre.append(volume_row)
         content.append(centre); page.append(content); page.append(self.navigation("roon")); return page
@@ -208,11 +211,18 @@ class Display(Gtk.Application):
     def render_roon(self, data):
         self.state = data; zone = (data or {}).get("zone")
         if not zone:
-            self.zone.set_text(self.settings_data.get("roon_zone_name") or "ROON"); self.title.set_text("Nothing playing" if (data or {}).get("connected") else "Roon unavailable"); self.artist.set_text(""); self.prev.set_sensitive(False); self.play.set_sensitive(False); self.next.set_sensitive(False); self.progress.set_fraction(0); self.volume.set_sensitive(False); self.artwork.set_paintable(None); return
+            self.zone.set_text(self.settings_data.get("roon_zone_name") or "ROON")
+            if data is None:
+                self.title.set_text("Controller unavailable"); self.artist.set_text("Check the controller service in web settings")
+            elif not data.get("connected"):
+                self.title.set_text("Authorise in Roon"); self.artist.set_text("Settings → Extensions → Pi Bus Roon Controller")
+            else:
+                self.title.set_text("Nothing playing"); self.artist.set_text("No Roon zones are available")
+            self.prev.set_sensitive(False); self.play.set_sensitive(False); self.next.set_sensitive(False); self.seek_updating = True; self.progress.set_value(0); self.progress.set_sensitive(False); self.seek_updating = False; self.volume.set_sensitive(False); self.artwork.set_paintable(None); return
         playing = zone.get("now_playing") or {}; lines = playing.get("three_line") or playing.get("two_line") or playing.get("one_line") or {}
         self.zone.set_text(zone.get("name") or "ROON"); self.title.set_text(lines.get("line1") or "Nothing playing"); self.artist.set_text(" · ".join(filter(None, (lines.get("line2"), lines.get("line3")))) or "Roon")
         self.play.set_child(Gtk.Image.new_from_icon_name("media-playback-pause-symbolic" if zone.get("state") == "playing" else "media-playback-start-symbolic")); self.prev.set_sensitive(bool(zone.get("can_previous"))); self.next.set_sensitive(bool(zone.get("can_next"))); self.play.set_sensitive(bool(zone.get("can_play") or zone.get("can_pause")))
-        elapsed = int(zone.get("seek_position") or 0); length = int(playing.get("length") or 0); self.progress.set_fraction(min(1, elapsed / length) if length else 0); self.elapsed.set_text(self.format_time(elapsed)); self.remaining.set_text("−" + self.format_time(max(0, length - elapsed)))
+        elapsed = int(zone.get("seek_position") or 0); length = int(playing.get("length") or 0); self.seek_updating = True; self.progress.set_range(0, max(1, length)); self.progress.set_value(min(elapsed, length) if length else 0); self.progress.set_sensitive(bool(zone.get("can_seek") and length)); self.seek_updating = False; self.elapsed.set_text(self.format_time(elapsed)); self.remaining.set_text("−" + self.format_time(max(0, length - elapsed)))
         output = zone.get("output") or {}; volume = output.get("volume") or {}; value = volume.get("value"); self.volume_updating = True; self.volume.set_sensitive(value is not None); self.volume.set_value(float(value or 0)); self.volume_value.set_text(str(value) if value is not None else "FIXED"); self.volume_updating = False
 
     def set_mode(self, mode):
@@ -228,6 +238,18 @@ class Display(Gtk.Application):
         if self.volume_updating or not self.state: return
         output = (self.state.get("zone") or {}).get("output") or {}; output_id = output.get("id")
         if output_id: threading.Thread(target=post_json, args=(ROON + "/api/volume", {"output_id": output_id, "value": round(scale.get_value())}), daemon=True).start()
+
+    def change_seek(self, scale):
+        if self.seek_updating or not self.state or not (self.state.get("zone") or {}).get("can_seek"):
+            return
+        if self.seek_timeout is not None:
+            GLib.source_remove(self.seek_timeout)
+        self.seek_timeout = GLib.timeout_add(220, self.send_seek, round(scale.get_value()))
+
+    def send_seek(self, seconds):
+        self.seek_timeout = None
+        threading.Thread(target=post_json, args=(ROON + "/api/seek", {"seconds": seconds}), daemon=True).start()
+        return False
 
     def request_update(self, *_):
         self.update_button.set_sensitive(False); self.device_status.set_text("Update requested…")

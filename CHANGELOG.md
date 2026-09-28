@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.0-rc.5 — 29 September 2026
+
+- Distinguished the Now Playing controller from the Roon Bridge audio endpoint in web administration.
+- Added clear Roon authorisation guidance and separate unavailable, unauthorised and idle states on the touchscreen.
+- Refined the Now Playing split layout, artwork spacing, circular transport controls and bottom navigation emphasis.
+- Made the native progress timeline touch-seekable, with debouncing and automatic disabling for non-seekable material.
+- Added a Pi Bus favicon to web administration.
+
 ## 0.3.0-rc.4 — 29 September 2026
 
 - Replaced raw command exceptions on touchscreen system actions with concise, useful failure messages while retaining full output in the service log.
