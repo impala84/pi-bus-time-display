@@ -12,6 +12,8 @@ timezone = "Asia/Singapore"
 roon_display_url = ""
 roon_zone_name = ""
 sleep_when_roon_idle = false
+roon_show_controls = true
+roon_show_clock = true
 
 # Retained for configuration compatibility. The one-card appliance keeps running
 # Roon Bridge and changes the touchscreen to its quiet clock outside the window.

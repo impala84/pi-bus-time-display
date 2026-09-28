@@ -1,0 +1,68 @@
+#!/usr/bin/env python3
+"""Execute a tightly-scoped privileged request from the Pi Bus admin service."""
+import json
+import os
+import re
+import subprocess
+from pathlib import Path
+
+STATE = Path("/var/lib/pi-bus-time-display")
+REQUEST = STATE / "system-action-request.json"
+STATUS = STATE / "system-action-status"
+
+
+def report(message: str) -> None:
+    temporary = STATUS.with_suffix(".tmp")
+    temporary.write_text(message + "\n", encoding="utf-8")
+    os.chmod(temporary, 0o644)
+    temporary.replace(STATUS)
+
+
+def run(command: list[str]) -> None:
+    subprocess.run(command, check=True)
+
+
+def roon_service() -> str:
+    for name in ("roonbridge.service", "RoonBridge.service"):
+        if subprocess.run(["systemctl", "cat", name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0:
+            return name
+    raise RuntimeError("Roon Bridge service is not installed")
+
+
+def main() -> None:
+    if not REQUEST.exists():
+        return
+    data = json.loads(REQUEST.read_text(encoding="utf-8"))
+    REQUEST.unlink(missing_ok=True)
+    action = data.get("action")
+    report("Working…")
+    if action == "update":
+        run(["/usr/local/sbin/pi-bus-update"])
+        report("Update installed. Reboot if requested.")
+    elif action in {"roon_start", "roon_stop", "roon_restart"}:
+        verb = action.removeprefix("roon_")
+        run(["systemctl", verb, roon_service()])
+        report(f"Roon Bridge {verb} complete.")
+    elif action == "set_hostname":
+        hostname = str(data.get("hostname", ""))
+        if not re.fullmatch(r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?", hostname):
+            raise ValueError("Invalid device name")
+        run(["hostnamectl", "set-hostname", hostname])
+        report("Device name updated. Reboot recommended.")
+    elif action == "set_wifi":
+        ssid = str(data.get("ssid", ""))
+        password = str(data.get("password", ""))
+        if not ssid or len(ssid) > 32 or len(password) < 8:
+            raise ValueError("Wi-Fi name or password is invalid")
+        run(["nmcli", "device", "wifi", "connect", ssid, "password", password])
+        report(f"Connected to {ssid}.")
+    else:
+        raise ValueError("Unknown system action")
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception as error:
+        report(f"Failed: {error}")
+        raise

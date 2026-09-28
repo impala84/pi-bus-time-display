@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.0-rc.1 — 29 September 2026
+
+- Replaced the Chromium kiosk with a lightweight native GTK4 touchscreen.
+- Added persistent Bus Times and Now Playing navigation, corner Settings and Sleep actions, and tap-anywhere wake.
+- Added a restricted touchscreen settings screen with safe, one-tap software updates.
+- Restored native Roon artwork, progress, playback and volume controls.
+- Reorganised web administration into Schedule, Bus Stop, Roon and System sections.
+- Added authenticated Roon Bridge controls, hostname, Wi-Fi and software-update actions.
+- Added configurable web username/password management and optional authentication.
+
 ## 0.2.1 — 28 September 2026
 
 - Prevented Chromium from launching before the main display service responds.

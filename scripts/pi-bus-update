@@ -25,7 +25,10 @@ install -d -o morningbus -g morningbus /var/lib/pi-bus-time-display/roon
 npm --prefix "${app_dir}/roon-controller" install --omit=dev
 install -m 0644 "${app_dir}/systemd/pi-bus-time-display.service" /etc/systemd/system/pi-bus-time-display.service
 install -m 0644 "${app_dir}/systemd/pi-bus-roon-controller.service" /etc/systemd/system/pi-bus-roon-controller.service
+install -m 0644 "${app_dir}/systemd/pi-bus-system-action.service" /etc/systemd/system/pi-bus-system-action.service
+install -m 0644 "${app_dir}/systemd/pi-bus-system-action.path" /etc/systemd/system/pi-bus-system-action.path
 install -m 0755 "${app_dir}/scripts/pi-bus-update" /usr/local/sbin/pi-bus-update
+install -m 0755 "${app_dir}/scripts/pi-bus-system-action" /usr/local/sbin/pi-bus-system-action
 chmod 0755 "${app_dir}/native-display/pi_bus_native.py"
 
 desktop_user=${SUDO_USER:-}
@@ -37,6 +40,7 @@ if [[ -n ${desktop_user} && ${desktop_user} != root ]]; then
 fi
 
 systemctl daemon-reload
+systemctl enable --now pi-bus-system-action.path
 systemctl restart pi-bus-time-display.service
 systemctl enable pi-bus-roon-controller.service
 systemctl restart pi-bus-roon-controller.service

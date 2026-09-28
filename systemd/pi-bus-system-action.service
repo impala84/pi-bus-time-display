@@ -1,0 +1,7 @@
+[Unit]
+Description=Pi Bus privileged system action
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/pi-bus-system-action
+Nice=10
