@@ -28,6 +28,16 @@ The settings page lets you change the stop code and name, tracked services, walk
 
 The installer generates a unique admin password and prints it once. You can retrieve or change it later in `/etc/pi-bus-time-display/secrets.env`.
 
+## Updates
+
+After the initial installation, update the appliance with one command:
+
+```sh
+sudo pi-bus-update
+```
+
+The updater accepts only a fast-forward update from the configured GitHub repository, reinstalls the application, refreshes its service definition and restarts it. Your settings and secrets remain untouched in `/etc/pi-bus-time-display/`. If the kiosk has cached an older screen, refresh it or reboot once.
+
 ### Official touchscreen
 
 Current Raspberry Pi OS releases normally detect the official display automatically. Set rotation in Screen Configuration if necessary, and disable screen blanking under Raspberry Pi Configuration.

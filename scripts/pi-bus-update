@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+app_dir=/opt/pi-bus-time-display
+
+if [[ ${EUID} -ne 0 ]]; then
+  echo "Run with sudo: sudo pi-bus-update"
+  exit 1
+fi
+
+if [[ ! -d ${app_dir}/.git ]]; then
+  echo "Pi Bus Time Display is not a Git checkout in ${app_dir}."
+  echo "Run the current install-pi.sh once to enable one-command updates."
+  exit 1
+fi
+
+echo "Checking for Pi Bus Time Display updates…"
+git -c safe.directory="${app_dir}" -C "${app_dir}" pull --ff-only
+
+"${app_dir}/.venv/bin/pip" install --no-deps "${app_dir}"
+install -m 0644 "${app_dir}/systemd/pi-bus-time-display.service" /etc/systemd/system/pi-bus-time-display.service
+install -m 0755 "${app_dir}/scripts/pi-bus-update" /usr/local/sbin/pi-bus-update
+systemctl daemon-reload
+systemctl restart pi-bus-time-display.service
+
+echo "Pi Bus Time Display is up to date. Refresh the screen if it does not update within a few seconds."

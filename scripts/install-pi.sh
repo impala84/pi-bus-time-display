@@ -22,6 +22,7 @@ if grep -q '^ADMIN_PASSWORD=change-me-now$' /etc/pi-bus-time-display/secrets.env
   echo "Web settings password: ${admin_password}"
 fi
 install -m 0644 /opt/pi-bus-time-display/systemd/*.service /etc/systemd/system/
+install -m 0755 /opt/pi-bus-time-display/scripts/pi-bus-update /usr/local/sbin/pi-bus-update
 desktop_user=${SUDO_USER:-}
 if [[ -z ${desktop_user} || ${desktop_user} == root ]]; then
   echo "Run this installer with sudo from the Raspberry Pi desktop user."
@@ -33,3 +34,4 @@ install -m 0644 -o "${desktop_user}" -g "${desktop_user}" /opt/pi-bus-time-displ
 systemctl daemon-reload
 systemctl enable pi-bus-time-display.service
 echo "Installed. Edit /etc/pi-bus-time-display/config.toml and /etc/pi-bus-time-display/secrets.env, then reboot."
+echo "Future application updates: sudo pi-bus-update"
