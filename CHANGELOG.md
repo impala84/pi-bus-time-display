@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.0-rc.12 — 29 September 2026
+
+- Kept the last valid album cover through brief incomplete Roon metadata updates between tracks.
+- Clear stale artwork only after five consecutive polls genuinely contain no artwork.
+
 ## 0.3.0-rc.11 — 29 September 2026
 
 - URL-encoded Roon image keys so artwork containing reserved URL characters loads reliably.

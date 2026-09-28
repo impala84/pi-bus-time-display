@@ -74,6 +74,7 @@ class Display(Gtk.Application):
         self.last_mode = "bus"
         self.settings_data = {}
         self.image_key = None
+        self.image_misses = 0
         self.volume_updating = False
         self.seek_updating = False
         self.seek_timeout = None
@@ -187,7 +188,7 @@ class Display(Gtk.Application):
         self.render_bus(status); self.render_roon(roon)
         if image:
             try:
-                self.artwork.set_paintable(Gdk.Texture.new_from_bytes(GLib.Bytes.new(image))); self.image_key = image_key
+                self.artwork.set_paintable(Gdk.Texture.new_from_bytes(GLib.Bytes.new(image))); self.image_key = image_key; self.image_misses = 0
             except GLib.Error:
                 pass
         if self.settings_open:
@@ -221,10 +222,12 @@ class Display(Gtk.Application):
                 self.title.set_text("Authorise in Roon"); self.artist.set_text("Settings → Extensions → Pi Bus Roon Controller")
             else:
                 self.title.set_text("Nothing playing"); self.artist.set_text("No Roon zones are available")
-            self.prev.set_sensitive(False); self.play.set_sensitive(False); self.next.set_sensitive(False); self.seek_updating = True; self.progress.set_value(0); self.progress.set_sensitive(False); self.seek_updating = False; self.volume.set_sensitive(False); self.artwork.set_paintable(None); self.image_key = None; return
+            self.prev.set_sensitive(False); self.play.set_sensitive(False); self.next.set_sensitive(False); self.seek_updating = True; self.progress.set_value(0); self.progress.set_sensitive(False); self.seek_updating = False; self.volume.set_sensitive(False); self.note_missing_artwork(); return
         playing = zone.get("now_playing") or {}; lines = playing.get("three_line") or playing.get("two_line") or playing.get("one_line") or {}
         if not playing.get("image_key"):
-            self.artwork.set_paintable(None); self.image_key = None
+            self.note_missing_artwork()
+        else:
+            self.image_misses = 0
         self.zone.set_text(zone.get("name") or "ROON"); self.title.set_text(lines.get("line1") or "Nothing playing"); self.artist.set_text(" · ".join(filter(None, (lines.get("line2"), lines.get("line3")))) or "Roon")
         self.play.set_child(Gtk.Image.new_from_icon_name("media-playback-pause-symbolic" if zone.get("state") == "playing" else "media-playback-start-symbolic")); self.prev.set_sensitive(bool(zone.get("can_previous"))); self.next.set_sensitive(bool(zone.get("can_next"))); self.play.set_sensitive(bool(zone.get("can_play") or zone.get("can_pause")))
         elapsed = int(zone.get("seek_position") or 0); length = int(playing.get("length") or 0); self.seek_updating = True; self.progress.set_range(0, max(1, length)); self.progress.set_value(min(elapsed, length) if length else 0); self.progress.set_sensitive(bool(zone.get("can_seek") and length)); self.seek_updating = False; self.elapsed.set_text(self.format_time(elapsed)); self.remaining.set_text("−" + self.format_time(max(0, length - elapsed)))
@@ -232,6 +235,12 @@ class Display(Gtk.Application):
 
     def set_mode(self, mode):
         self.settings_open = False; self.last_mode = mode; self.stack.set_visible_child_name(mode); threading.Thread(target=post_json, args=(BUS + "/api/admin/display-mode", {"mode": mode}), daemon=True).start()
+
+    def note_missing_artwork(self):
+        self.image_misses += 1
+        if self.image_misses >= 5:
+            self.artwork.set_paintable(None)
+            self.image_key = None
 
     def open_settings(self, *_): self.settings_open = True; self.stack.set_visible_child_name("settings")
     def close_settings(self, *_): self.settings_open = False; self.stack.set_visible_child_name(self.last_mode)
