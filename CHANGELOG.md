@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.0-rc.8 — 29 September 2026
+
+- Extended the display-orientation setting to the Raspberry Pi kernel console so the boot splash and GTK kiosk share the same orientation.
+- Preserve the original kernel command line as `cmdline.txt.pi-bus-backup` before changing it.
+
 ## 0.3.0-rc.7 — 29 September 2026
 
 - Added persistent appliance-mode display rotation with a simple 180° switch under System → Display.

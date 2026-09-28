@@ -14,6 +14,23 @@ install_service() {
   systemctl daemon-reload
 }
 
+set_boot_rotation() {
+  local transform=$1
+  local cmdline=/boot/firmware/cmdline.txt
+  [[ -f ${cmdline} ]] || cmdline=/boot/cmdline.txt
+  if [[ ! -f ${cmdline} ]]; then
+    echo "Could not find the Raspberry Pi kernel command line."
+    exit 1
+  fi
+  [[ -f ${cmdline}.pi-bus-backup ]] || cp "${cmdline}" "${cmdline}.pi-bus-backup"
+  local current
+  current=$(<"${cmdline}")
+  current=$(printf '%s\n' "${current}" | sed -E 's/(^|[[:space:]])video=DSI-[^[:space:]]+//g' | xargs)
+  printf '%s video=DSI-1:800x480@60,rotate=%s\n' "${current}" "${transform/normal/0}" >"${cmdline}.tmp"
+  install -m 0644 "${cmdline}.tmp" "${cmdline}"
+  rm -f "${cmdline}.tmp"
+}
+
 if [[ ${EUID} -ne 0 ]]; then
   echo "Run with sudo: sudo pi-bus-appliance-mode enable"
   exit 1
@@ -34,6 +51,7 @@ case ${1:-} in
     install -d -m 0755 /etc/pi-bus-time-display
     printf '%s\n' "${display_user}" >"${user_file}"
     [[ -f ${transform_file} ]] || printf '180\n' >"${transform_file}"
+    set_boot_rotation "$(<"${transform_file}")"
     install_service "${display_user}"
     systemctl enable pi-bus-native.service
     systemctl disable display-manager.service >/dev/null 2>&1 || true
@@ -53,6 +71,7 @@ case ${1:-} in
       exit 2
     fi
     printf '%s\n' "${transform}" >"${transform_file}"
+    set_boot_rotation "${transform}"
     display_user=$(<"${user_file}")
     install_service "${display_user}"
     systemctl restart pi-bus-native.service
