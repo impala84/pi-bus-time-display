@@ -10,7 +10,7 @@
   button.id = 'pi-bus-settings-button';
   button.href = 'http://127.0.0.1:8765/admin';
   button.textContent = 'SETTINGS';
-  button.setAttribute('aria-label', 'Open Pi Bus settings');
+  button.setAttribute('aria-label', 'Open Pi Home settings');
   Object.assign(button.style, {
     position: 'fixed', top: '18px', right: '18px', zIndex: '2147483647',
     padding: '13px 18px', border: '1px solid rgba(255,255,255,.28)',

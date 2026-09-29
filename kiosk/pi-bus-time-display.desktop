@@ -1,6 +1,6 @@
 [Desktop Entry]
 Type=Application
-Name=Pi Bus Time Display
+Name=Pi Home
 Comment=Full-screen bus display
 Exec=/opt/pi-bus-time-display/kiosk/launch-kiosk.sh
 Terminal=false

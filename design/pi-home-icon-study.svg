@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="620" viewBox="0 0 1200 620">
+  <rect width="1200" height="620" fill="#0b1110"/>
+  <style>
+    .title{font:600 34px Inter,Arial,sans-serif;fill:#f4f0e6}.caption{font:600 18px Inter,Arial,sans-serif;fill:#91a09b}.tile{fill:#121b19;stroke:#293633;stroke-width:2}.active{fill:#173229;stroke:#35785f}.off{fill:none;stroke:#91a09b;stroke-width:7;stroke-linecap:round;stroke-linejoin:round}.on{fill:none;stroke:#6ed9ae;stroke-width:7;stroke-linecap:round;stroke-linejoin:round}.fill{fill:#6ed9ae;stroke:none}
+  </style>
+  <text x="60" y="70" class="title">Pi Home · control icon study</text>
+  <text x="60" y="108" class="caption">One rounded stroke language · hollow when off · mint when active</text>
+  <g transform="translate(60 155)">
+    <rect width="330" height="360" rx="24" class="tile"/><text x="28" y="326" class="caption">Fan · off</text>
+    <g transform="translate(165 154)" class="off"><circle r="91"/><circle r="14"/><path d="M0-16C-27-62-19-103 12-106c31-3 39 32 22 57C23-32 10-21 0-16Z"/><path d="M14 8c53-1 83 27 70 56-13 29-48 18-62-9C12 36 11 21 14 8Z"/><path d="M-14 8c-27 46-67 57-85 31-18-26 7-53 37-51 21 1 36 10 48 20Z"/></g>
+  </g>
+  <g transform="translate(435 155)">
+    <rect width="330" height="360" rx="24" class="active"/><text x="28" y="326" class="caption">Light · on</text>
+    <g transform="translate(165 148)" class="on"><path d="M-50-30a50 50 0 1 1 100 0c0 26-14 41-30 57-9 9-10 20-10 29h-20c0-9-1-20-10-29-16-16-30-31-30-57Z"/><path d="M-24 72h48M-17 89h34M0-99v-23M-77-77l-17-17M77-77l17-17M-92-17h-23M115-17H92"/></g>
+  </g>
+  <g transform="translate(810 155)">
+    <rect width="330" height="360" rx="24" class="tile"/><text x="28" y="326" class="caption">Switch · off / on</text>
+    <g transform="translate(165 120)" class="off"><rect x="-92" y="-38" width="184" height="76" rx="38"/><circle cx="-52" r="25"/></g>
+    <g transform="translate(165 228)" class="on"><rect x="-92" y="-38" width="184" height="76" rx="38"/><circle cx="52" r="25" class="fill"/></g>
+  </g>
+</svg>

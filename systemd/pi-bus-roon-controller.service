@@ -1,5 +1,5 @@
 [Unit]
-Description=Pi Bus Roon touchscreen controller
+Description=Pi Home Roon touchscreen controller
 After=network-online.target
 Wants=network-online.target
 

@@ -1,6 +1,6 @@
 [Desktop Entry]
 Type=Application
-Name=Pi Bus Native Display
+Name=Pi Home
 Exec=/usr/bin/python3 /opt/pi-bus-time-display/native-display/pi_bus_native.py
 X-GNOME-Autostart-enabled=true
 Terminal=false

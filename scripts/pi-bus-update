@@ -8,12 +8,12 @@ if [[ ${EUID} -ne 0 ]]; then
   exit 1
 fi
 if [[ ! -d ${app_dir}/.git ]]; then
-  echo "Pi Bus Time Display is not a Git checkout in ${app_dir}."
+  echo "Pi Home is not a Git checkout in ${app_dir}."
   echo "Run the current install-pi.sh once to enable one-command updates."
   exit 1
 fi
 
-echo "Checking for Pi Bus Time Display updates…"
+echo "Checking for Pi Home updates…"
 if [[ -n $(git -c safe.directory="${app_dir}" -C "${app_dir}" status --porcelain) ]]; then
   backup_name="pi-bus-update backup $(date -u +%Y-%m-%dT%H:%M:%SZ)"
   echo "Preserving local appliance changes as: ${backup_name}"
@@ -77,7 +77,7 @@ wait_for_url() {
 wait_for_url "Main display" "http://127.0.0.1:8765/api/status" "pi-bus-time-display.service"
 wait_for_url "Roon controller" "http://127.0.0.1:8766/api/state" "pi-bus-roon-controller.service"
 
-echo "Pi Bus Time Display is installed and both services are responding."
+echo "Pi Home is installed and both services are responding."
 echo "Rebooting to activate the update…"
 sync
 systemctl reboot

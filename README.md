@@ -1,6 +1,6 @@
-# Pi Bus Time Display
+# Pi Home
 
-A single-card Raspberry Pi appliance that runs **Roon Bridge all day**, turns the official touchscreen into a highly legible Singapore bus display each morning, then returns it to Roon Now Playing.
+A single-card Raspberry Pi home dashboard that combines **Roon Bridge**, Roon Now Playing, Singapore bus arrivals and selected Home Assistant controls on the official touchscreen.
 
 Planned display automation, multi-service layouts, Touch Display 2 support and performance work are tracked in the [roadmap](ROADMAP.md).
 
@@ -19,9 +19,9 @@ You need one microSD card (16 GB or larger) and an LTA DataMall AccountKey.
 5. Run `sudo ./scripts/install-roon-bridge.sh`. This uses Roon's official installer for the detected ARM architecture.
 6. Put the LTA key in `/etc/pi-bus-time-display/secrets.env` and review `/etc/pi-bus-time-display/config.toml`.
 7. Run `sudo pi-bus-appliance-mode enable` to replace the full desktop with the lightweight kiosk session.
-8. Reboot. In the Roon app, open **Settings → Audio**, find this Raspberry Pi and enable its audio output. Then open **Settings → Extensions** and enable **Pi Bus Roon Controller**.
+8. Reboot. In the Roon app, open **Settings → Audio**, find this Raspberry Pi and enable its audio output. Then open **Settings → Extensions** and enable **Pi Home Roon Controller**.
 
-The bus installer creates an unprivileged service account, keeps the LTA key outside the repository and launches a lightweight native GTK4 touchscreen. Chromium is not installed or used. The native application changes between Bus, Roon, Settings and Sleep without browser loading screens, desktop flashes or keyring prompts. Roon's installer starts Roon Bridge at boot and manages its own updates.
+The installer creates an unprivileged service account, keeps credentials outside the repository and launches a lightweight native GTK4 touchscreen. Chromium is not installed or used. The native application changes between Bus, Roon, Home, Settings and Sleep without browser loading screens, desktop flashes or keyring prompts. Roon's installer starts Roon Bridge at boot and manages its own updates.
 
 ## Web settings
 
@@ -40,7 +40,7 @@ The installer generates a unique admin password and prints it once. You can retr
 ### Connect the Roon controller
 
 1. After installation, open **Roon → Settings → Extensions**.
-2. Find **Pi Bus Roon Controller** and choose **Enable**. This is the one-time authorisation required by Roon's extension API.
+2. Find **Pi Home Roon Controller** and choose **Enable**. This is the one-time authorisation required by Roon's extension API.
 3. In Pi Bus Settings, optionally enter the exact Roon zone name. Leave it blank to follow the currently playing zone.
 
 The controller shows album artwork rather than artist photography, track and artist text, elapsed/remaining progress, previous/play-pause/next controls, mute and volume. Long titles use a restrained two-line treatment rather than scrolling, and transport controls use consistent SVG artwork. If the selected output exposes no adjustable volume, it shows **Fixed volume** instead. Roon Server and the Pi must be on the same network.
@@ -53,7 +53,7 @@ After the initial installation, update the appliance with one command:
 sudo pi-bus-update
 ```
 
-The updater follows the supported `main` branch, preserves any local checkout differences in a recoverable Git stash, reinstalls the application, reapplies saved display/input orientation, refreshes its services, verifies both HTTP services and reboots automatically. Updates can be started from the protected web System section or the restricted touchscreen Settings screen. Your settings and secrets remain untouched in `/etc/pi-bus-time-display/`. Releases use semantic versions, shown in Settings and recorded in [CHANGELOG.md](CHANGELOG.md). The current release is **v0.5.1**.
+The updater follows the supported `main` branch, preserves any local checkout differences in a recoverable Git stash, reinstalls the application, reapplies saved display/input orientation, refreshes its services, verifies both HTTP services and reboots automatically. Updates can be started from the protected web System section or the restricted touchscreen Settings screen. Your settings and secrets remain untouched in `/etc/pi-bus-time-display/`. Releases use semantic versions, shown in Settings and recorded in [CHANGELOG.md](CHANGELOG.md). The current release is **v0.5.2**.
 
 ## Lightweight appliance mode
 

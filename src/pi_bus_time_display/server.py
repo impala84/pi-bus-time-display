@@ -125,6 +125,14 @@ def home_assistant_set_value(config: Config, entity_id: str, value: int) -> obje
     raise ValueError("This device has no adjustable level")
 
 
+def home_assistant_set_state(config: Config, entity_id: str, enabled: bool) -> object:
+    domain = entity_id.split(".", 1)[0]
+    if domain not in {"fan", "light", "switch", "input_boolean"}:
+        raise ValueError("This entity type cannot be controlled")
+    service = "turn_on" if enabled else "turn_off"
+    return home_assistant_request(config, f"/api/services/{domain}/{service}", {"entity_id": entity_id})
+
+
 def home_assistant_poll(state: State, stop: threading.Event) -> None:
     while not stop.is_set():
         config = state.config
@@ -556,7 +564,7 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                 state.awake_until = time.monotonic() + state.config.outside_hours_wake_seconds
                 self.send_json(200, json.dumps({"ok": True, "awake_seconds": state.config.outside_hours_wake_seconds}).encode())
                 return
-            if self.path in {"/api/device/service-visibility", "/api/device/roon-bridge", "/api/device/home-toggle", "/api/device/home-value"}:
+            if self.path in {"/api/device/service-visibility", "/api/device/roon-bridge", "/api/device/home-toggle", "/api/device/home-state", "/api/device/home-value"}:
                 if self.client_address[0] not in {"127.0.0.1", "::1"}:
                     self.send_json(403, b'{"error":"Touchscreen only"}')
                     return
@@ -584,6 +592,8 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                     try:
                         if self.path == "/api/device/home-value":
                             home_assistant_set_value(state.config, entity_id, int(data.get("value", 0)))
+                        elif self.path == "/api/device/home-state":
+                            home_assistant_set_state(state.config, entity_id, bool(data.get("enabled")))
                         else:
                             home_assistant_request(state.config, f"/api/services/{domain}/toggle", {"entity_id": entity_id})
                     except (OSError, ValueError, urllib.error.URLError) as exc:

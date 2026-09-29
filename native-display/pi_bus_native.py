@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Native GTK4 touchscreen for Pi Bus Time Display."""
+"""Native GTK4 touchscreen for Pi Home."""
 from __future__ import annotations
 
 import json
@@ -160,7 +160,7 @@ class Display(Gtk.Application):
 
     def build_bus(self):
         page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=7); page.add_css_class("page")
-        self.bus_clock = self.label("--:--", "clock", 1); page.append(self.header(self.label("PI BUS TIME DISPLAY", "eyebrow"), self.bus_clock))
+        self.bus_clock = self.label("--:--", "clock", 1); page.append(self.header(self.label("PI HOME", "eyebrow"), self.bus_clock))
         stop_row = Gtk.Box(spacing=8); stop_row.set_halign(Gtk.Align.CENTER); self.stop = self.label("Connecting…", "stop"); self.stop_code = self.label("", "stop-code"); stop_row.append(self.stop); stop_row.append(self.stop_code); page.append(stop_row)
         self.services = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=7); self.services.set_vexpand(True); page.append(self.services)
         footer = Gtk.Box(); self.bus_status = self.label("Starting", "muted"); self.updated = self.label("", "muted", 1); self.updated.set_hexpand(True); footer.append(self.bus_status); footer.append(self.updated); page.append(footer)
@@ -173,7 +173,7 @@ class Display(Gtk.Application):
         self.artwork = Gtk.Picture(); self.artwork.add_css_class("artwork"); self.artwork.set_size_request(280, 280); self.artwork.set_valign(Gtk.Align.CENTER); self.artwork.set_content_fit(Gtk.ContentFit.COVER); content.append(self.artwork)
         centre = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=7); centre.set_valign(Gtk.Align.CENTER); centre.set_hexpand(True)
         self.title = self.label("Waiting for Roon…", "roon-title", .5); self.title.set_wrap(True); self.title.set_lines(2); self.title.set_justify(Gtk.Justification.CENTER)
-        self.artist = self.label("Enable Pi Bus Roon Controller in Roon", "roon-artist", .5); self.artist.set_wrap(True); self.artist.set_justify(Gtk.Justification.CENTER); centre.append(self.title); centre.append(self.artist)
+        self.artist = self.label("Enable Pi Home Roon Controller in Roon", "roon-artist", .5); self.artist.set_wrap(True); self.artist.set_justify(Gtk.Justification.CENTER); centre.append(self.title); centre.append(self.artist)
         self.progress = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 0, 1, 1); self.progress.add_css_class("progress"); self.progress.set_draw_value(False); self.progress.set_sensitive(False); self.progress.connect("value-changed", self.change_seek); centre.append(self.progress)
         times = Gtk.Box(); self.elapsed = self.label("0:00", "time"); self.remaining = self.label("−0:00", "time", 1); self.remaining.set_hexpand(True); times.append(self.elapsed); times.append(self.remaining); centre.append(times)
         self.controls = Gtk.Box(spacing=14); self.controls.set_halign(Gtk.Align.CENTER); self.controls.add_css_class("transport")
@@ -296,13 +296,15 @@ class Display(Gtk.Application):
             if entity.get("percentage") is not None: detail += f" · {entity['percentage']}%"
             if state in {"on", "open", "playing"}: box.add_css_class("on")
             control_row = Gtk.Box(spacing=5); control_row.set_vexpand(True)
-            domain = entity.get("domain", "switch"); icon_name = domain + ("-on" if domain in {"switch", "input_boolean"} and state == "on" else "") + ".svg"
+            domain = entity.get("domain", "switch"); icon_name = domain + ("-on" if state == "on" else "") + ".svg"
             icon = Gtk.Image.new_from_file(str(Path(__file__).with_name("icons") / icon_name)); icon.set_pixel_size(58); icon.add_css_class("home-icon")
             button = Gtk.Button(); button.add_css_class("home-device-button"); button.set_hexpand(True); button.set_vexpand(True); button.set_child(icon); button.connect("clicked", self.toggle_home, entity.get("entity_id", "")); control_row.append(button)
             if entity.get("supports_level"):
                 level = entity.get("percentage")
                 if level is None and entity.get("brightness") is not None: level = round(float(entity["brightness"]) * 100 / 255)
-                scale = Gtk.Scale.new_with_range(Gtk.Orientation.VERTICAL, 0, 100, 1); scale.add_css_class("home-level"); scale.set_draw_value(False); scale.set_value(float(level or 0)); scale.connect("value-changed", self.change_home_value, entity.get("entity_id", "")); control_row.append(scale)
+                scale = Gtk.Scale.new_with_range(Gtk.Orientation.VERTICAL, 0, 100, 1); scale.add_css_class("home-level"); scale.set_draw_value(False); scale.set_inverted(True); scale.set_value(float(level or 0)); scale.connect("value-changed", self.change_home_value, entity.get("entity_id", "")); control_row.append(scale)
+            if domain in {"switch", "input_boolean"}:
+                swipe = Gtk.GestureSwipe(); swipe.connect("swipe", self.swipe_home_switch, entity.get("entity_id", "")); button.add_controller(swipe)
             box.append(control_row)
             name = self.label(entity.get("name", "Device"), "home-name", .5); name.set_wrap(True); name.set_lines(2); box.append(name); box.append(self.label(detail, "home-state", .5))
             self.home_grid.attach(box, index % 4, index // 4, 1, 1)
@@ -318,9 +320,9 @@ class Display(Gtk.Application):
             if len(visible) == 3: row.add_css_class("compact")
             elif len(visible) >= 4: row.add_css_class("dense")
             number = self.label(str(service.get("service", "")), "service-no"); number.set_size_request(100 if len(visible) > 2 else 125, -1); number.set_valign(Gtk.Align.START); row.append(number)
-            arrivals = Gtk.Box(spacing=18); arrivals.set_hexpand(True); arrivals.set_halign(Gtk.Align.START)
+            arrivals = Gtk.Box(spacing=8); arrivals.set_hexpand(True)
             for arrival in service.get("arrivals", [])[:3]:
-                col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL); col.set_size_request(150 if len(visible) <= 2 else 115, -1); col.set_valign(Gtk.Align.START); minutes = arrival.get("minutes"); col.append(self.label("Due" if minutes == 0 else str(minutes), "arrival")); col.append(self.label("MIN · LIVE" if arrival.get("monitored") else "MIN · AFTER", "arrival-sub")); arrivals.append(col)
+                col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL); col.set_valign(Gtk.Align.START); minutes = arrival.get("minutes"); col.append(self.label("Due" if minutes == 0 else str(minutes), "arrival", .5)); col.append(self.label("MIN · LIVE" if arrival.get("monitored") else "MIN · AFTER", "arrival-sub", .5)); col.set_hexpand(True); arrivals.append(col)
             row.append(arrivals); self.services.append(row)
         self.bus_status.set_text("Live from LTA DataMall" if data.get("status") == "ok" and not data.get("stale") else "Offline / last known arrivals")
         updated = data.get("updated_at"); self.updated.set_text("Updated " + updated[11:19] if updated else "")
@@ -332,7 +334,7 @@ class Display(Gtk.Application):
             if data is None:
                 self.title.set_text("Controller unavailable"); self.artist.set_text("Check the controller service in web settings")
             elif not data.get("connected"):
-                self.title.set_text("Authorise in Roon"); self.artist.set_text("Settings → Extensions → Pi Bus Roon Controller")
+                self.title.set_text("Authorise in Roon"); self.artist.set_text("Settings → Extensions → Pi Home Roon Controller")
             else:
                 self.title.set_text("Nothing playing"); self.artist.set_text("No Roon zones are available")
             self.prev.set_sensitive(False); self.play.set_sensitive(False); self.next.set_sensitive(False); self.seek_updating = True; self.progress.set_value(0); self.progress.set_sensitive(False); self.seek_updating = False; self.volume.set_sensitive(False); self.note_missing_artwork(); return
@@ -368,6 +370,9 @@ class Display(Gtk.Application):
         threading.Thread(target=post_json, args=(BUS + "/api/device/service-visibility", {"service": service, "enabled": button.get_active()}), daemon=True).start()
     def toggle_home(self, _button, entity_id):
         if entity_id: threading.Thread(target=post_json, args=(BUS + "/api/device/home-toggle", {"entity_id": entity_id}), daemon=True).start()
+    def swipe_home_switch(self, _gesture, velocity_x, _velocity_y, entity_id):
+        if entity_id and abs(velocity_x) > 80:
+            threading.Thread(target=post_json, args=(BUS + "/api/device/home-state", {"entity_id": entity_id, "enabled": velocity_x > 0}), daemon=True).start()
     def change_home_value(self, scale, entity_id):
         if not entity_id: return
         previous = self.home_value_timeouts.pop(entity_id, None)

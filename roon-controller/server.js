@@ -65,11 +65,11 @@ function mergeZones(command, data) {
 
 const roon = new RoonApi({
   extension_id: 'com.impala84.pi-bus-time-display',
-  display_name: 'Pi Bus Roon Controller',
-  display_version: '0.5.1',
-  publisher: 'Pi Bus Time Display',
+  display_name: 'Pi Home Roon Controller',
+  display_version: '0.5.2',
+  publisher: 'Pi Home',
   email: 'noreply@example.invalid',
-  website: 'https://github.com/impala84/pi-bus-time-display',
+  website: 'https://github.com/impala84/pi-home',
   core_paired: pairedCore => {
     core = pairedCore;
     transport = core.services.RoonApiTransport;

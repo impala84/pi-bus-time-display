@@ -19,7 +19,7 @@ function render(next) {
   const zone = next.zone;
   if (!zone) {
     $('title').textContent = next.connected ? 'Choose a Roon zone' : 'Waiting for Roon';
-    $('artist').textContent = next.connected ? 'Start playback in a zone' : 'Enable Pi Bus Roon Controller in Roon → Settings → Extensions';
+    $('artist').textContent = next.connected ? 'Start playback in a zone' : 'Enable Pi Home Roon Controller in Roon → Settings → Extensions';
     $('art').removeAttribute('src');
     $('previous').disabled = $('play').disabled = $('next').disabled = true;
     $('volume-panel').hidden = true;

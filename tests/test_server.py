@@ -6,7 +6,7 @@ from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
 from pi_bus_time_display.config import Config
-from pi_bus_time_display.server import State, active_wifi_ssid, automatic_display_target, display_target, home_assistant_set_value, read_display_mode, within_sleep_window, write_control_request
+from pi_bus_time_display.server import State, active_wifi_ssid, automatic_display_target, display_target, home_assistant_set_state, home_assistant_set_value, read_display_mode, within_sleep_window, write_control_request
 
 
 class DisplayModeTests(unittest.TestCase):
@@ -131,6 +131,11 @@ class DisplayModeTests(unittest.TestCase):
         with patch("pi_bus_time_display.server.home_assistant_request", return_value=[]) as request:
             home_assistant_set_value(Config(), "fan.living_room", 140)
             request.assert_called_once_with(Config(), "/api/services/fan/set_percentage", {"entity_id": "fan.living_room", "percentage": 100})
+
+    def test_home_switch_swipe_sets_explicit_state(self):
+        with patch("pi_bus_time_display.server.home_assistant_request", return_value=[]) as request:
+            home_assistant_set_state(Config(), "switch.pi_hole", False)
+            request.assert_called_once_with(Config(), "/api/services/switch/turn_off", {"entity_id": "switch.pi_hole"})
 
 
 if __name__ == "__main__":

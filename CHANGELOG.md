@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.2 — 29 September 2026
+
+- Renamed the user-facing appliance from Pi Bus Time Display to **Pi Home**, while retaining existing repository, service, configuration and update paths for compatibility.
+- Restored evenly centred arrival columns inside each bus row while retaining the subdued stop code without a separator dot.
+- Corrected vertical Home controls so zero is at the bottom and 100% is at the top.
+- Reworked fan, light and switch icons into a consistent rounded SVG family with grey hollow inactive and mint active states.
+- Added left/right switch swipes in addition to tap-to-toggle.
+
 ## 0.5.1 — 29 September 2026
 
 - Corrected the web sign-in focus order so username is selected before password.

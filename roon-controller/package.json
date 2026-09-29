@@ -1,8 +1,8 @@
 {
   "name": "pi-bus-roon-controller",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "private": true,
-  "description": "Touch-first Roon Now Playing controller for Pi Bus Time Display",
+  "description": "Touch-first Roon Now Playing controller for Pi Home",
   "main": "server.js",
   "scripts": {"start": "node server.js"},
   "dependencies": {

@@ -1,5 +1,5 @@
 [Unit]
-Description=Pi Bus Time Display display service
+Description=Pi Home dashboard service
 After=network-online.target
 Wants=network-online.target
 
