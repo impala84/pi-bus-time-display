@@ -5,6 +5,7 @@ app_dir=/opt/pi-bus-time-display
 user_file=/etc/pi-bus-time-display/display-user
 service=/etc/systemd/system/pi-bus-native.service
 transform_file=/etc/pi-bus-time-display/display-transform
+profile_file=/etc/pi-bus-time-display/display-profile
 input_rules=/etc/udev/rules.d/99-pi-bus-kiosk-input.rules
 
 install_service() {
@@ -17,6 +18,7 @@ install_service() {
 
 set_boot_rotation() {
   local transform=$1
+  local profile=${2:-original}
   local cmdline=/boot/firmware/cmdline.txt
   [[ -f ${cmdline} ]] || cmdline=/boot/cmdline.txt
   if [[ ! -f ${cmdline} ]]; then
@@ -27,7 +29,10 @@ set_boot_rotation() {
   local current
   current=$(<"${cmdline}")
   current=$(printf '%s\n' "${current}" | sed -E 's/(^|[[:space:]])video=DSI-[^[:space:]]+//g' | xargs)
-  printf '%s video=DSI-1:800x480@60,rotate=%s\n' "${current}" "${transform/normal/0}" >"${cmdline}.tmp"
+  local mode=800x480
+  [[ ${profile} == touch2-5-7 ]] && mode=720x1280
+  [[ ${profile} == touch2-10 ]] && mode=1200x1920
+  printf '%s video=DSI-1:%s@60,rotate=%s\n' "${current}" "${mode}" "${transform/normal/0}" >"${cmdline}.tmp"
   install -m 0644 "${cmdline}.tmp" "${cmdline}"
   rm -f "${cmdline}.tmp"
 }
@@ -70,7 +75,8 @@ case ${1:-} in
     install -d -m 0755 /etc/pi-bus-time-display
     printf '%s\n' "${display_user}" >"${user_file}"
     [[ -f ${transform_file} ]] || printf '180\n' >"${transform_file}"
-    set_boot_rotation "$(<"${transform_file}")"
+    [[ -f ${profile_file} ]] || printf 'original\n' >"${profile_file}"
+    set_boot_rotation "$(<"${transform_file}")" "$(<"${profile_file}")"
     configure_input "$(<"${transform_file}")"
     install_service "${display_user}"
     systemctl enable pi-bus-native.service
@@ -91,19 +97,37 @@ case ${1:-} in
       exit 2
     fi
     printf '%s\n' "${transform}" >"${transform_file}"
-    set_boot_rotation "${transform}"
+    [[ -f ${profile_file} ]] || printf 'original\n' >"${profile_file}"
+    set_boot_rotation "${transform}" "$(<"${profile_file}")"
     configure_input "${transform}"
     display_user=$(<"${user_file}")
     install_service "${display_user}"
     systemctl restart pi-bus-native.service
     echo "Display rotation set to ${transform}."
     ;;
+  display)
+    profile=${2:-}
+    transform=${3:-}
+    if [[ ! ${profile} =~ ^(original|touch2-5-7|touch2-10)$ ]]; then
+      echo "Unknown display profile."
+      exit 2
+    fi
+    if [[ ! ${transform} =~ ^(normal|90|180|270)$ ]]; then
+      echo "Rotation must be normal, 90, 180 or 270."
+      exit 2
+    fi
+    printf '%s\n' "${profile}" >"${profile_file}"
+    printf '%s\n' "${transform}" >"${transform_file}"
+    set_boot_rotation "${transform}" "${profile}"
+    configure_input "${transform}"
+    echo "Display profile set to ${profile}, rotation ${transform}. Reboot to apply it."
+    ;;
   status)
     echo "Default boot: $(systemctl get-default)"
     systemctl is-enabled pi-bus-native.service 2>/dev/null || true
     ;;
   *)
-    echo "Usage: sudo pi-bus-appliance-mode enable|disable|status|rotate <normal|90|180|270>"
+    echo "Usage: sudo pi-bus-appliance-mode enable|disable|status|rotate <orientation>|display <profile> <orientation>"
     exit 2
     ;;
 esac

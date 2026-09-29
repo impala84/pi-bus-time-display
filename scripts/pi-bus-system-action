@@ -90,6 +90,14 @@ def main() -> None:
             raise ValueError("Invalid display rotation")
         run(["/usr/local/sbin/pi-bus-appliance-mode", "rotate", transform])
         report("Display rotation updated.")
+    elif action == "set_display":
+        profile = str(data.get("profile", "original"))
+        transform = str(data.get("transform", "normal"))
+        if profile not in {"original", "touch2-5-7", "touch2-10"} or transform not in {"normal", "90", "180", "270"}:
+            raise ValueError("Invalid display configuration")
+        run(["/usr/local/sbin/pi-bus-appliance-mode", "display", profile, transform])
+        report("Display settings updated. Rebooting…")
+        run(["systemctl", "reboot"])
     elif action in {"roon_start", "roon_stop", "roon_restart"}:
         verb = action.removeprefix("roon_")
         run(["systemctl", verb, roon_service()])

@@ -25,6 +25,9 @@ class Config:
     roon_show_controls: bool = True
     roon_show_clock: bool = True
     sleep_show_clock: bool = False
+    auto_switch_to_roon: bool = True
+    roon_idle_return_seconds: int = 300
+    outside_hours_wake_seconds: int = 600
     end_action: str = "display"
     simulate: bool = False
 
@@ -53,4 +56,8 @@ def load_config(path: Path) -> Config:
         raise ValueError("poll_seconds must be between 5 and 300")
     if config.end_action not in {"display", "shutdown", "reboot"}:
         raise ValueError("end_action must be display, shutdown or reboot")
+    if not (0 <= config.roon_idle_return_seconds <= 7200):
+        raise ValueError("roon_idle_return_seconds must be between 0 and 7200")
+    if not (30 <= config.outside_hours_wake_seconds <= 7200):
+        raise ValueError("outside_hours_wake_seconds must be between 30 and 7200")
     return config

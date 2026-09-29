@@ -29,6 +29,9 @@ class State:
         self.lock = threading.Lock()
         self.data: dict = {"status": "starting", "services": []}
         self.last_success: datetime | None = None
+        self.last_roon_playing = 0.0
+        self.awake_until = 0.0
+        self.awake_view = "bus"
 
     def snapshot(self) -> dict:
         with self.lock:
@@ -95,6 +98,9 @@ def write_config(path: Path, config: Config) -> None:
         f"roon_show_controls = {str(config.roon_show_controls).lower()}",
         f"roon_show_clock = {str(config.roon_show_clock).lower()}",
         f"sleep_show_clock = {str(config.sleep_show_clock).lower()}",
+        f"auto_switch_to_roon = {str(config.auto_switch_to_roon).lower()}",
+        f"roon_idle_return_seconds = {config.roon_idle_return_seconds}",
+        f"outside_hours_wake_seconds = {config.outside_hours_wake_seconds}",
         f"end_action = {json.dumps(config.end_action)}",
         "",
     ))
@@ -164,11 +170,99 @@ def display_target(
     return "/"
 
 
+def automatic_display_target(state: State, mode_path: Path, roon: dict | None, now: datetime | None = None) -> str:
+    """Resolve Automatic mode with playback grace and temporary touch wake."""
+    mode = read_display_mode(mode_path)
+    now = now or datetime.now(ZoneInfo(state.config.timezone))
+    monotonic = time.monotonic()
+    if mode == "sleep" and monotonic < state.awake_until:
+        return "http://127.0.0.1:8766/" if state.awake_view == "roon" and roon is not None else "/"
+    if mode != "auto":
+        return display_target(state.config, mode_path, roon, now)
+    zone_state = ((roon or {}).get("zone") or {}).get("state")
+    if zone_state == "playing":
+        state.last_roon_playing = monotonic
+    playback_recent = bool(
+        state.last_roon_playing
+        and monotonic - state.last_roon_playing <= state.config.roon_idle_return_seconds
+    )
+    if state.config.auto_switch_to_roon and (zone_state == "playing" or playback_recent):
+        return "http://127.0.0.1:8766/" if roon is not None else "/roon-unavailable.html"
+    if monotonic < state.awake_until:
+        return "http://127.0.0.1:8766/" if state.awake_view == "roon" and roon is not None else "/"
+    if within_sleep_window(state.config, now):
+        return "/sleep.html"
+    if state.config.auto_switch_to_roon:
+        return "/"
+    if within_window(state.config, now):
+        return "/"
+    if state.config.sleep_when_roon_idle:
+        return "/sleep.html"
+    return "http://127.0.0.1:8766/" if roon is not None else "/roon-unavailable.html"
+
+
 def command_output(command: list[str]) -> str:
     try:
         return subprocess.run(command, capture_output=True, text=True, timeout=2, check=False).stdout.strip()
     except (OSError, subprocess.SubprocessError):
         return ""
+
+
+def diagnostics_snapshot() -> dict:
+    memory: dict[str, int] = {}
+    try:
+        for line in Path("/proc/meminfo").read_text(encoding="ascii").splitlines():
+            name, value = line.split(":", 1)
+            memory[name] = int(value.strip().split()[0])
+    except (OSError, ValueError, IndexError):
+        pass
+    total = memory.get("MemTotal", 0)
+    available = memory.get("MemAvailable", memory.get("MemFree", 0))
+    groups = {
+        "display": {"label": "GTK display + Cage", "rss_kb": 0, "cpu_percent": 0.0, "pids": []},
+        "api": {"label": "Bus data service", "rss_kb": 0, "cpu_percent": 0.0, "pids": []},
+        "controller": {"label": "Roon controller", "rss_kb": 0, "cpu_percent": 0.0, "pids": []},
+        "bridge": {"label": "Roon Bridge", "rss_kb": 0, "cpu_percent": 0.0, "pids": []},
+    }
+    for line in command_output(["ps", "-eo", "pid=,rss=,pcpu=,args="]).splitlines():
+        parts = line.strip().split(None, 3)
+        if len(parts) != 4:
+            continue
+        pid, rss, cpu, args = parts
+        lowered = args.lower()
+        group = None
+        if "pi_bus_native.py" in lowered or "/cage" in lowered:
+            group = "display"
+        elif "pi-bus-time-display" in lowered and "native" not in lowered:
+            group = "api"
+        elif "roon-controller/server.js" in lowered:
+            group = "controller"
+        elif "roonbridge" in lowered or "roon bridge" in lowered:
+            group = "bridge"
+        if group:
+            try:
+                groups[group]["rss_kb"] += int(rss)
+                groups[group]["cpu_percent"] += float(cpu)
+                groups[group]["pids"].append(int(pid))
+            except ValueError:
+                pass
+    try:
+        uptime = float(Path("/proc/uptime").read_text(encoding="ascii").split()[0])
+    except (OSError, ValueError, IndexError):
+        uptime = 0
+    try:
+        load = list(os.getloadavg())
+    except OSError:
+        load = [0, 0, 0]
+    return {
+        "memory": {
+            "total_kb": total, "available_kb": available,
+            "used_kb": max(0, total - available),
+            "used_percent": round((total - available) * 100 / total, 1) if total else 0,
+        },
+        "load": load, "cpu_count": os.cpu_count() or 1, "uptime_seconds": round(uptime),
+        "processes": list(groups.values()),
+    }
 
 
 def system_snapshot(state_dir: Path) -> dict:
@@ -189,6 +283,10 @@ def system_snapshot(state_dir: Path) -> dict:
     except OSError:
         display_rotation = "normal"
     try:
+        display_profile = Path("/etc/pi-bus-time-display/display-profile").read_text(encoding="utf-8").strip()
+    except OSError:
+        display_profile = "original"
+    try:
         with urllib.request.urlopen("http://127.0.0.1:8766/api/state", timeout=.5) as response:
             controller = json.load(response)
         if controller.get("connected"):
@@ -205,7 +303,9 @@ def system_snapshot(state_dir: Path) -> dict:
         "roon_controller": roon_controller,
         "update_status": update_status,
         "display_rotation": display_rotation,
+        "display_profile": display_profile,
         "app_version": __version__,
+        "diagnostics": diagnostics_snapshot(),
     }
 
 
@@ -230,11 +330,11 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
             if self.path.startswith("/login.html?"):
                 self.path = "/login.html"
             if self.path == "/api/display-target":
-                self.send_json(200, json.dumps({"target": display_target(state.config, mode_path)}).encode())
+                self.send_json(200, json.dumps({"target": automatic_display_target(state, mode_path, roon_status())}).encode())
                 return
             if self.path == "/display":
                 self.send_response(302)
-                self.send_header("Location", display_target(state.config, mode_path))
+                self.send_header("Location", automatic_display_target(state, mode_path, roon_status()))
                 self.send_header("Cache-Control", "no-store")
                 self.end_headers()
                 return
@@ -268,6 +368,9 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                     "roon_show_controls": config.roon_show_controls,
                     "roon_show_clock": config.roon_show_clock,
                     "sleep_show_clock": config.sleep_show_clock,
+                    "auto_switch_to_roon": config.auto_switch_to_roon,
+                    "roon_idle_return_seconds": config.roon_idle_return_seconds,
+                    "outside_hours_wake_seconds": config.outside_hours_wake_seconds,
                     "app_version": __version__,
                     "admin_username": os.getenv("ADMIN_USERNAME", "admin"),
                     "admin_auth_enabled": os.getenv("ADMIN_AUTH_ENABLED", "true").lower() != "false",
@@ -324,6 +427,16 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                 write_control_request(mode_path.parent, {"action": "display_on" if data.get("powered") else "display_off"})
                 self.send_json(202, b'{"ok":true}')
                 return
+            if self.path == "/api/device/wake":
+                if self.client_address[0] not in {"127.0.0.1", "::1"}:
+                    self.send_json(403, b'{"error":"Touchscreen only"}')
+                    return
+                length = min(int(self.headers.get("Content-Length", "0")), 4096)
+                data = json.loads(self.rfile.read(length) or b"{}")
+                state.awake_view = "roon" if data.get("view") == "roon" else "bus"
+                state.awake_until = time.monotonic() + state.config.outside_hours_wake_seconds
+                self.send_json(200, json.dumps({"ok": True, "awake_seconds": state.config.outside_hours_wake_seconds}).encode())
+                return
             if self.path not in {"/api/admin/config", "/api/admin/display-mode", "/api/admin/system-action", "/api/admin/password"}:
                 self.send_error(404)
                 return
@@ -360,7 +473,7 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                     return
                 if self.path == "/api/admin/system-action":
                     action = str(data.get("action", ""))
-                    allowed = {"update", "roon_start", "roon_stop", "roon_restart", "set_hostname", "set_wifi", "set_rotation"}
+                    allowed = {"update", "roon_start", "roon_stop", "roon_restart", "set_hostname", "set_wifi", "set_rotation", "set_display"}
                     if action not in allowed:
                         raise ValueError("Unknown system action")
                     request = {"action": action}
@@ -371,6 +484,14 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                         request["password"] = str(data.get("password", ""))
                     if action == "set_rotation":
                         request["transform"] = "180" if data.get("rotated") else "normal"
+                    if action == "set_display":
+                        profile = str(data.get("profile", ""))
+                        transform = str(data.get("transform", ""))
+                        if profile not in {"original", "touch2-5-7", "touch2-10"}:
+                            raise ValueError("Unknown display profile")
+                        if transform not in {"normal", "90", "180", "270"}:
+                            raise ValueError("Unknown display orientation")
+                        request.update({"profile": profile, "transform": transform})
                     write_control_request(mode_path.parent, request)
                     self.send_json(202, json.dumps({"ok": True, "status": "queued"}).encode())
                     return
@@ -397,6 +518,9 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                     roon_show_controls=bool(data.get("roon_show_controls", True)),
                     roon_show_clock=bool(data.get("roon_show_clock", True)),
                     sleep_show_clock=bool(data.get("sleep_show_clock", False)),
+                    auto_switch_to_roon=bool(data.get("auto_switch_to_roon", True)),
+                    roon_idle_return_seconds=int(data.get("roon_idle_return_seconds", 300)),
+                    outside_hours_wake_seconds=int(data.get("outside_hours_wake_seconds", 600)),
                     end_action="display", simulate=current.simulate,
                 )
                 if not candidate.bus_stop_code.isdigit() or len(candidate.bus_stop_code) != 5:
@@ -405,6 +529,10 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                     raise ValueError("Walking time must be between 0 and 60 minutes")
                 if not (5 <= candidate.poll_seconds <= 300):
                     raise ValueError("Polling must be between 5 and 300 seconds")
+                if not (0 <= candidate.roon_idle_return_seconds <= 7200):
+                    raise ValueError("Roon return delay must be between 0 and 7200 seconds")
+                if not (30 <= candidate.outside_hours_wake_seconds <= 7200):
+                    raise ValueError("Wake timeout must be between 30 and 7200 seconds")
                 wall_time.fromisoformat(candidate.morning_start)
                 wall_time.fromisoformat(candidate.morning_end)
                 wall_time.fromisoformat(candidate.sleep_start)

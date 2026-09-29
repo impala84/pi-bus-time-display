@@ -2,10 +2,11 @@ import tempfile
 import unittest
 from datetime import datetime
 from pathlib import Path
+from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
 from pi_bus_time_display.config import Config
-from pi_bus_time_display.server import display_target, read_display_mode, within_sleep_window, write_control_request
+from pi_bus_time_display.server import State, automatic_display_target, display_target, read_display_mode, within_sleep_window, write_control_request
 
 
 class DisplayModeTests(unittest.TestCase):
@@ -71,6 +72,31 @@ class DisplayModeTests(unittest.TestCase):
             write_control_request(state_dir, {"action": "update"})
             self.assertEqual((state_dir / "system-action-request.json").read_text(encoding="utf-8"), '{"action": "update"}')
             self.assertFalse((state_dir / "system-action-request.tmp").exists())
+
+    def test_playback_temporarily_takes_over_automatic_bus_display(self):
+        with tempfile.TemporaryDirectory() as directory:
+            mode = Path(directory) / "display-mode"
+            mode.write_text("auto\n", encoding="utf-8")
+            state = State(Config(auto_switch_to_roon=True, roon_idle_return_seconds=300))
+            morning = datetime(2026, 9, 29, 8, 0, tzinfo=ZoneInfo("Asia/Singapore"))
+            with patch("pi_bus_time_display.server.time.monotonic", return_value=1000):
+                self.assertEqual(automatic_display_target(state, mode, {"zone": {"state": "playing"}}, morning), "http://127.0.0.1:8766/")
+            with patch("pi_bus_time_display.server.time.monotonic", return_value=1200):
+                self.assertEqual(automatic_display_target(state, mode, {"zone": {"state": "paused"}}, morning), "http://127.0.0.1:8766/")
+            with patch("pi_bus_time_display.server.time.monotonic", return_value=1400):
+                self.assertEqual(automatic_display_target(state, mode, {"zone": {"state": "paused"}}, morning), "/")
+
+    def test_temporary_wake_expires_during_sleep_hours(self):
+        with tempfile.TemporaryDirectory() as directory:
+            mode = Path(directory) / "display-mode"
+            mode.write_text("auto\n", encoding="utf-8")
+            state = State(Config(outside_hours_wake_seconds=600))
+            overnight = datetime(2026, 9, 29, 1, 0, tzinfo=ZoneInfo("Asia/Singapore"))
+            state.awake_until = 1600
+            with patch("pi_bus_time_display.server.time.monotonic", return_value=1200):
+                self.assertEqual(automatic_display_target(state, mode, {"zone": {"state": "paused"}}, overnight), "/")
+            with patch("pi_bus_time_display.server.time.monotonic", return_value=1700):
+                self.assertEqual(automatic_display_target(state, mode, {"zone": {"state": "paused"}}, overnight), "/sleep.html")
 
 
 if __name__ == "__main__":

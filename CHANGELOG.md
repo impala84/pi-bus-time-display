@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.0 — 29 September 2026
+
+- Added Automatic-mode Roon playback takeover with a configurable stopped-playing return delay.
+- Added a configurable temporary wake timeout outside regular waking hours.
+- Added adaptive two-, three- and four-service bus layouts without display scrolling.
+- Added read-only live memory, load, uptime and per-component process diagnostics to System settings.
+- Added selectable original Touch Display and Touch Display 2 resolution profiles with all four orientations.
+- Added higher-resolution GTK scaling for Touch Display 2 while preserving the known-good original-display path.
+
 ## 0.3.0-rc.13 — 29 September 2026
 
 - Removed the duplicate Wayland output transform that flipped the final display after the kernel had already rotated it.

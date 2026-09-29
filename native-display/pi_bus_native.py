@@ -28,8 +28,10 @@ button { border: 0; box-shadow: none; background-image: none; outline: none; }
 .utility { min-width: 92px; min-height: 38px; border-radius: 7px; background: #18211f; color: #d9dedb; font-size: 11px; font-weight: 750; }
 .service { background: #131c1a; border: 1px solid #26312e; border-radius: 14px; padding: 5px 16px; }
 .service-blue { border-color: #28566e; background: #112027; }.service-green { border-color: #285e43; background: #102219; }
+.service-violet { border-color: #554a77; background: #1d1929; }.service-amber { border-color: #75572a; background: #271e11; }
 .service-no, .arrival { font-size: 82px; font-weight: 720; font-variant-numeric: tabular-nums; }
-.service-no { font-weight: 760; }.service-blue .service-no { color: #55a9d7; }.service-green .service-no { color: #61c68f; }
+.service-no { font-weight: 760; }.service-blue .service-no { color: #55a9d7; }.service-green .service-no { color: #61c68f; }.service-violet .service-no { color: #a998e0; }.service-amber .service-no { color: #d4a85f; }
+.service.compact .service-no, .service.compact .arrival { font-size: 59px; }.service.dense .service-no, .service.dense .arrival { font-size: 45px; }.service.compact, .service.dense { padding-top: 2px; padding-bottom: 2px; }
 .arrival-sub { color: #7f8b87; font-size: 10px; font-weight: 650; }.muted { color: #78837f; font-size: 11px; font-weight: 400; }
 .nav { padding-top: 3px; }.nav button { min-height: 40px; border: 0; border-bottom: 5px solid transparent; border-radius: 0; background: transparent; color: #7f8b87; font-size: 14px; font-weight: 700; }
 .nav button.active { border-bottom-color: #6ed9ae; background: transparent; color: #dfe4e1; }.artwork { border-radius: 12px; }.roon-title { font-size: 35px; font-weight: 620; }.roon-artist { color: #b6c0bc; font-size: 18px; }
@@ -37,6 +39,7 @@ button { border: 0; box-shadow: none; background-image: none; outline: none; }
 .progress trough, .volume trough { min-height: 7px; border: 0; box-shadow: none; border-radius: 4px; background: #303a37; }.progress highlight, .volume highlight { border: 0; box-shadow: none; background: #6ed9ae; }.time { color: #87928e; font-size: 12px; }
 .sleep { background: #000; }.sleep-clock { font-size: 112px; font-weight: 550; }.settings-title { font-size: 32px; font-weight: 650; }
 .settings-card { background: #131c1a; border: 1px solid #26312e; border-radius: 14px; padding: 16px; }.settings-action { min-height: 54px; border-radius: 12px; background: #285f4d; color: #f4f0e6; font-weight: 750; }
+.high-resolution .page { padding: 22px 30px 16px; }.high-resolution .stop { font-size: 34px; }.high-resolution .clock { font-size: 42px; }.high-resolution .eyebrow { font-size: 15px; }.high-resolution .service-no, .high-resolution .arrival { font-size: 108px; }.high-resolution .service.compact .service-no, .high-resolution .service.compact .arrival { font-size: 80px; }.high-resolution .service.dense .service-no, .high-resolution .service.dense .arrival { font-size: 62px; }.high-resolution .artwork { min-width: 380px; min-height: 380px; }.high-resolution .roon-title { font-size: 48px; }.high-resolution .roon-artist { font-size: 25px; }.high-resolution .nav button { min-height: 54px; font-size: 19px; }
 """
 
 
@@ -114,7 +117,15 @@ class Display(Gtk.Application):
         self.stack = Gtk.Stack(transition_type=Gtk.StackTransitionType.NONE, transition_duration=0)
         self.stack.add_named(self.build_bus(), "bus"); self.stack.add_named(self.build_roon(), "roon"); self.stack.add_named(self.build_settings(), "settings"); self.stack.add_named(self.build_sleep(), "sleep")
         self.window.set_child(self.stack); self.window.present()
+        GLib.idle_add(self.adapt_display)
         GLib.timeout_add_seconds(1, self.tick); GLib.timeout_add_seconds(2, self.start_poll); self.tick(); self.start_poll()
+
+    def adapt_display(self):
+        monitors = Gdk.Display.get_default().get_monitors()
+        monitor = monitors.get_item(0) if monitors.get_n_items() else None
+        if monitor and max(monitor.get_geometry().width, monitor.get_geometry().height) >= 1200:
+            self.window.add_css_class("high-resolution")
+        return False
 
     def header(self, centre, clock):
         row = Gtk.Box(spacing=10)
@@ -208,9 +219,13 @@ class Display(Gtk.Application):
         if not data: self.bus_status.set_text("Bus service unavailable"); return
         self.stop.set_text(f"{data.get('stop_name', 'Bus times')}  ·  {data.get('stop_code', '')}")
         while child := self.services.get_first_child(): self.services.remove(child)
-        for index, service in enumerate(data.get("services", [])[:2]):
-            row = Gtk.Box(spacing=12); row.add_css_class("service"); row.add_css_class("service-blue" if index == 0 else "service-green"); row.set_vexpand(True)
-            number = self.label(str(service.get("service", "")), "service-no"); number.set_size_request(125, -1); number.set_valign(Gtk.Align.START); row.append(number)
+        visible = data.get("services", [])[:4]
+        colours = ("service-blue", "service-green", "service-violet", "service-amber")
+        for index, service in enumerate(visible):
+            row = Gtk.Box(spacing=12); row.add_css_class("service"); row.add_css_class(colours[index]); row.set_vexpand(True)
+            if len(visible) == 3: row.add_css_class("compact")
+            elif len(visible) >= 4: row.add_css_class("dense")
+            number = self.label(str(service.get("service", "")), "service-no"); number.set_size_request(100 if len(visible) > 2 else 125, -1); number.set_valign(Gtk.Align.START); row.append(number)
             arrivals = Gtk.Box(spacing=8); arrivals.set_hexpand(True)
             for arrival in service.get("arrivals", [])[:3]:
                 col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL); col.set_valign(Gtk.Align.START); minutes = arrival.get("minutes"); col.append(self.label("Due" if minutes == 0 else str(minutes), "arrival", .5)); col.append(self.label("MIN · LIVE" if arrival.get("monitored") else "MIN · AFTER", "arrival-sub", .5)); col.set_hexpand(True); arrivals.append(col)
@@ -251,7 +266,9 @@ class Display(Gtk.Application):
     def open_settings(self, *_): self.settings_open = True; self.stack.set_visible_child_name("settings")
     def close_settings(self, *_): self.settings_open = False; self.stack.set_visible_child_name(self.last_mode)
     def sleep(self, *_): self.settings_open = False; self.stack.set_visible_child_name("sleep"); self.set_screen_power(bool(self.settings_data.get("sleep_show_clock", False))); threading.Thread(target=post_json, args=(BUS + "/api/admin/display-mode", {"mode": "sleep"}), daemon=True).start()
-    def wake(self, *_): self.set_screen_power(True); self.set_mode(self.last_mode or "auto")
+    def wake(self, *_):
+        self.set_screen_power(True); self.stack.set_visible_child_name(self.last_mode or "bus")
+        threading.Thread(target=post_json, args=(BUS + "/api/device/wake", {"view": self.last_mode or "bus"}), daemon=True).start()
     def control(self, action): threading.Thread(target=post_json, args=(ROON + "/api/control", {"action": action}), daemon=True).start()
     def format_time(self, seconds): return f"{seconds // 60}:{seconds % 60:02d}"
     def change_volume(self, scale):

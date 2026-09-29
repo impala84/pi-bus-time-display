@@ -15,6 +15,9 @@ sleep_when_roon_idle = false
 roon_show_controls = true
 roon_show_clock = true
 sleep_show_clock = false
+auto_switch_to_roon = true
+roon_idle_return_seconds = 300
+outside_hours_wake_seconds = 600
 
 # Retained for configuration compatibility. The one-card appliance keeps running
 # Roon Bridge and changes the touchscreen to its quiet clock outside the window.

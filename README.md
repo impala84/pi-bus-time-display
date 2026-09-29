@@ -4,7 +4,7 @@ A single-card Raspberry Pi appliance that runs **Roon Bridge all day**, turns th
 
 Planned display automation, multi-service layouts, Touch Display 2 support and performance work are tracked in the [roadmap](ROADMAP.md).
 
-The included configuration is ready for **Flamingo Valley, Siglap Road (83249)** and services **40 and 42**. From 06:00–10:00 it shows two large, colour-separated service rows with three arrivals each. Outside that window it shows a custom Roon controller with album artwork, metadata, progress, playback and volume controls while Roon Bridge continues running normally.
+The included configuration is ready for **Flamingo Valley, Siglap Road (83249)** and services **40 and 42**. It shows up to four adaptive, colour-separated service rows with three arrivals each. Automatic mode can move from Bus Times to Now Playing when music starts, retain it through a configurable pause, then return to buses—or sleep during overnight hours—while Roon Bridge continues running normally.
 
 This deliberately replaces RoPieee. It does not try to fork or preserve RoPieee; the public RoPieee repository does not contain its full appliance build. If necessary, the card can simply be reflashed with RoPieee later.
 
@@ -49,7 +49,7 @@ After the initial installation, update the appliance with one command:
 sudo pi-bus-update
 ```
 
-The updater follows the supported `main` branch, preserves any local checkout differences in a recoverable Git stash, reinstalls the application, reapplies saved display/input orientation, refreshes its services, verifies both HTTP services and reboots automatically. Updates can be started from the protected web System section or the restricted touchscreen Settings screen. Your settings and secrets remain untouched in `/etc/pi-bus-time-display/`. Releases use semantic versions, shown in Settings and recorded in [CHANGELOG.md](CHANGELOG.md). The GTK preview is **v0.3.0rc13**.
+The updater follows the supported `main` branch, preserves any local checkout differences in a recoverable Git stash, reinstalls the application, reapplies saved display/input orientation, refreshes its services, verifies both HTTP services and reboots automatically. Updates can be started from the protected web System section or the restricted touchscreen Settings screen. Your settings and secrets remain untouched in `/etc/pi-bus-time-display/`. Releases use semantic versions, shown in Settings and recorded in [CHANGELOG.md](CHANGELOG.md). The current release is **v0.4.0**.
 
 ## Lightweight appliance mode
 
@@ -88,6 +88,9 @@ Edit `/etc/pi-bus-time-display/config.toml`:
 - `sleep_start` and `sleep_end`: automatic black-screen window
 - `roon_zone_name`: exact preferred Roon zone; blank follows the playing zone
 - `sleep_when_roon_idle`: sleep outside the bus window unless the selected Roon zone is playing
+- `auto_switch_to_roon`: let active playback temporarily take over Automatic mode
+- `roon_idle_return_seconds`: delay before returning to buses after playback stops
+- `outside_hours_wake_seconds`: how long a touch wake lasts during overnight hours
 
 Restart after changes with `sudo systemctl restart pi-bus-time-display`.
 
