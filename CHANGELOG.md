@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.3 — 29 September 2026
+
+- Refined the mobile admin layout with a full-width final tab and Save button, constrained fields and aligned diagnostic values.
+- Added web navigation between Bus Times, Now Playing and Home, with the Roon controller safely proxied through the main Pi Home address.
+- Fixed View display so it preserves the public or reverse-proxied hostname instead of opening the appliance's loopback address.
+- Added a compact browser Home dashboard and slightly increased spacing between touchscreen bus rows and Home controls.
+
 ## 0.5.2 — 29 September 2026
 
 - Renamed the user-facing appliance from Pi Bus Time Display to **Pi Home**, while retaining existing repository, service, configuration and update paths for compatibility.

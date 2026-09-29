@@ -25,6 +25,11 @@
   .arrival small { font-size: 11px; margin-top: 9px; }
 }
 
-main { grid-template-rows: auto minmax(0, 1fr) auto; }
+main { grid-template-rows: auto minmax(0, 1fr) auto auto; }
 .services { align-content: center; gap: clamp(16px, 4vh, 34px); }
 .service { min-height: clamp(150px, 29vh, 250px); }
+
+.web-nav { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; border-top: 1px solid var(--line); }
+.web-nav a { padding: 12px 8px 7px; color: var(--muted); text-align: center; text-decoration: none; font-size: 13px; font-weight: 750; }
+.web-nav a.active { color: var(--ink); box-shadow: inset 0 -4px var(--mint); }
+@media (max-height: 600px) and (orientation: landscape) { .web-nav a { padding: 7px 6px 5px; font-size: 11px; } }

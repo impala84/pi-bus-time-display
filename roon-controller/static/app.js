@@ -1,6 +1,12 @@
 const $ = id => document.getElementById(id);
 let state = null;
 let lastTick = Date.now();
+const proxied = location.pathname.startsWith('/roon');
+const api = path => `${proxied ? '/roon' : ''}${path}`;
+const mainOrigin = proxied ? location.origin : `${location.protocol}//${location.hostname}:8765`;
+$('settings-link').href = `${mainOrigin}/admin`;
+$('bus-link').href = `${mainOrigin}/`;
+$('home-link').href = `${mainOrigin}/home.html`;
 
 const playIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7z"/></svg>';
 const pauseIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6v12M15 6v12"/></svg>';
@@ -10,7 +16,7 @@ const format = value => {
 };
 
 async function post(path, data) {
-  await fetch(path, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)});
+  await fetch(api(path), {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)});
 }
 
 function render(next) {
@@ -32,7 +38,7 @@ function render(next) {
   $('title').textContent = lines.line1 || 'Nothing playing';
   $('artist').textContent = [lines.line2, lines.line3].filter(Boolean).join(' · ') || 'Roon';
   if (playing.image_key) {
-    const url = `/api/image?key=${encodeURIComponent(playing.image_key)}`;
+    const url = api(`/api/image?key=${encodeURIComponent(playing.image_key)}`);
     if ($('art').src !== location.origin + url) $('art').src = url;
     $('placeholder').hidden = true;
   } else {
@@ -63,7 +69,7 @@ function render(next) {
   }
 }
 
-new EventSource('/api/events').onmessage = event => render(JSON.parse(event.data));
+new EventSource(api('/api/events')).onmessage = event => render(JSON.parse(event.data));
 setInterval(() => {
   if (!state?.zone || state.zone.state !== 'playing') return;
   const delta = (Date.now() - lastTick) / 1000;

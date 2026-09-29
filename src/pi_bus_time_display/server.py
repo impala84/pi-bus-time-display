@@ -444,6 +444,19 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
             super().__init__(*args, directory=str(static), **kwargs)
 
         def do_GET(self):
+            if self.path == "/home":
+                self.send_response(302)
+                self.send_header("Location", "/home.html")
+                self.end_headers()
+                return
+            if self.path == "/roon":
+                self.send_response(302)
+                self.send_header("Location", "/roon/")
+                self.end_headers()
+                return
+            if self.path.startswith("/roon/"):
+                self.proxy_roon("GET")
+                return
             if self.path.startswith("/login.html?"):
                 self.path = "/login.html"
             if self.path == "/api/display-target":
@@ -510,6 +523,9 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                 body = json.dumps(state.snapshot()).encode()
                 self.send_json(200, body)
                 return
+            if self.path == "/api/home/status":
+                self.send_json(200, json.dumps(state.home_data).encode())
+                return
             if self.path == "/api/device/controls":
                 if self.client_address[0] not in {"127.0.0.1", "::1"}:
                     self.send_json(403, b'{"error":"Touchscreen only"}')
@@ -519,6 +535,9 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
             super().do_GET()
 
         def do_POST(self):
+            if self.path.startswith("/roon/"):
+                self.proxy_roon("POST")
+                return
             if self.path == "/login":
                 length = min(int(self.headers.get("Content-Length", "0")), 4096)
                 form = parse_qs(self.rfile.read(length).decode("utf-8", "replace"))
@@ -600,6 +619,26 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                         self.send_json(502, json.dumps({"error": str(exc)}).encode())
                         return
                 self.send_json(200, b'{"ok":true}')
+                return
+            if self.path in {"/api/home/toggle", "/api/home/state", "/api/home/value"}:
+                if not self.authorised():
+                    return
+                try:
+                    length = min(int(self.headers.get("Content-Length", "0")), 4096)
+                    data = json.loads(self.rfile.read(length) or b"{}")
+                    entity_id = str(data.get("entity_id", ""))
+                    if entity_id not in state.config.home_assistant_entities:
+                        raise ValueError("Entity is not available on this dashboard")
+                    domain = entity_id.split(".", 1)[0]
+                    if self.path == "/api/home/value":
+                        home_assistant_set_value(state.config, entity_id, int(data.get("value", 0)))
+                    elif self.path == "/api/home/state":
+                        home_assistant_set_state(state.config, entity_id, bool(data.get("enabled")))
+                    else:
+                        home_assistant_request(state.config, f"/api/services/{domain}/toggle", {"entity_id": entity_id})
+                    self.send_json(200, b'{"ok":true}')
+                except (OSError, ValueError, urllib.error.URLError, json.JSONDecodeError) as exc:
+                    self.send_json(400, json.dumps({"error": str(exc)}).encode())
                 return
             if self.path not in {"/api/admin/config", "/api/admin/display-mode", "/api/admin/system-action", "/api/admin/password"}:
                 self.send_error(404)
@@ -738,6 +777,38 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
             if token and sessions.get(token.value, 0) > time.time():
                 return True
             return False
+
+        def proxy_roon(self, method: str) -> None:
+            upstream_path = self.path[len("/roon"):] or "/"
+            body = None
+            if method == "POST":
+                length = min(int(self.headers.get("Content-Length", "0")), 1_048_576)
+                body = self.rfile.read(length)
+            request = urllib.request.Request(
+                "http://127.0.0.1:8766" + upstream_path,
+                data=body,
+                headers={"Content-Type": self.headers.get("Content-Type", "application/octet-stream")},
+                method=method,
+            )
+            response_started = False
+            try:
+                with urllib.request.urlopen(request, timeout=35) as response:
+                    self.send_response(response.status)
+                    for name in ("Content-Type", "Cache-Control"):
+                        value = response.headers.get(name)
+                        if value:
+                            self.send_header(name, value)
+                    self.end_headers()
+                    response_started = True
+                    while chunk := response.read(64 * 1024):
+                        self.wfile.write(chunk)
+                        self.wfile.flush()
+            except urllib.error.HTTPError as exc:
+                self.send_json(exc.code, exc.read())
+            except (OSError, urllib.error.URLError):
+                # Event streams reconnect normally and clients can close a page at any time.
+                if not response_started:
+                    self.send_json(502, b'{"error":"Roon controller is unavailable"}')
 
         def authorised(self) -> bool:
             if self.is_authorised():
