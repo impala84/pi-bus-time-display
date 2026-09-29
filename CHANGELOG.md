@@ -8,6 +8,7 @@
 - Stop rebuilding unchanged GTK bus rows and re-selecting the visible page every two seconds.
 - Make the Roon controller an explicit boot prerequisite of the native touchscreen service.
 - Show the active Wi-Fi profile's real SSID instead of Netplan's generated connection-profile name.
+- Move consistent dropdown chevrons in from the field edge and reserve appropriate text padding.
 
 ## 0.4.1 — 29 September 2026
 
