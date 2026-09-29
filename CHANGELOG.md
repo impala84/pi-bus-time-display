@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.6 — 30 September 2026
+
+- Added the subscribed Roon Queue to the web Music view with instant Now Playing / Queue navigation, cached thumbnails and bounded touch scrolling.
+- Retained up to ten recently departed queue entries in memory, shown dimmed above the current track on web and touchscreen, with best-effort replay through Roon's queue item IDs.
+- Replaced the prominent web Settings pills with a fixed, understated cog and fixed the three-section bottom navigation consistently across Bus Times, Music and Home.
+- Compacted the portrait Music view so artwork, transport and volume controls fit inside the available mobile viewport without page scrolling.
+
 ## 0.7.5 — 30 September 2026
 
 - Increased the consistently rendered Home icon box from 48 to 72 pixels and restored balanced switch proportions, retaining sharp scalable SVG output and full-size touch targets.

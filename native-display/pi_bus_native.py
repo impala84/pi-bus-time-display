@@ -39,7 +39,7 @@ button { border: 0; box-shadow: none; background-image: none; outline: none; }
 .nav { padding-top: 3px; }.nav button { min-height: 40px; border: 0; border-bottom: 5px solid transparent; border-radius: 0; background: transparent; color: #7f8b87; font-size: 14px; font-weight: 700; }
 .nav button.active { border-bottom-color: #6ed9ae; background: transparent; color: #dfe4e1; }.artwork { border-radius: 12px; }.roon-title { font-size: 35px; font-weight: 620; }.roon-artist { color: #b6c0bc; font-size: 18px; }
 .roon-subnav { margin-top: 0; }.roon-subnav button { min-height: 29px; padding: 4px 13px 2px; border-radius: 0; border-top: 3px solid transparent; background: transparent; color: #68736f; font-size: 10px; font-weight: 750; letter-spacing: 1px; }.roon-subnav button.active { border-top-color: #5bcbd6; color: #f4f0e6; }
-.queue-scroll { background: transparent; }.queue-scroll scrollbar { opacity: 0; min-width: 0; min-height: 0; }.queue-list { padding: 5px 8px 8px; }.queue-row { min-height: 66px; padding: 5px 9px; border-radius: 8px; background: transparent; color: #f4f0e6; }.queue-row:hover, .queue-row:active { background: #18211f; }.queue-row.current { background: #121e1c; border-left: 3px solid #5bcbd6; }.queue-art { min-width: 56px; min-height: 56px; border-radius: 5px; background: #18211f; }.queue-title { color: #f4f0e6; font-size: 16px; font-weight: 650; }.queue-meta { color: #84908c; font-size: 12px; }.queue-duration { color: #84908c; font-size: 12px; font-variant-numeric: tabular-nums; }.queue-empty { color: #78837f; font-size: 15px; padding: 60px 0; }
+.queue-scroll { background: transparent; }.queue-scroll scrollbar { opacity: 0; min-width: 0; min-height: 0; }.queue-list { padding: 5px 8px 8px; }.queue-row { min-height: 66px; padding: 5px 9px; border-radius: 8px; background: transparent; color: #f4f0e6; }.queue-row:hover, .queue-row:active { background: #18211f; }.queue-row.current { background: #121e1c; border-left: 3px solid #5bcbd6; }.queue-row.previous { opacity: .5; }.queue-art { min-width: 56px; min-height: 56px; border-radius: 5px; background: #18211f; }.queue-title { color: #f4f0e6; font-size: 16px; font-weight: 650; }.queue-meta { color: #84908c; font-size: 12px; }.queue-duration { color: #84908c; font-size: 12px; font-variant-numeric: tabular-nums; }.queue-empty { color: #78837f; font-size: 15px; padding: 60px 0; }
 .transport button { min-width: 50px; min-height: 50px; border-radius: 25px; padding: 0; background: #18211f; color: #e4e7e4; }.transport .play { min-width: 68px; min-height: 68px; border-radius: 34px; background: #285f4d; }
 .progress trough, .volume trough { min-height: 7px; border: 0; box-shadow: none; border-radius: 4px; background: #303a37; }.progress highlight, .volume highlight { border: 0; box-shadow: none; background: #6ed9ae; }.time { color: #87928e; font-size: 12px; }
 .sleep { background: #000; }.sleep-clock { font-size: 112px; font-weight: 550; }.settings-title { font-size: 32px; font-weight: 650; }
@@ -414,6 +414,7 @@ class Display(Gtk.Application):
         self.roon_views.set_visible_child_name(name)
         self.now_playing_tab.remove_css_class("active"); self.queue_tab.remove_css_class("active")
         (self.queue_tab if name == "queue" else self.now_playing_tab).add_css_class("active")
+        if name == "queue": GLib.idle_add(self.scroll_queue_to_current)
 
     def render_queue(self, queue):
         items = queue.get("items") or []
@@ -424,7 +425,8 @@ class Display(Gtk.Application):
         if not items:
             message = "Queue is loading…" if queue.get("status") == "loading" else "Nothing is queued"
             self.queue_list.append(self.label(message, "queue-empty", .5)); return
-        for item in items:
+        self.queue_current_index = 0
+        for index, item in enumerate(items):
             row = Gtk.Box(spacing=12); row.set_hexpand(True)
             picture = Gtk.Picture(); picture.add_css_class("queue-art"); picture.set_size_request(56, 56); picture.set_content_fit(Gtk.ContentFit.COVER); row.append(picture)
             key = item.get("image_key")
@@ -439,10 +441,16 @@ class Display(Gtk.Application):
             metadata = self.label(meta or "Roon", "queue-meta"); metadata.set_ellipsize(Pango.EllipsizeMode.END); detail.append(metadata); row.append(detail)
             length = item.get("length"); row.append(self.label(self.format_time(int(length)) if length else "", "queue-duration", 1))
             button = Gtk.Button(); button.add_css_class("queue-row"); button.set_child(row)
-            if item.get("is_current"): button.add_css_class("current")
+            if item.get("is_current"): button.add_css_class("current"); self.queue_current_index = index
+            elif item.get("is_previous"): button.add_css_class("previous"); button.connect("clicked", self.play_queue_item, item.get("queue_item_id"))
             else: button.connect("clicked", self.play_queue_item, item.get("queue_item_id"))
             self.queue_list.append(button)
         GLib.idle_add(self.load_visible_queue_artwork)
+
+    def scroll_queue_to_current(self):
+        row_height = 88 if self.window.has_css_class("high-resolution") else 68
+        self.queue_scroll.get_vadjustment().set_value(max(0, getattr(self, "queue_current_index", 0) * row_height))
+        return False
 
     def load_visible_queue_artwork(self, *_):
         adjustment = self.queue_scroll.get_vadjustment()

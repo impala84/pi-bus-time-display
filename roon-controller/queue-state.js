@@ -31,19 +31,36 @@ function queueItemsFromMessage(command, message, previous = []) {
   return items;
 }
 
-function publicQueueItems(items) {
-  return (items || []).map((item, index) => {
-    const lines = item.three_line || item.two_line || item.one_line || {};
-    return {
-      queue_item_id: item.queue_item_id,
-      title: lines.line1 || item.title || 'Untitled track',
-      artist: lines.line2 || item.artist || '',
-      album: lines.line3 || item.album || '',
-      length: Number(item.length) || null,
-      image_key: item.image_key || null,
-      is_current: index === 0
-    };
-  }).filter(item => item.queue_item_id !== undefined && item.queue_item_id !== null);
+function publicQueueItems(items, history = []) {
+  const previous = (history || []).slice(-10).map(item => ({...publicQueueItem(item), is_current: false, is_previous: true}));
+  return previous.concat((items || []).map((item, index) => ({
+    ...publicQueueItem(item), is_current: index === 0, is_previous: false
+  }))).filter(item => item.queue_item_id !== undefined && item.queue_item_id !== null);
 }
 
-module.exports = {queueItemsFromMessage, publicQueueItems};
+function publicQueueItem(item) {
+  const lines = item.three_line || item.two_line || item.one_line || {};
+  return {
+    queue_item_id: item.queue_item_id,
+    title: lines.line1 || item.title || 'Untitled track',
+    artist: lines.line2 || item.artist || '',
+    album: lines.line3 || item.album || '',
+    length: Number(item.length) || null,
+    image_key: item.image_key || null
+  };
+}
+
+function updateQueueState(command, message, items = [], history = [], limit = 100) {
+  const previousCurrent = items[0];
+  const nextItems = queueItemsFromMessage(command, message, items).slice(0, limit);
+  let nextHistory = [...history];
+  if (previousCurrent && (!nextItems[0] || previousCurrent.queue_item_id !== nextItems[0].queue_item_id) &&
+      !nextItems.some(item => item.queue_item_id === previousCurrent.queue_item_id)) {
+    nextHistory = nextHistory.filter(item => item.queue_item_id !== previousCurrent.queue_item_id);
+    nextHistory.push(previousCurrent);
+    nextHistory = nextHistory.slice(-10);
+  }
+  return {items: nextItems, history: nextHistory};
+}
+
+module.exports = {queueItemsFromMessage, publicQueueItems, updateQueueState};

@@ -7,7 +7,7 @@ const RoonApi = require('node-roon-api');
 const RoonApiImage = require('node-roon-api-image');
 const RoonApiStatus = require('node-roon-api-status');
 const RoonApiTransport = require('node-roon-api-transport');
-const {queueItemsFromMessage, publicQueueItems} = require('./queue-state');
+const {publicQueueItems, updateQueueState} = require('./queue-state');
 
 const port = Number(process.env.PORT || 8766);
 const staticDir = path.join(__dirname, 'static');
@@ -16,6 +16,7 @@ let transport = null;
 let imageService = null;
 let zones = new Map();
 let queueItems = [];
+let queueHistory = [];
 let queueZoneId = null;
 let queueSubscription = null;
 const listeners = new Set();
@@ -62,7 +63,7 @@ function publicState() {
       can_play: Boolean(zone.is_play_allowed), can_pause: Boolean(zone.is_pause_allowed),
       can_seek: Boolean(zone.is_seek_allowed), output: output ? {id: output.output_id, volume: output.volume || null} : null
     },
-    queue: {status: !configuredQueueEnabled() ? 'disabled' : (queueZoneId === zone.zone_id ? 'ready' : 'loading'), items: queueZoneId === zone.zone_id ? publicQueueItems(queueItems) : []}
+    queue: {status: !configuredQueueEnabled() ? 'disabled' : (queueZoneId === zone.zone_id ? 'ready' : 'loading'), items: queueZoneId === zone.zone_id ? publicQueueItems(queueItems, queueHistory) : []}
   };
 }
 
@@ -85,6 +86,7 @@ function stopQueueSubscription() {
   queueSubscription = null;
   queueZoneId = null;
   queueItems = [];
+  queueHistory = [];
   if (subscription?.unsubscribe) {
     try { subscription.unsubscribe(() => {}); } catch (_) {}
   }
@@ -102,7 +104,8 @@ function ensureQueueSubscription() {
   queueZoneId = subscribedZoneId;
   queueSubscription = transport.subscribe_queue(zone, QUEUE_LIMIT, (command, data) => {
     if (queueZoneId !== subscribedZoneId) return;
-    queueItems = queueItemsFromMessage(command, data, queueItems).slice(0, QUEUE_LIMIT);
+    const next = updateQueueState(command, data, queueItems, queueHistory, QUEUE_LIMIT);
+    queueItems = next.items; queueHistory = next.history;
     broadcast();
   });
 }
@@ -126,7 +129,7 @@ function cachedImage(key, size, callback) {
 const roon = new RoonApi({
   extension_id: 'com.impala84.pi-bus-time-display',
   display_name: 'Pi Home Roon Controller',
-  display_version: '0.7.5',
+  display_version: '0.7.6',
   publisher: 'Pi Home',
   email: 'noreply@example.invalid',
   website: 'https://github.com/impala84/pi-home',
@@ -198,7 +201,7 @@ http.createServer(async (request, response) => {
       if (!transport || !zone) return json(response, 409, {error: 'Roon is not connected'});
       if (url.pathname === '/api/control' && ['previous', 'playpause', 'next'].includes(data.action)) transport.control(zone, data.action);
       else if (url.pathname === '/api/queue/play') {
-        const item = queueItems.find(candidate => String(candidate.queue_item_id) === String(data.queue_item_id));
+        const item = [...queueHistory, ...queueItems].find(candidate => String(candidate.queue_item_id) === String(data.queue_item_id));
         if (!item) return json(response, 409, {error: 'That queue item is no longer available'});
         transport.play_from_here(zone, item.queue_item_id, () => {});
       }

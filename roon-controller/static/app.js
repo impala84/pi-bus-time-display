@@ -1,6 +1,8 @@
 const $ = id => document.getElementById(id);
 let state = null;
 let lastTick = Date.now();
+let musicView = 'now';
+let queueSignature = '';
 const proxied = location.pathname.startsWith('/roon');
 const api = path => `${proxied ? '/roon' : ''}${path}`;
 const mainOrigin = proxied ? location.origin : `${location.protocol}//${location.hostname}:8765`;
@@ -23,6 +25,7 @@ function render(next) {
   state = next;
   lastTick = Date.now();
   const zone = next.zone;
+  renderQueue(next.queue || {});
   if (!zone) {
     $('title').textContent = next.connected ? 'Choose a Roon zone' : 'Waiting for Roon';
     $('artist').textContent = next.connected ? 'Start playback in a zone' : 'Enable Pi Home Roon Controller in Roon → Settings → Extensions';
@@ -69,6 +72,50 @@ function render(next) {
   }
 }
 
+function queueRow(item) {
+  const button = document.createElement('button');
+  button.className = `queue-row${item.is_current ? ' current' : ''}${item.is_previous ? ' previous' : ''}`;
+  if (!item.is_current) button.onclick = () => post('/api/queue/play', {queue_item_id: item.queue_item_id});
+  const artwork = document.createElement('span'); artwork.className = 'queue-art';
+  if (item.image_key) {
+    const image = document.createElement('img'); image.loading = 'lazy'; image.alt = ''; image.src = api(`/api/image?key=${encodeURIComponent(item.image_key)}&size=96`); artwork.append(image);
+  }
+  const copy = document.createElement('span'); copy.className = 'queue-copy';
+  const title = document.createElement('strong'); title.textContent = item.title || 'Untitled track'; copy.append(title);
+  const meta = document.createElement('small'); meta.textContent = [item.artist, item.album].filter(Boolean).join(' · ') || 'Roon'; copy.append(meta);
+  const duration = document.createElement('time'); duration.textContent = item.length ? format(item.length) : '';
+  button.append(artwork, copy, duration);
+  return button;
+}
+
+function renderQueue(queue) {
+  const items = queue.items || [];
+  const signature = JSON.stringify(items.map(item => [item.queue_item_id, item.is_current, item.is_previous]));
+  if (signature === queueSignature) return;
+  queueSignature = signature;
+  const list = $('queue-list'); list.replaceChildren();
+  if (!items.length) {
+    const empty = document.createElement('p'); empty.className = 'queue-empty';
+    empty.textContent = queue.status === 'loading' ? 'Queue is loading…' : queue.status === 'disabled' ? 'Queue is disabled in Settings' : 'Nothing is queued';
+    list.append(empty); return;
+  }
+  items.forEach(item => list.append(queueRow(item)));
+  if (musicView === 'queue') requestAnimationFrame(scrollQueueToCurrent);
+}
+
+function scrollQueueToCurrent() {
+  const current = $('queue-list').querySelector('.current');
+  if (current) current.scrollIntoView({block: 'start'});
+}
+
+function setMusicView(view) {
+  musicView = view;
+  const queue = view === 'queue';
+  $('now-view').hidden = queue; $('queue-view').hidden = !queue;
+  $('now-tab').classList.toggle('active', !queue); $('queue-tab').classList.toggle('active', queue);
+  if (queue) requestAnimationFrame(scrollQueueToCurrent);
+}
+
 fetch(api('/api/state'), {cache: 'no-store'})
   .then(response => response.ok ? response.json() : Promise.reject(new Error('Roon state unavailable')))
   .then(render)
@@ -90,3 +137,5 @@ $('next').onclick = () => post('/api/control', {action: 'next'});
 $('seek').onchange = event => post('/api/seek', {seconds: Number(event.target.value)});
 $('volume').onchange = event => post('/api/volume', {output_id: state.zone.output.id, value: Number(event.target.value)});
 $('mute').onclick = () => post('/api/mute', {output_id: state.zone.output.id});
+$('now-tab').onclick = () => setMusicView('now');
+$('queue-tab').onclick = () => setMusicView('queue');

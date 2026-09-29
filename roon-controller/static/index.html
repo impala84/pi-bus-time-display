@@ -1,6 +1,7 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"><meta name="theme-color" content="#080b0a"><title>Roon · Pi Home</title><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="refinements.css"></head>
-<body><main>
-  <a class="settings" id="settings-link" href="/admin">SETTINGS</a>
+<body><a class="settings settings-cog" id="settings-link" href="/admin" aria-label="Settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.25A3.75 3.75 0 1 0 12 15.75 3.75 3.75 0 0 0 12 8.25Zm7.25 3.75-.07-1.03 1.55-1.22-1.65-2.86-1.84.73a7.5 7.5 0 0 0-1.78-1.03L15.18 4.6h-3.3l-.29 1.96a7.5 7.5 0 0 0-1.78 1.03l-1.84-.73-1.65 2.86 1.55 1.22a7.5 7.5 0 0 0 0 2.06l-1.55 1.22 1.65 2.86 1.84-.73a7.5 7.5 0 0 0 1.78 1.03l.29 1.96h3.3l.29-1.96a7.5 7.5 0 0 0 1.78-1.03l1.84.73 1.65-2.86-1.55-1.22.07-1.03Z"/></svg></a>
+<nav class="music-subnav" aria-label="Music view"><button id="now-tab" class="active">NOW PLAYING</button><button id="queue-tab">QUEUE</button></nav>
+<main id="now-view">
   <section class="art"><img id="art" alt="Album artwork"><div id="placeholder">ROON</div></section>
   <section class="details"><p id="zone" class="eyebrow">ROON NOW PLAYING</p><h1 id="title">Waiting for Roon</h1><p id="artist">Enable Pi Home Roon Controller in Roon → Settings → Extensions</p>
     <div class="timeline"><input id="seek" type="range" min="0" max="1" value="0" aria-label="Track position"><div><span id="elapsed">0:00</span><span id="remaining">−0:00</span></div></div>
@@ -8,4 +9,4 @@
     <div id="volume-panel" class="volume" hidden><button id="mute">MUTE</button><input id="volume" type="range" min="0" max="100" value="0" aria-label="Volume"><output id="volume-value">—</output></div>
     <p id="fixed" class="fixed" hidden>FIXED VOLUME</p>
   </section>
-</main><nav class="web-nav" aria-label="Dashboard"><a id="bus-link" href="/">Bus Times</a><a class="active" href="./">Music</a><a id="home-link" href="/home.html">Home</a></nav><script src="app.js"></script></body></html>
+</main><section id="queue-view" class="queue-view" hidden><div id="queue-list" class="queue-list"></div></section><nav class="web-nav" aria-label="Dashboard"><a id="bus-link" href="/">Bus Times</a><a class="active" href="./">Music</a><a id="home-link" href="/home.html">Home</a></nav><script src="app.js"></script></body></html>

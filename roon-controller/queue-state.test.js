@@ -2,7 +2,7 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const {queueItemsFromMessage, publicQueueItems} = require('./queue-state');
+const {queueItemsFromMessage, publicQueueItems, updateQueueState} = require('./queue-state');
 
 test('keeps a subscribed queue in order and exposes compact display fields', () => {
   const raw = [
@@ -11,8 +11,28 @@ test('keeps a subscribed queue in order and exposes compact display fields', () 
   ];
   const queue = publicQueueItems(queueItemsFromMessage('Subscribed', {items: raw}));
   assert.equal(queue.length, 2);
-  assert.deepEqual(queue[0], {queue_item_id: 10, title: 'One', artist: 'Artist', album: 'Album', length: 181, image_key: 'a', is_current: true});
+  assert.deepEqual(queue[0], {queue_item_id: 10, title: 'One', artist: 'Artist', album: 'Album', length: 181, image_key: 'a', is_current: true, is_previous: false});
   assert.equal(queue[1].is_current, false);
+});
+
+test('shows up to ten previous items before the current queue', () => {
+  const history = Array.from({length: 12}, (_, index) => ({queue_item_id: index, title: `Past ${index}`}));
+  const queue = publicQueueItems([{queue_item_id: 20, title: 'Current'}], history);
+  assert.equal(queue.length, 11);
+  assert.equal(queue[0].queue_item_id, 2);
+  assert.equal(queue[9].is_previous, true);
+  assert.equal(queue[10].is_current, true);
+});
+
+test('retains a departed current item as bounded history', () => {
+  let state = {items: [{queue_item_id: 1}, {queue_item_id: 2}], history: []};
+  state = updateQueueState('Subscribed', {items: [{queue_item_id: 2}, {queue_item_id: 3}]}, state.items, state.history);
+  assert.deepEqual(state.items.map(item => item.queue_item_id), [2, 3]);
+  assert.deepEqual(state.history.map(item => item.queue_item_id), [1]);
+  for (let id = 3; id < 15; id += 1) {
+    state = updateQueueState('Subscribed', {items: [{queue_item_id: id}]}, state.items, state.history);
+  }
+  assert.equal(state.history.length, 10);
 });
 
 test('accepts incremental queue changes without disturbing order', () => {
