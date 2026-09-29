@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.3 — 30 September 2026
+
+- Matched the web screen selector to the touchscreen hierarchy: Automatic/Sleep Now above Music/Bus Times/Home.
+- Inset the Now Playing / Queue cyan indicator from the top edge to match the breathing room beneath the bottom navigation.
+
 ## 0.7.2 — 30 September 2026
 
 - Hard-bounded the Queue scroller to the available central viewport so large queues cannot displace either fixed navigation bar.
