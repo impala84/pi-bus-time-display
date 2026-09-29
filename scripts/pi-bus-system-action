@@ -45,35 +45,22 @@ def display_power(powered: bool) -> None:
     devices = [item for item in sorted(Path("/sys/class/backlight").glob("*")) if (item / "bl_power").exists() or (item / "brightness").exists()]
     if not devices:
         raise RuntimeError("No display backlight control was found")
-    saved_path = STATE / "backlight-brightness.json"
-    try:
-        saved = json.loads(saved_path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        saved = {}
     for device in devices:
         power = device / "bl_power"
         brightness = device / "brightness"
         if powered:
-            fallback = int((device / "max_brightness").read_text(encoding="ascii")) if (device / "max_brightness").exists() else 255
-            restored = int(saved.get(device.name, fallback))
-            if restored <= 0 or restored > fallback:
-                restored = fallback
+            maximum = int((device / "max_brightness").read_text(encoding="ascii")) if (device / "max_brightness").exists() else 255
             if power.exists():
                 power.write_text("0", encoding="ascii")
             if brightness.exists():
-                brightness.write_text(str(restored), encoding="ascii")
+                brightness.write_text(str(maximum), encoding="ascii")
             if power.exists():
                 power.write_text("0", encoding="ascii")
         else:
-            if brightness.exists():
-                current = int(brightness.read_text(encoding="ascii"))
-                if current > 0:
-                    saved[device.name] = current
-                brightness.write_text("0", encoding="ascii")
             if power.exists():
                 power.write_text("4", encoding="ascii")
-    if not powered:
-        saved_path.write_text(json.dumps(saved), encoding="utf-8")
+            elif brightness.exists():
+                brightness.write_text("0", encoding="ascii")
     if not powered and vcgencmd.exists():
         subprocess.run([str(vcgencmd), "display_power", "0"], check=False)
 

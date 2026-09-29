@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.5 — 29 September 2026
+
+- Replaced saved-brightness restoration with deterministic hardware behaviour: sleep only blanks panels that expose a power switch, while wake explicitly unblanks every detected panel and sets it to maximum hardware brightness.
+- This also repairs low brightness left behind by earlier releases on the first wake after updating.
+
 ## 0.5.4 — 29 September 2026
 
 - Made the touchscreen Roon Bridge switch persist by enabling or disabling its system service, rather than only starting or stopping the current process.
