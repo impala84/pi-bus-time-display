@@ -2,6 +2,8 @@
 
 A single-card Raspberry Pi appliance that runs **Roon Bridge all day**, turns the official touchscreen into a highly legible Singapore bus display each morning, then returns it to Roon Now Playing.
 
+Planned display automation, multi-service layouts, Touch Display 2 support and performance work are tracked in the [roadmap](ROADMAP.md).
+
 The included configuration is ready for **Flamingo Valley, Siglap Road (83249)** and services **40 and 42**. From 06:00–10:00 it shows two large, colour-separated service rows with three arrivals each. Outside that window it shows a custom Roon controller with album artwork, metadata, progress, playback and volume controls while Roon Bridge continues running normally.
 
 This deliberately replaces RoPieee. It does not try to fork or preserve RoPieee; the public RoPieee repository does not contain its full appliance build. If necessary, the card can simply be reflashed with RoPieee later.
