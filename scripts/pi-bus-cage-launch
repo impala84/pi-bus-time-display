@@ -1,18 +1,4 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-transform=normal
-[[ -f /etc/pi-bus-time-display/display-transform ]] && transform=$(</etc/pi-bus-time-display/display-transform)
-
-if [[ ${transform} != normal ]]; then
-  for _ in {1..20}; do
-    output=$(wlr-randr 2>/dev/null | awk '/^[^[:space:]]/ {print $1; exit}' || true)
-    if [[ -n ${output} ]]; then
-      wlr-randr --output "${output}" --transform "${transform}"
-      break
-    fi
-    sleep .1
-  done
-fi
-
 exec /opt/pi-bus-time-display/native-display/pi_bus_native.py

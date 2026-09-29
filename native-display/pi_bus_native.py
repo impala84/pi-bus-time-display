@@ -105,6 +105,12 @@ class Display(Gtk.Application):
         provider = Gtk.CssProvider(); provider.load_from_data(CSS)
         Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
         self.window = Gtk.ApplicationWindow(application=self); self.window.set_decorated(False); self.window.set_default_size(800, 480); self.window.fullscreen()
+        transparent = Gdk.MemoryTexture.new(
+            1, 1, Gdk.MemoryFormat.R8G8B8A8_PREMULTIPLIED,
+            GLib.Bytes.new(b"\x00\x00\x00\x00"), 4,
+        )
+        self.hidden_cursor = Gdk.Cursor.new_from_texture(transparent, 0, 0, None)
+        self.window.set_cursor(self.hidden_cursor)
         self.stack = Gtk.Stack(transition_type=Gtk.StackTransitionType.NONE, transition_duration=0)
         self.stack.add_named(self.build_bus(), "bus"); self.stack.add_named(self.build_roon(), "roon"); self.stack.add_named(self.build_settings(), "settings"); self.stack.add_named(self.build_sleep(), "sleep")
         self.window.set_child(self.stack); self.window.present()

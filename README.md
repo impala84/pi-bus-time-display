@@ -47,7 +47,7 @@ After the initial installation, update the appliance with one command:
 sudo pi-bus-update
 ```
 
-The updater follows the supported `main` branch, preserves any local checkout differences in a recoverable Git stash, reinstalls the application, reapplies saved display/input orientation, refreshes its services, verifies both HTTP services and reboots automatically. Updates can be started from the protected web System section or the restricted touchscreen Settings screen. Your settings and secrets remain untouched in `/etc/pi-bus-time-display/`. Releases use semantic versions, shown in Settings and recorded in [CHANGELOG.md](CHANGELOG.md). The GTK preview is **v0.3.0rc12**.
+The updater follows the supported `main` branch, preserves any local checkout differences in a recoverable Git stash, reinstalls the application, reapplies saved display/input orientation, refreshes its services, verifies both HTTP services and reboots automatically. Updates can be started from the protected web System section or the restricted touchscreen Settings screen. Your settings and secrets remain untouched in `/etc/pi-bus-time-display/`. Releases use semantic versions, shown in Settings and recorded in [CHANGELOG.md](CHANGELOG.md). The GTK preview is **v0.3.0rc13**.
 
 ## Lightweight appliance mode
 
@@ -67,7 +67,7 @@ sudo reboot
 
 Check the current mode with `sudo pi-bus-appliance-mode status`.
 
-Display orientation can be changed remotely under **System → Display**. The setting coordinates kernel-console, Wayland and touchscreen input rotation, so the boot screen, Pi Bus and touch coordinates use the same orientation. Appliance mode also suppresses non-touch pointer devices so no mouse cursor is left over. The equivalent recovery command is `sudo pi-bus-appliance-mode rotate 180`; use `normal` instead of `180` to turn rotation off.
+Display orientation can be changed remotely under **System → Display**. The Raspberry Pi kernel is the single authority for picture orientation, while a matching libinput calibration matrix independently aligns the touchscreen. The native display hides its pointer without disabling input devices. The equivalent recovery command is `sudo pi-bus-appliance-mode rotate 180`; use `normal` instead of `180` to turn rotation off. Reboot after changing orientation so every boot stage uses the saved setting.
 
 ### Official touchscreen
 

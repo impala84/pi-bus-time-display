@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.0-rc.13 — 29 September 2026
+
+- Removed the duplicate Wayland output transform that flipped the final display after the kernel had already rotated it.
+- Made the kernel the sole picture-orientation authority and kept touchscreen calibration as a separate, matching libinput matrix.
+- Hid the pointer directly in the native GTK display instead of disabling mouse-class input devices.
+
 ## 0.3.0-rc.12 — 29 September 2026
 
 - Kept the last valid album cover through brief incomplete Roon metadata updates between tracks.
