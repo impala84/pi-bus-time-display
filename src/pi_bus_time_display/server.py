@@ -35,6 +35,10 @@ class State:
         self.awake_view = "bus"
         self.state_dir = state_dir or Path(".state")
         try:
+            self.display_brightness = max(10, min(100, int((self.state_dir / "display-brightness").read_text(encoding="ascii"))))
+        except (OSError, ValueError):
+            self.display_brightness = 100
+        try:
             saved_services = set(json.loads((self.state_dir / "enabled-services.json").read_text(encoding="utf-8")))
         except (OSError, ValueError, TypeError, json.JSONDecodeError):
             saved_services = set(config.services)
@@ -60,6 +64,7 @@ class State:
         return {
             "services": [{"name": service, "enabled": service in self.enabled_services} for service in self.config.services],
             "home": self.home_data,
+            "display_brightness": self.display_brightness,
         }
 
     def save_enabled_services(self) -> None:
@@ -67,6 +72,13 @@ class State:
         temporary = self.state_dir / "enabled-services.tmp"
         temporary.write_text(json.dumps(sorted(self.enabled_services)), encoding="utf-8")
         temporary.replace(self.state_dir / "enabled-services.json")
+
+    def save_display_brightness(self, value: int) -> None:
+        self.display_brightness = max(10, min(100, int(value)))
+        self.state_dir.mkdir(parents=True, exist_ok=True)
+        temporary = self.state_dir / "display-brightness.tmp"
+        temporary.write_text(f"{self.display_brightness}\n", encoding="ascii")
+        temporary.replace(self.state_dir / "display-brightness")
 
 
 def within_window(config: Config, now: datetime) -> bool:
@@ -383,6 +395,13 @@ def active_wifi_ssid() -> str:
     return ssid or profile
 
 
+def service_state(name: str) -> str:
+    """Return a small, truthful systemd state without keeping a preference."""
+    if command_output(["systemctl", "show", name, "--property=LoadState", "--value"]) != "loaded":
+        return "not_installed"
+    return "running" if command_output(["systemctl", "is-active", name]) == "active" else "stopped"
+
+
 def system_snapshot(state_dir: Path) -> dict:
     roon_service = "unknown"
     for name in ("roonbridge.service", "RoonBridge.service"):
@@ -418,6 +437,7 @@ def system_snapshot(state_dir: Path) -> dict:
         "wifi_ssid": active_wifi,
         "roon_bridge": roon_service,
         "roon_controller": roon_controller,
+        "netdata": service_state("netdata.service"),
         "update_status": update_status,
         "display_rotation": display_rotation,
         "display_profile": display_profile,
@@ -516,7 +536,9 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
             if self.path == "/api/admin/system":
                 if not self.authorised():
                     return
-                body = json.dumps(system_snapshot(mode_path.parent)).encode()
+                system = system_snapshot(mode_path.parent)
+                system["display_brightness"] = state.display_brightness
+                body = json.dumps(system).encode()
                 self.send_json(200, body)
                 return
             if self.path == "/api/status":
@@ -570,8 +592,24 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                     return
                 length = min(int(self.headers.get("Content-Length", "0")), 4096)
                 data = json.loads(self.rfile.read(length) or b"{}")
-                write_control_request(mode_path.parent, {"action": "display_on" if data.get("powered") else "display_off"})
+                request = {"action": "display_on" if data.get("powered") else "display_off"}
+                if data.get("powered"):
+                    request["brightness"] = state.display_brightness
+                write_control_request(mode_path.parent, request)
                 self.send_json(202, b'{"ok":true}')
+                return
+            if self.path == "/api/device/brightness":
+                if self.client_address[0] not in {"127.0.0.1", "::1"}:
+                    self.send_json(403, b'{"error":"Touchscreen only"}')
+                    return
+                try:
+                    length = min(int(self.headers.get("Content-Length", "0")), 4096)
+                    data = json.loads(self.rfile.read(length) or b"{}")
+                    state.save_display_brightness(int(data.get("brightness", 100)))
+                    write_control_request(mode_path.parent, {"action": "set_brightness", "brightness": state.display_brightness})
+                    self.send_json(200, json.dumps({"ok": True, "brightness": state.display_brightness}).encode())
+                except (OSError, TypeError, ValueError, json.JSONDecodeError) as exc:
+                    self.send_json(400, json.dumps({"error": str(exc)}).encode())
                 return
             if self.path == "/api/device/wake":
                 if self.client_address[0] not in {"127.0.0.1", "::1"}:
@@ -640,7 +678,7 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                 except (OSError, ValueError, urllib.error.URLError, json.JSONDecodeError) as exc:
                     self.send_json(400, json.dumps({"error": str(exc)}).encode())
                 return
-            if self.path not in {"/api/admin/config", "/api/admin/display-mode", "/api/admin/system-action", "/api/admin/password"}:
+            if self.path not in {"/api/admin/config", "/api/admin/display-mode", "/api/admin/system-action", "/api/admin/password", "/api/admin/brightness"}:
                 self.send_error(404)
                 return
             if not self.authorised():
@@ -674,9 +712,14 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                     self.end_headers()
                     self.wfile.write(body)
                     return
+                if self.path == "/api/admin/brightness":
+                    state.save_display_brightness(int(data.get("brightness", 100)))
+                    write_control_request(mode_path.parent, {"action": "set_brightness", "brightness": state.display_brightness})
+                    self.send_json(200, json.dumps({"ok": True, "brightness": state.display_brightness}).encode())
+                    return
                 if self.path == "/api/admin/system-action":
                     action = str(data.get("action", ""))
-                    allowed = {"update", "roon_start", "roon_stop", "roon_restart", "set_hostname", "set_wifi", "set_rotation", "set_display"}
+                    allowed = {"update", "roon_start", "roon_stop", "roon_restart", "netdata_enable", "netdata_disable", "set_hostname", "set_wifi", "set_rotation", "set_display"}
                     if action not in allowed:
                         raise ValueError("Unknown system action")
                     request = {"action": action}

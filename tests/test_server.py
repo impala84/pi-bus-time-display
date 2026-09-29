@@ -6,7 +6,7 @@ from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
 from pi_bus_time_display.config import Config
-from pi_bus_time_display.server import State, active_wifi_ssid, automatic_display_target, display_target, home_assistant_set_state, home_assistant_set_value, read_display_mode, within_sleep_window, write_control_request
+from pi_bus_time_display.server import State, active_wifi_ssid, automatic_display_target, display_target, home_assistant_set_state, home_assistant_set_value, read_display_mode, service_state, within_sleep_window, write_control_request
 
 
 class DisplayModeTests(unittest.TestCase):
@@ -45,6 +45,19 @@ class DisplayModeTests(unittest.TestCase):
             state.save_enabled_services()
             restored = State(Config(services=("40", "42")), Path(directory))
             self.assertEqual(restored.enabled_services, {"40"})
+
+    def test_display_brightness_is_clamped_and_persists(self):
+        with tempfile.TemporaryDirectory() as directory:
+            state = State(Config(), Path(directory))
+            state.save_display_brightness(3)
+            self.assertEqual(state.display_brightness, 10)
+            self.assertEqual(State(Config(), Path(directory)).display_brightness, 10)
+
+    def test_netdata_state_comes_from_systemd(self):
+        with patch("pi_bus_time_display.server.command_output", side_effect=["loaded", "active"]):
+            self.assertEqual(service_state("netdata.service"), "running")
+        with patch("pi_bus_time_display.server.command_output", side_effect=["not-found"]):
+            self.assertEqual(service_state("netdata.service"), "not_installed")
 
     def test_unknown_mode_defaults_to_auto(self):
         with tempfile.TemporaryDirectory() as directory:

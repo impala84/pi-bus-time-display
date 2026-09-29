@@ -38,7 +38,8 @@ def roon_service() -> str:
     raise RuntimeError("Roon Bridge service is not installed")
 
 
-def display_power(powered: bool) -> None:
+def display_power(powered: bool, brightness_percent: int = 100) -> None:
+    brightness_percent = max(10, min(100, int(brightness_percent)))
     vcgencmd = Path("/usr/bin/vcgencmd")
     if powered and vcgencmd.exists():
         subprocess.run([str(vcgencmd), "display_power", "1"], check=False)
@@ -47,20 +48,20 @@ def display_power(powered: bool) -> None:
         raise RuntimeError("No display backlight control was found")
     for device in devices:
         power = device / "bl_power"
-        brightness = device / "brightness"
+        brightness_path = device / "brightness"
         if powered:
             maximum = int((device / "max_brightness").read_text(encoding="ascii")) if (device / "max_brightness").exists() else 255
             if power.exists():
                 power.write_text("0", encoding="ascii")
-            if brightness.exists():
-                brightness.write_text(str(maximum), encoding="ascii")
+            if brightness_path.exists():
+                brightness_path.write_text(str(max(1, round(maximum * brightness_percent / 100))), encoding="ascii")
             if power.exists():
                 power.write_text("0", encoding="ascii")
         else:
             if power.exists():
                 power.write_text("4", encoding="ascii")
-            elif brightness.exists():
-                brightness.write_text("0", encoding="ascii")
+            elif brightness_path.exists():
+                brightness_path.write_text("0", encoding="ascii")
     if not powered and vcgencmd.exists():
         subprocess.run([str(vcgencmd), "display_power", "0"], check=False)
 
@@ -76,8 +77,11 @@ def main() -> None:
         run(["/usr/local/sbin/pi-bus-update"])
         report("Update installed. Reboot if requested.")
     elif action in {"display_on", "display_off"}:
-        display_power(action == "display_on")
+        display_power(action == "display_on", int(data.get("brightness", 100)))
         report("Display awake." if action == "display_on" else "Display asleep.")
+    elif action == "set_brightness":
+        display_power(True, int(data.get("brightness", 100)))
+        report("Display brightness updated.")
     elif action == "set_rotation":
         transform = str(data.get("transform", "normal"))
         if transform not in {"normal", "180"}:
@@ -102,6 +106,15 @@ def main() -> None:
         else:
             run(["systemctl", "restart", service])
         report(f"Roon Bridge {verb} complete.")
+    elif action in {"netdata_enable", "netdata_disable"}:
+        if subprocess.run(["systemctl", "cat", "netdata.service"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode:
+            raise RuntimeError("Netdata is not installed")
+        if action == "netdata_enable":
+            run(["systemctl", "enable", "--now", "netdata.service"])
+            report("Netdata is running and enabled at boot.")
+        else:
+            run(["systemctl", "disable", "--now", "netdata.service"])
+            report("Netdata is stopped and disabled at boot.")
     elif action == "set_hostname":
         hostname = str(data.get("hostname", ""))
         if not re.fullmatch(r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?", hostname):

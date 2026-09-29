@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.0 — 30 September 2026
+
+- Removed full system diagnostics from the touchscreen startup path, delivered core Bus/Home/Roon state before artwork downloads, and pre-measured dynamic hidden views so their first tab switch does not pay deferred GTK layout costs.
+- Added bounded startup/navigation timing traces to the system journal for evidence-based performance diagnosis without ongoing logging.
+- Added a shared, persistent 10–100% hardware display-brightness control to touchscreen and web System settings; wake restores the chosen brightness rather than forcing full output.
+- Added lightweight Netdata service detection and enable/start or disable/stop control using the existing fixed-action privileged broker, with no new daemon or background polling.
+
 ## 0.5.5 — 29 September 2026
 
 - Replaced saved-brightness restoration with deterministic hardware behaviour: sleep only blanks panels that expose a power switch, while wake explicitly unblanks every detected panel and sets it to maximum hardware brightness.

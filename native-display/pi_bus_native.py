@@ -96,6 +96,12 @@ class Display(Gtk.Application):
         self.home_signature = None
         self.home_nav_buttons = []
         self.home_value_timeouts = {}
+        self.brightness_updating = False
+        self.brightness_timeout = None
+        self.brightness_applied = False
+        self.views_prewarmed = False
+        self.started_at = time.monotonic()
+        self.refresh_count = 0
 
     def label(self, text="", css=None, x=0):
         widget = Gtk.Label(label=text, xalign=x)
@@ -202,6 +208,7 @@ class Display(Gtk.Application):
         display_column = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=7); display_column.add_css_class("settings-column"); display_column.set_hexpand(True); display_column.append(self.label("DISPLAY", "eyebrow"))
         self.touch_profile = Gtk.DropDown.new_from_strings(["Profile · Original 800×480", "Profile · Touch 2 5/7-inch", "Profile · Touch 2 10-inch"]); self.touch_profile.add_css_class("settings-select"); display_column.append(self.touch_profile)
         self.touch_orientation = Gtk.DropDown.new_from_strings(["Orientation · Normal", "Orientation · 90°", "Orientation · 180°", "Orientation · 270°"]); self.touch_orientation.add_css_class("settings-select"); display_column.append(self.touch_orientation); controls.append(display_column); card.append(controls)
+        brightness_row = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3); brightness_row.add_css_class("setting-line"); brightness_row.append(self.label("Display brightness", "muted")); self.touch_brightness = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 10, 100, 1); self.touch_brightness.set_draw_value(True); self.touch_brightness.set_value_pos(Gtk.PositionType.RIGHT); self.touch_brightness.connect("value-changed", self.change_brightness); brightness_row.append(self.touch_brightness); display_column.append(brightness_row)
         actions = Gtk.Box(spacing=12); actions.set_valign(Gtk.Align.END); self.apply_display_button = self.button("APPLY & REBOOT", self.request_display_settings, "settings-action"); self.apply_display_button.set_hexpand(True); actions.append(self.apply_display_button); self.update_button = self.button("INSTALL UPDATE", self.request_update, "settings-action"); self.update_button.set_hexpand(True); actions.append(self.update_button); card.append(actions); page.append(card)
         return page
 
@@ -220,14 +227,22 @@ class Display(Gtk.Application):
         return True
 
     def poll(self):
+        started = time.monotonic()
         target = get_json(BUS + "/api/display-target") or {}; status = get_json(BUS + "/api/status"); roon = get_json(ROON + "/api/state"); device = get_json(BUS + "/api/device/controls") or {}
         now = time.monotonic(); config = None; system = None
         if not self.settings_data or now - self.last_config_fetch >= 60:
             config = get_json(BUS + "/api/admin/config") or {}; self.last_config_fetch = now
-        if not self.system_data or (self.settings_open and now - self.last_system_fetch >= 15):
+        if self.settings_open and (not self.system_data or now - self.last_system_fetch >= 15):
             system = get_json(BUS + "/api/admin/system") or {}; self.last_system_fetch = now
-        zone = (roon or {}).get("zone") or {}; key = (zone.get("now_playing") or {}).get("image_key"); image = get_bytes(f"{ROON}/api/image?key={quote(key, safe='')}") if key and key != self.image_key else None
-        GLib.idle_add(self.apply, target.get("target", "/"), status, roon, config, system, device, key, image); self.polling = False
+        zone = (roon or {}).get("zone") or {}; key = (zone.get("now_playing") or {}).get("image_key")
+        GLib.idle_add(self.apply, target.get("target", "/"), status, roon, config, system, device, key, None)
+        self.polling = False
+        image = get_bytes(f"{ROON}/api/image?key={quote(key, safe='')}") if key and key != self.image_key else None
+        if image:
+            GLib.idle_add(self.apply_artwork, key, image)
+        elapsed = time.monotonic() - started; self.refresh_count += 1
+        if self.refresh_count <= 5 and elapsed > .25:
+            print(f"Pi Home core refresh completed in {elapsed:.3f}s", flush=True)
 
     def apply(self, target, status, roon, config, system, device, image_key, image):
         if config is not None:
@@ -248,18 +263,21 @@ class Display(Gtk.Application):
             if not self.display_controls_loaded:
                 profiles = {"original": 0, "touch2-5-7": 1, "touch2-10": 2}; orientations = {"normal": 0, "90": 1, "180": 2, "270": 3}
                 self.touch_profile.set_selected(profiles.get(system.get("display_profile"), 0)); self.touch_orientation.set_selected(orientations.get(system.get("display_rotation"), 0)); self.display_controls_loaded = True
-        self.render_touch_controls(device, system)
+        self.render_touch_controls(device, self.system_data)
         self.render_home((device or {}).get("home") or {})
+        brightness = int((device or {}).get("display_brightness", 100))
+        if not self.brightness_updating and round(self.touch_brightness.get_value()) != brightness:
+            self.brightness_updating = True; self.touch_brightness.set_value(brightness); self.brightness_updating = False
+        if not self.brightness_applied:
+            self.brightness_applied = True
+            threading.Thread(target=post_json, args=(BUS + "/api/device/brightness", {"brightness": brightness}), daemon=True).start()
         config = self.settings_data; system = self.system_data
         bus_signature = json.dumps(status, sort_keys=True, separators=(",", ":"), default=str)
         if bus_signature != self.bus_signature:
             self.render_bus(status); self.bus_signature = bus_signature
         self.render_roon(roon)
-        if image:
-            try:
-                self.artwork.set_paintable(Gdk.Texture.new_from_bytes(GLib.Bytes.new(image))); self.image_key = image_key; self.image_misses = 0
-            except GLib.Error:
-                pass
+        if not self.views_prewarmed:
+            self.views_prewarmed = True; GLib.idle_add(self.prewarm_views)
         if self.settings_open:
             return False
         if target == "/sleep.html": desired = "sleep"; self.set_screen_power(bool(config.get("sleep_show_clock", False)))
@@ -268,6 +286,22 @@ class Display(Gtk.Application):
         else: desired = "roon"; self.set_screen_power(True); self.last_mode = "roon"
         if self.stack.get_visible_child_name() != desired:
             self.stack.set_visible_child_name(desired)
+        return False
+
+    def apply_artwork(self, image_key, image):
+        try:
+            self.artwork.set_paintable(Gdk.Texture.new_from_bytes(GLib.Bytes.new(image))); self.image_key = image_key; self.image_misses = 0
+        except GLib.Error:
+            pass
+        return False
+
+    def prewarm_views(self):
+        started = time.monotonic()
+        for name in ("roon", "home"):
+            child = self.stack.get_child_by_name(name)
+            child.measure(Gtk.Orientation.HORIZONTAL, 800)
+            child.measure(Gtk.Orientation.VERTICAL, 480)
+        print(f"Pi Home views pre-measured in {(time.monotonic() - started) * 1000:.1f}ms", flush=True)
         return False
 
     def render_touch_controls(self, device, system):
@@ -349,7 +383,7 @@ class Display(Gtk.Application):
         output = zone.get("output") or {}; volume = output.get("volume") or {}; value = volume.get("value"); self.volume_updating = True; self.volume.set_sensitive(value is not None); self.volume.set_value(float(value or 0)); self.volume_value.set_text(str(value) if value is not None else "FIXED"); self.volume_updating = False
 
     def set_mode(self, mode):
-        self.settings_open = False; self.last_mode = mode; self.stack.set_visible_child_name(mode); threading.Thread(target=post_json, args=(BUS + "/api/admin/display-mode", {"mode": mode}), daemon=True).start()
+        started = time.monotonic(); self.settings_open = False; self.last_mode = mode; self.stack.set_visible_child_name(mode); print(f"Pi Home switched to {mode} in {(time.monotonic() - started) * 1000:.1f}ms", flush=True); threading.Thread(target=post_json, args=(BUS + "/api/admin/display-mode", {"mode": mode}), daemon=True).start()
 
     def note_missing_artwork(self):
         self.image_misses += 1
@@ -381,6 +415,14 @@ class Display(Gtk.Application):
     def send_home_value(self, entity_id, value):
         self.home_value_timeouts.pop(entity_id, None)
         threading.Thread(target=post_json, args=(BUS + "/api/device/home-value", {"entity_id": entity_id, "value": value}), daemon=True).start()
+        return False
+    def change_brightness(self, scale):
+        if self.brightness_updating: return
+        if self.brightness_timeout is not None: GLib.source_remove(self.brightness_timeout)
+        self.brightness_timeout = GLib.timeout_add(180, self.send_brightness, round(scale.get_value()))
+    def send_brightness(self, value):
+        self.brightness_timeout = None
+        threading.Thread(target=post_json, args=(BUS + "/api/device/brightness", {"brightness": value}), daemon=True).start()
         return False
     def format_time(self, seconds): return f"{seconds // 60}:{seconds % 60:02d}"
     def change_volume(self, scale):
