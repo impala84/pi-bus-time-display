@@ -40,6 +40,7 @@ button { border: 0; box-shadow: none; background-image: none; outline: none; }
 .progress trough, .volume trough { min-height: 7px; border: 0; box-shadow: none; border-radius: 4px; background: #303a37; }.progress highlight, .volume highlight { border: 0; box-shadow: none; background: #6ed9ae; }.time { color: #87928e; font-size: 12px; }
 .sleep { background: #000; }.sleep-clock { font-size: 112px; font-weight: 550; }.settings-title { font-size: 32px; font-weight: 650; }
 .settings-card { background: #131c1a; border: 1px solid #26312e; border-radius: 14px; padding: 16px; }.settings-action { min-height: 54px; border-radius: 12px; background: #285f4d; color: #f4f0e6; font-weight: 750; }
+.settings-select { min-height: 44px; border-radius: 8px; background: #0d1412; color: #f4f0e6; }.settings-row { padding: 2px 0; }.settings-diagnostic { color: #aab4b0; font-size: 12px; }
 .high-resolution .page { padding: 22px 30px 16px; }.high-resolution .stop { font-size: 34px; }.high-resolution .clock { font-size: 42px; }.high-resolution .eyebrow { font-size: 15px; }.high-resolution .service-no, .high-resolution .arrival { font-size: 108px; }.high-resolution .service.compact .service-no, .high-resolution .service.compact .arrival { font-size: 80px; }.high-resolution .service.dense .service-no, .high-resolution .service.dense .arrival { font-size: 62px; }.high-resolution .artwork { min-width: 380px; min-height: 380px; }.high-resolution .roon-title { font-size: 48px; }.high-resolution .roon-artist { font-size: 25px; }.high-resolution .nav button { min-height: 54px; font-size: 19px; }
 """
 
@@ -87,6 +88,7 @@ class Display(Gtk.Application):
         self.last_config_fetch = 0.0
         self.last_system_fetch = 0.0
         self.bus_signature = None
+        self.display_controls_loaded = False
 
     def label(self, text="", css=None, x=0):
         widget = Gtk.Label(label=text, xalign=x)
@@ -175,12 +177,15 @@ class Display(Gtk.Application):
         content.append(centre); page.append(content); page.append(self.navigation("roon")); return page
 
     def build_settings(self):
-        page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12); page.add_css_class("page")
+        page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8); page.add_css_class("page")
         top = Gtk.Box(spacing=10); top.append(self.button("BACK", self.close_settings)); title = self.label("Touchscreen settings", "settings-title", .5); title.set_hexpand(True); top.append(title); top.append(self.button("SLEEP", self.sleep)); page.append(top)
-        card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=9); card.add_css_class("settings-card"); card.set_vexpand(True); card.set_valign(Gtk.Align.CENTER)
-        card.append(self.label("Safe controls only", "eyebrow", .5)); safe = self.label("Bus stop, schedules, Roon and network settings are protected in the web admin.", "muted", .5); safe.set_wrap(True); safe.set_justify(Gtk.Justification.CENTER); card.append(safe)
+        card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=7); card.add_css_class("settings-card"); card.set_vexpand(True)
         self.device_status = self.label("Checking system…", "muted", .5); card.append(self.device_status)
-        self.update_button = self.button("CHECK AND INSTALL UPDATE", self.request_update, "settings-action"); card.append(self.update_button); page.append(card)
+        self.touch_diagnostics = self.label("Loading diagnostics…", "settings-diagnostic", .5); self.touch_diagnostics.set_wrap(True); self.touch_diagnostics.set_justify(Gtk.Justification.CENTER); card.append(self.touch_diagnostics)
+        display_row = Gtk.Box(spacing=10); display_row.add_css_class("settings-row")
+        profile_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3); profile_box.set_hexpand(True); profile_box.append(self.label("DISPLAY", "eyebrow")); self.touch_profile = Gtk.DropDown.new_from_strings(["Original · 800×480", "Touch 2 · 5/7-inch", "Touch 2 · 10-inch"]); self.touch_profile.add_css_class("settings-select"); profile_box.append(self.touch_profile); display_row.append(profile_box)
+        orientation_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3); orientation_box.set_hexpand(True); orientation_box.append(self.label("ORIENTATION", "eyebrow")); self.touch_orientation = Gtk.DropDown.new_from_strings(["Normal", "90°", "180°", "270°"]); self.touch_orientation.add_css_class("settings-select"); orientation_box.append(self.touch_orientation); display_row.append(orientation_box); card.append(display_row)
+        actions = Gtk.Box(spacing=10); self.apply_display_button = self.button("APPLY & REBOOT", self.request_display_settings, "settings-action"); self.apply_display_button.set_hexpand(True); actions.append(self.apply_display_button); self.update_button = self.button("INSTALL UPDATE", self.request_update, "settings-action"); self.update_button.set_hexpand(True); actions.append(self.update_button); card.append(actions); page.append(card)
         return page
 
     def build_sleep(self):
@@ -215,6 +220,16 @@ class Display(Gtk.Application):
         if system is not None:
             self.system_data = system
             self.device_status.set_text(f"v{system.get('app_version', '—')}  ·  {system.get('update_status', 'Ready')}")
+            diagnostics = system.get("diagnostics") or {}; memory = diagnostics.get("memory") or {}; processes = diagnostics.get("processes") or []
+            states = {item.get("label"): item.get("active", bool(item.get("pids"))) for item in processes}
+            temperature = diagnostics.get("temperature_c"); load = diagnostics.get("load") or [0]
+            health = f"Memory {memory.get('used_percent', 0):g}%  ·  Load {float(load[0]):.2f}"
+            if temperature is not None: health += f"  ·  {temperature:g}°C"
+            health += f"\nController {'ready' if states.get('Roon controller') else 'offline'}  ·  Bridge {'ready' if states.get('Roon Bridge') else 'offline'}"
+            self.touch_diagnostics.set_text(health)
+            if not self.display_controls_loaded:
+                profiles = {"original": 0, "touch2-5-7": 1, "touch2-10": 2}; orientations = {"normal": 0, "90": 1, "180": 2, "270": 3}
+                self.touch_profile.set_selected(profiles.get(system.get("display_profile"), 0)); self.touch_orientation.set_selected(orientations.get(system.get("display_rotation"), 0)); self.display_controls_loaded = True
         config = self.settings_data; system = self.system_data
         bus_signature = json.dumps(status, sort_keys=True, separators=(",", ":"), default=str)
         if bus_signature != self.bus_signature:
@@ -328,6 +343,17 @@ class Display(Gtk.Application):
         result = post_json(BUS + "/api/device/update", {})
         GLib.idle_add(self.device_status.set_text, "Update started…" if result else "Could not start update")
         GLib.idle_add(self.update_button.set_sensitive, True)
+
+    def request_display_settings(self, *_):
+        profiles = ("original", "touch2-5-7", "touch2-10"); orientations = ("normal", "90", "180", "270")
+        profile = profiles[min(self.touch_profile.get_selected(), len(profiles) - 1)]; transform = orientations[min(self.touch_orientation.get_selected(), len(orientations) - 1)]
+        self.apply_display_button.set_sensitive(False); self.device_status.set_text("Applying display settings…")
+        threading.Thread(target=self._request_display_settings, args=(profile, transform), daemon=True).start()
+
+    def _request_display_settings(self, profile, transform):
+        result = post_json(BUS + "/api/admin/system-action", {"action": "set_display", "profile": profile, "transform": transform})
+        GLib.idle_add(self.device_status.set_text, "Rebooting…" if result else "Could not apply display settings")
+        if not result: GLib.idle_add(self.apply_display_button.set_sensitive, True)
 
 
 if __name__ == "__main__":

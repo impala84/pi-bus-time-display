@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.3 — 29 September 2026
+
+- Added original and Touch Display 2 profile selection to the non-scrolling touchscreen Settings page.
+- Added all four orientation choices with an explicit Apply & Reboot action.
+- Added a compact touchscreen health summary for memory, load, temperature, Roon controller and Roon Bridge.
+- Kept Wi-Fi, credentials and detailed configuration protected in web administration.
+
 ## 0.4.2 — 29 September 2026
 
 - Corrected diagnostics that attributed the Roon controller process to the generic bus data service.
