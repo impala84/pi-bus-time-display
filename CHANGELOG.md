@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.4 — 29 September 2026
+
+- Made the touchscreen Roon Bridge switch persist by enabling or disabling its system service, rather than only starting or stopping the current process.
+- Made touch wake force and confirm a physical backlight-on request, with a safe maximum-brightness fallback if the saved brightness is zero or invalid.
+- Added stricter mobile Safari input containment and removed the non-editable Home touchscreen-layout summary.
+
 ## 0.5.3 — 29 September 2026
 
 - Refined the mobile admin layout with a full-width final tab and Save button, constrained fields and aligned diagnostic values.

@@ -361,7 +361,7 @@ class Display(Gtk.Application):
     def close_settings(self, *_): self.settings_open = False; self.stack.set_visible_child_name(self.last_mode)
     def sleep(self, *_): self.settings_open = False; self.stack.set_visible_child_name("sleep"); self.set_screen_power(bool(self.settings_data.get("sleep_show_clock", False))); threading.Thread(target=post_json, args=(BUS + "/api/admin/display-mode", {"mode": "sleep"}), daemon=True).start()
     def wake(self, *_):
-        self.set_screen_power(True); self.stack.set_visible_child_name(self.last_mode or "bus")
+        self.set_screen_power(True, force=True); self.stack.set_visible_child_name(self.last_mode or "bus")
         threading.Thread(target=post_json, args=(BUS + "/api/device/wake", {"view": self.last_mode or "bus"}), daemon=True).start()
     def control(self, action): threading.Thread(target=post_json, args=(ROON + "/api/control", {"action": action}), daemon=True).start()
     def toggle_bridge(self, button):
@@ -400,17 +400,16 @@ class Display(Gtk.Application):
         threading.Thread(target=post_json, args=(ROON + "/api/seek", {"seconds": seconds}), daemon=True).start()
         return False
 
-    def set_screen_power(self, powered):
-        if powered == self.screen_powered:
+    def set_screen_power(self, powered, force=False):
+        if powered == self.screen_powered and not force:
             return
         self.screen_powered = powered
         threading.Thread(target=post_json, args=(BUS + "/api/device/screen-power", {"powered": powered}), daemon=True).start()
-        if not powered:
-            GLib.timeout_add_seconds(2, self.confirm_screen_off)
+        GLib.timeout_add_seconds(1 if powered else 2, self.confirm_screen_power, powered)
 
-    def confirm_screen_off(self):
-        if self.screen_powered is False:
-            threading.Thread(target=post_json, args=(BUS + "/api/device/screen-power", {"powered": False}), daemon=True).start()
+    def confirm_screen_power(self, powered):
+        if self.screen_powered is powered:
+            threading.Thread(target=post_json, args=(BUS + "/api/device/screen-power", {"powered": powered}), daemon=True).start()
         return False
 
     def request_update(self, *_):

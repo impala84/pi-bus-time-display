@@ -39,6 +39,9 @@ def roon_service() -> str:
 
 
 def display_power(powered: bool) -> None:
+    vcgencmd = Path("/usr/bin/vcgencmd")
+    if powered and vcgencmd.exists():
+        subprocess.run([str(vcgencmd), "display_power", "1"], check=False)
     devices = [item for item in sorted(Path("/sys/class/backlight").glob("*")) if (item / "bl_power").exists() or (item / "brightness").exists()]
     if not devices:
         raise RuntimeError("No display backlight control was found")
@@ -51,11 +54,16 @@ def display_power(powered: bool) -> None:
         power = device / "bl_power"
         brightness = device / "brightness"
         if powered:
+            fallback = int((device / "max_brightness").read_text(encoding="ascii")) if (device / "max_brightness").exists() else 255
+            restored = int(saved.get(device.name, fallback))
+            if restored <= 0 or restored > fallback:
+                restored = fallback
             if power.exists():
                 power.write_text("0", encoding="ascii")
             if brightness.exists():
-                fallback = int((device / "max_brightness").read_text(encoding="ascii"))
-                brightness.write_text(str(saved.get(device.name, fallback)), encoding="ascii")
+                brightness.write_text(str(restored), encoding="ascii")
+            if power.exists():
+                power.write_text("0", encoding="ascii")
         else:
             if brightness.exists():
                 current = int(brightness.read_text(encoding="ascii"))
@@ -66,9 +74,8 @@ def display_power(powered: bool) -> None:
                 power.write_text("4", encoding="ascii")
     if not powered:
         saved_path.write_text(json.dumps(saved), encoding="utf-8")
-    vcgencmd = Path("/usr/bin/vcgencmd")
-    if vcgencmd.exists():
-        subprocess.run([str(vcgencmd), "display_power", "1" if powered else "0"], check=False)
+    if not powered and vcgencmd.exists():
+        subprocess.run([str(vcgencmd), "display_power", "0"], check=False)
 
 
 def main() -> None:
@@ -99,8 +106,14 @@ def main() -> None:
         report("Display settings updated. Rebooting…")
         run(["systemctl", "reboot"])
     elif action in {"roon_start", "roon_stop", "roon_restart"}:
+        service = roon_service()
         verb = action.removeprefix("roon_")
-        run(["systemctl", verb, roon_service()])
+        if action == "roon_start":
+            run(["systemctl", "enable", "--now", service])
+        elif action == "roon_stop":
+            run(["systemctl", "disable", "--now", service])
+        else:
+            run(["systemctl", "restart", service])
         report(f"Roon Bridge {verb} complete.")
     elif action == "set_hostname":
         hostname = str(data.get("hostname", ""))
