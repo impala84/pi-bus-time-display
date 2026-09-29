@@ -18,6 +18,9 @@ sleep_show_clock = false
 auto_switch_to_roon = true
 roon_idle_return_seconds = 300
 outside_hours_wake_seconds = 600
+home_assistant_enabled = false
+home_assistant_url = "http://homeassistant.local:8123"
+home_assistant_entities = []
 
 # Retained for configuration compatibility. The one-card appliance keeps running
 # Roon Bridge and changes the touchscreen to its quiet clock outside the window.

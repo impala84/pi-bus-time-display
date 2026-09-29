@@ -26,6 +26,26 @@ class DisplayModeTests(unittest.TestCase):
             path.write_text("sleep\n", encoding="utf-8")
             self.assertEqual(read_display_mode(path), "sleep")
 
+    def test_home_mode_targets_native_home_panel(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "display-mode"
+            path.write_text("home\n", encoding="utf-8")
+            self.assertEqual(display_target(Config(), path), "/home")
+
+    def test_touchscreen_can_hide_a_configured_service(self):
+        state = State(Config(services=("40", "42")))
+        state.data = {"status": "ok", "services": [{"service": "40"}, {"service": "42"}]}
+        state.enabled_services.discard("42")
+        self.assertEqual([item["service"] for item in state.snapshot()["services"]], ["40"])
+
+    def test_touchscreen_bus_visibility_persists(self):
+        with tempfile.TemporaryDirectory() as directory:
+            state = State(Config(services=("40", "42")), Path(directory))
+            state.enabled_services.discard("42")
+            state.save_enabled_services()
+            restored = State(Config(services=("40", "42")), Path(directory))
+            self.assertEqual(restored.enabled_services, {"40"})
+
     def test_unknown_mode_defaults_to_auto(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "display-mode"

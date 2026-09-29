@@ -1,5 +1,11 @@
 # Roadmap
 
+## Delivered in v0.5.0
+
+- Roomier fixed touchscreen Settings layout with bottom-aligned display and update actions.
+- Safe touchscreen switches for Roon Bridge and configured bus visibility.
+- Optional Home Assistant web configuration and allow-listed 4×2 touchscreen Home controls.
+
 This roadmap records intended improvements without promising a release date. Reliability on the installed Raspberry Pi remains the first priority.
 
 ## Delivered in v0.4.0

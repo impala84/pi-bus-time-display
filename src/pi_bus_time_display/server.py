@@ -10,6 +10,7 @@ import subprocess
 import threading
 import time
 import urllib.request
+import urllib.error
 from http.cookies import SimpleCookie
 from datetime import datetime, time as wall_time
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -24,7 +25,7 @@ from . import __version__
 
 
 class State:
-    def __init__(self, config: Config):
+    def __init__(self, config: Config, state_dir: Path | None = None):
         self.config = config
         self.lock = threading.Lock()
         self.data: dict = {"status": "starting", "services": []}
@@ -32,6 +33,13 @@ class State:
         self.last_roon_playing = 0.0
         self.awake_until = 0.0
         self.awake_view = "bus"
+        self.state_dir = state_dir or Path(".state")
+        try:
+            saved_services = set(json.loads((self.state_dir / "enabled-services.json").read_text(encoding="utf-8")))
+        except (OSError, ValueError, TypeError, json.JSONDecodeError):
+            saved_services = set(config.services)
+        self.enabled_services: set[str] = saved_services.intersection(config.services)
+        self.home_data: dict = {"status": "disabled", "entities": []}
 
     def snapshot(self) -> dict:
         with self.lock:
@@ -44,7 +52,21 @@ class State:
             "roon_display_url": self.config.roon_display_url,
             "stale": bool(self.last_success and (now - self.last_success).total_seconds() > self.config.stale_after_seconds),
         })
+        if self.config.services:
+            result["services"] = [item for item in result.get("services", []) if item.get("service") in self.enabled_services]
         return result
+
+    def controls_snapshot(self) -> dict:
+        return {
+            "services": [{"name": service, "enabled": service in self.enabled_services} for service in self.config.services],
+            "home": self.home_data,
+        }
+
+    def save_enabled_services(self) -> None:
+        self.state_dir.mkdir(parents=True, exist_ok=True)
+        temporary = self.state_dir / "enabled-services.tmp"
+        temporary.write_text(json.dumps(sorted(self.enabled_services)), encoding="utf-8")
+        temporary.replace(self.state_dir / "enabled-services.json")
 
 
 def within_window(config: Config, now: datetime) -> bool:
@@ -78,6 +100,51 @@ def poll(state: State, stop: threading.Event) -> None:
         stop.wait(config.poll_seconds)
 
 
+def home_assistant_request(config: Config, path: str, payload: dict | None = None) -> object:
+    base = config.home_assistant_url.rstrip("/")
+    token = os.getenv("HOME_ASSISTANT_TOKEN", "")
+    if not base or not token:
+        raise ValueError("Home Assistant URL or token is missing")
+    body = json.dumps(payload).encode() if payload is not None else None
+    request = urllib.request.Request(
+        base + path, data=body,
+        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+        method="POST" if payload is not None else "GET",
+    )
+    with urllib.request.urlopen(request, timeout=2.5) as response:
+        return json.load(response)
+
+
+def home_assistant_poll(state: State, stop: threading.Event) -> None:
+    while not stop.is_set():
+        config = state.config
+        if not config.home_assistant_enabled or not config.home_assistant_entities:
+            state.home_data = {"status": "disabled", "entities": []}
+            stop.wait(5)
+            continue
+        try:
+            raw = home_assistant_request(config, "/api/states")
+            selected = set(config.home_assistant_entities)
+            entities = []
+            for item in raw if isinstance(raw, list) else []:
+                entity_id = str(item.get("entity_id", ""))
+                if entity_id not in selected:
+                    continue
+                domain = entity_id.split(".", 1)[0]
+                attributes = item.get("attributes") or {}
+                entities.append({
+                    "entity_id": entity_id, "domain": domain, "state": item.get("state", "unknown"),
+                    "name": attributes.get("friendly_name") or entity_id.split(".", 1)[-1].replace("_", " ").title(),
+                    "percentage": attributes.get("percentage"), "brightness": attributes.get("brightness"),
+                })
+            order = {entity_id: index for index, entity_id in enumerate(config.home_assistant_entities)}
+            entities.sort(key=lambda item: order.get(item["entity_id"], 99))
+            state.home_data = {"status": "ok", "entities": entities, "updated_at": datetime.now(ZoneInfo(config.timezone)).isoformat()}
+        except (OSError, ValueError, urllib.error.URLError, json.JSONDecodeError) as exc:
+            state.home_data = {"status": "offline", "entities": [], "error": str(exc)}
+        stop.wait(3)
+
+
 def write_config(path: Path, config: Config) -> None:
     services = ", ".join(json.dumps(item) for item in config.services)
     content = "\n".join((
@@ -101,6 +168,9 @@ def write_config(path: Path, config: Config) -> None:
         f"auto_switch_to_roon = {str(config.auto_switch_to_roon).lower()}",
         f"roon_idle_return_seconds = {config.roon_idle_return_seconds}",
         f"outside_hours_wake_seconds = {config.outside_hours_wake_seconds}",
+        f"home_assistant_enabled = {str(config.home_assistant_enabled).lower()}",
+        f"home_assistant_url = {json.dumps(config.home_assistant_url)}",
+        "home_assistant_entities = [" + ", ".join(json.dumps(item) for item in config.home_assistant_entities) + "]",
         f"end_action = {json.dumps(config.end_action)}",
         "",
     ))
@@ -128,7 +198,7 @@ def update_secret(path: Path, key: str, value: str) -> None:
 def read_display_mode(path: Path) -> str:
     try:
         mode = path.read_text(encoding="utf-8").strip()
-        return mode if mode in {"auto", "bus", "roon", "sleep"} else "auto"
+        return mode if mode in {"auto", "bus", "roon", "home", "sleep"} else "auto"
     except OSError:
         return "auto"
 
@@ -153,6 +223,8 @@ def display_target(
     mode = read_display_mode(mode_path)
     if mode == "sleep":
         return "/sleep.html"
+    if mode == "home":
+        return "/home"
     if mode in {"roon", "auto"} and roon is _CHECK_ROON:
         roon = roon_status()
     if mode == "roon":
@@ -394,6 +466,10 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                     "auto_switch_to_roon": config.auto_switch_to_roon,
                     "roon_idle_return_seconds": config.roon_idle_return_seconds,
                     "outside_hours_wake_seconds": config.outside_hours_wake_seconds,
+                    "home_assistant_enabled": config.home_assistant_enabled,
+                    "home_assistant_url": config.home_assistant_url,
+                    "home_assistant_entities": list(config.home_assistant_entities),
+                    "has_home_assistant_token": bool(os.getenv("HOME_ASSISTANT_TOKEN")),
                     "app_version": __version__,
                     "admin_username": os.getenv("ADMIN_USERNAME", "admin"),
                     "admin_auth_enabled": os.getenv("ADMIN_AUTH_ENABLED", "true").lower() != "false",
@@ -411,6 +487,12 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
             if self.path == "/api/status":
                 body = json.dumps(state.snapshot()).encode()
                 self.send_json(200, body)
+                return
+            if self.path == "/api/device/controls":
+                if self.client_address[0] not in {"127.0.0.1", "::1"}:
+                    self.send_json(403, b'{"error":"Touchscreen only"}')
+                    return
+                self.send_json(200, json.dumps(state.controls_snapshot()).encode())
                 return
             super().do_GET()
 
@@ -459,6 +541,38 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                 state.awake_view = "roon" if data.get("view") == "roon" else "bus"
                 state.awake_until = time.monotonic() + state.config.outside_hours_wake_seconds
                 self.send_json(200, json.dumps({"ok": True, "awake_seconds": state.config.outside_hours_wake_seconds}).encode())
+                return
+            if self.path in {"/api/device/service-visibility", "/api/device/roon-bridge", "/api/device/home-toggle"}:
+                if self.client_address[0] not in {"127.0.0.1", "::1"}:
+                    self.send_json(403, b'{"error":"Touchscreen only"}')
+                    return
+                length = min(int(self.headers.get("Content-Length", "0")), 4096)
+                data = json.loads(self.rfile.read(length) or b"{}")
+                if self.path == "/api/device/service-visibility":
+                    service = str(data.get("service", ""))
+                    if service not in state.config.services:
+                        self.send_json(400, b'{"error":"Unknown bus service"}')
+                        return
+                    if data.get("enabled"): state.enabled_services.add(service)
+                    else: state.enabled_services.discard(service)
+                    state.save_enabled_services()
+                elif self.path == "/api/device/roon-bridge":
+                    write_control_request(mode_path.parent, {"action": "roon_start" if data.get("enabled") else "roon_stop"})
+                else:
+                    entity_id = str(data.get("entity_id", ""))
+                    if entity_id not in state.config.home_assistant_entities:
+                        self.send_json(400, b'{"error":"Entity is not available on this display"}')
+                        return
+                    domain = entity_id.split(".", 1)[0]
+                    if domain not in {"fan", "light", "switch", "input_boolean"}:
+                        self.send_json(400, b'{"error":"This entity type cannot be toggled"}')
+                        return
+                    try:
+                        home_assistant_request(state.config, f"/api/services/{domain}/toggle", {"entity_id": entity_id})
+                    except (OSError, ValueError, urllib.error.URLError) as exc:
+                        self.send_json(502, json.dumps({"error": str(exc)}).encode())
+                        return
+                self.send_json(200, b'{"ok":true}')
                 return
             if self.path not in {"/api/admin/config", "/api/admin/display-mode", "/api/admin/system-action", "/api/admin/password"}:
                 self.send_error(404)
@@ -520,13 +634,22 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                     return
                 if self.path == "/api/admin/display-mode":
                     mode = str(data.get("mode", ""))
-                    if mode not in {"auto", "bus", "roon", "sleep"}:
-                        raise ValueError("Display mode must be auto, bus, roon or sleep")
+                    if mode not in {"auto", "bus", "roon", "home", "sleep"}:
+                        raise ValueError("Display mode must be auto, bus, roon, home or sleep")
                     mode_path.parent.mkdir(parents=True, exist_ok=True)
                     mode_path.write_text(mode + "\n", encoding="utf-8")
                     self.send_json(200, json.dumps({"ok": True, "display_mode": mode}).encode())
                     return
                 current = state.config
+                requested_home_entities = tuple(item.strip() for item in str(data.get("home_assistant_entities", "")).split(",") if item.strip())
+                if len(requested_home_entities) > 8:
+                    raise ValueError("Choose no more than eight Home Assistant entities")
+                unsupported = [item for item in requested_home_entities if item.split(".", 1)[0] not in {"fan", "light", "switch", "input_boolean"}]
+                if unsupported:
+                    raise ValueError("Unsupported Home Assistant entity: " + unsupported[0])
+                home_url = str(data.get("home_assistant_url", "")).strip()
+                if home_url and not home_url.startswith(("http://", "https://")):
+                    raise ValueError("Home Assistant address must start with http:// or https://")
                 candidate = Config(
                     bus_stop_code=str(data["bus_stop_code"]).strip(),
                     bus_stop_name=str(data["bus_stop_name"]).strip(),
@@ -544,6 +667,9 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                     auto_switch_to_roon=bool(data.get("auto_switch_to_roon", True)),
                     roon_idle_return_seconds=int(data.get("roon_idle_return_seconds", 300)),
                     outside_hours_wake_seconds=int(data.get("outside_hours_wake_seconds", 600)),
+                    home_assistant_enabled=bool(data.get("home_assistant_enabled", False)),
+                    home_assistant_url=home_url,
+                    home_assistant_entities=requested_home_entities,
                     end_action="display", simulate=current.simulate,
                 )
                 if not candidate.bus_stop_code.isdigit() or len(candidate.bus_stop_code) != 5:
@@ -564,6 +690,12 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                 account_key = str(data.get("lta_account_key", "")).strip()
                 if account_key:
                     update_secret(env_path, "LTA_ACCOUNT_KEY", account_key)
+                home_token = str(data.get("home_assistant_token", "")).strip()
+                if home_token:
+                    update_secret(env_path, "HOME_ASSISTANT_TOKEN", home_token)
+                state.enabled_services.intersection_update(candidate.services)
+                state.enabled_services.update(service for service in candidate.services if service not in current.services)
+                state.save_enabled_services()
                 state.config = candidate
                 self.send_json(200, json.dumps({"ok": True}).encode())
             except (KeyError, TypeError, ValueError, OSError, json.JSONDecodeError) as exc:
@@ -615,9 +747,10 @@ def main() -> None:
     config = load_config(args.config)
     if args.simulate:
         config = Config(**{**config.__dict__, "simulate": True})
-    state = State(config)
+    state = State(config, args.state_dir)
     stop = threading.Event()
     threading.Thread(target=poll, args=(state, stop), daemon=True).start()
+    threading.Thread(target=home_assistant_poll, args=(state, stop), daemon=True).start()
     server = ThreadingHTTPServer((args.host, args.port), make_handler(state, args.config, args.env, args.state_dir / "display-mode"))
     try:
         server.serve_forever()

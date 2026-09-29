@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.0 — 29 September 2026
+
+- Redesigned touchscreen Settings with a balanced daily-controls and display layout plus fixed, equal-width actions at the bottom.
+- Added touchscreen Roon Bridge and configured-bus visibility switches while retaining protected structural settings in web administration.
+- Added an optional Home Assistant integration with protected URL, token and allow-listed entity configuration in a dedicated web Home section.
+- Added a non-scrolling, state-aware 4×2 Home touchscreen panel for up to eight fans, lights, switches or input booleans.
+- Kept Home Assistant credentials in the appliance secrets file and restricted touchscreen actions to explicitly configured, low-risk entities.
+
 ## 0.4.3 — 29 September 2026
 
 - Added original and Touch Display 2 profile selection to the non-scrolling touchscreen Settings page.

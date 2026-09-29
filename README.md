@@ -27,9 +27,13 @@ The bus installer creates an unprivileged service account, keeps the LTA key out
 
 From a phone or computer on the same network, open `http://<pi-address>:8765/admin`. The dedicated sign-in page uses username `admin` and the `ADMIN_PASSWORD` stored in `/etc/pi-bus-time-display/secrets.env`. Its ordinary username and password fields allow browsers and password managers to save and autofill the credentials; a successful sign-in lasts for 30 days. The touchscreen itself opens Settings directly.
 
-The web admin is organised into **Schedule**, **Bus stop**, **Roon** and **System**. It controls display schedules, stop and LTA credentials, Now Playing preferences, Roon Bridge start/stop/restart, device name, Wi-Fi and software updates. Web authentication can be renamed, reset or disabled under System; disabling it exposes every setting to the home network. The existing AccountKey and Wi-Fi password are never displayed back to the browser. Because this admin server uses ordinary HTTP, keep it on a trusted home network and use authentication unless the network itself is trusted.
+The web admin is organised into **Schedule**, **Bus stop**, **Roon**, **Home** and **System**. It controls display schedules, stop and LTA credentials, Now Playing preferences, Roon Bridge start/stop/restart, the optional Home Assistant panel, device name, Wi-Fi and software updates. Web authentication can be renamed, reset or disabled under System; disabling it exposes every setting to the home network. Existing API keys, access tokens and Wi-Fi passwords are never displayed back to the browser. Because this admin server uses ordinary HTTP, keep it on a trusted home network and use authentication unless the network itself is trusted.
 
-On the touchscreen, tap the title at top left for Settings and tap the clock at top right to sleep. The bottom navigation switches directly between **Now Playing** and **Bus Times**. By default sleep powers off the display backlight; touch remains active, so tap anywhere to wake it. Enable **Show clock while sleeping** under Schedule if you prefer a black clock screen instead. Touchscreen Settings intentionally exposes only safe status and update controls; schedules, credentials, bus configuration, Roon service control and network settings remain in the authenticated web admin.
+On the touchscreen, tap the title at top left for Settings and tap the clock at top right to sleep. The bottom navigation switches directly between **Now Playing**, **Bus Times** and the optional **Home** panel. Touchscreen Settings can start or stop Roon Bridge and temporarily show or hide configured buses; adding services and changing credentials remains protected in web administration. By default sleep powers off the display backlight; touch remains active, so tap anywhere to wake it.
+
+### Home Assistant
+
+Under web Settings → Home, enable the integration, enter the local Home Assistant address and a Long-Lived Access Token, then list up to eight entity IDs in display order. The Home touchscreen panel supports `fan`, `light`, `switch` and `input_boolean` entities in a fixed 4×2 grid. Only those allow-listed entities can be controlled; locks, alarms, covers and other sensitive domains are deliberately rejected. The token is stored in `/etc/pi-bus-time-display/secrets.env` and is never sent to the touchscreen UI.
 
 The installer generates a unique admin password and prints it once. You can retrieve or change it later in `/etc/pi-bus-time-display/secrets.env`.
 
@@ -49,7 +53,7 @@ After the initial installation, update the appliance with one command:
 sudo pi-bus-update
 ```
 
-The updater follows the supported `main` branch, preserves any local checkout differences in a recoverable Git stash, reinstalls the application, reapplies saved display/input orientation, refreshes its services, verifies both HTTP services and reboots automatically. Updates can be started from the protected web System section or the restricted touchscreen Settings screen. Your settings and secrets remain untouched in `/etc/pi-bus-time-display/`. Releases use semantic versions, shown in Settings and recorded in [CHANGELOG.md](CHANGELOG.md). The current release is **v0.4.3**.
+The updater follows the supported `main` branch, preserves any local checkout differences in a recoverable Git stash, reinstalls the application, reapplies saved display/input orientation, refreshes its services, verifies both HTTP services and reboots automatically. Updates can be started from the protected web System section or the restricted touchscreen Settings screen. Your settings and secrets remain untouched in `/etc/pi-bus-time-display/`. Releases use semantic versions, shown in Settings and recorded in [CHANGELOG.md](CHANGELOG.md). The current release is **v0.5.0**.
 
 ## Lightweight appliance mode
 
@@ -91,6 +95,7 @@ Edit `/etc/pi-bus-time-display/config.toml`:
 - `auto_switch_to_roon`: let active playback temporarily take over Automatic mode
 - `roon_idle_return_seconds`: delay before returning to buses after playback stops
 - `outside_hours_wake_seconds`: how long a touch wake lasts during overnight hours
+- `home_assistant_enabled`, `home_assistant_url` and `home_assistant_entities`: optional Home panel connection and allow-list (the token remains in `secrets.env`)
 
 Restart after changes with `sudo systemctl restart pi-bus-time-display`.
 
@@ -128,6 +133,7 @@ PYTHONPATH=src python3 -m unittest discover -s tests -v
 - [Roon system requirements](https://help.roonlabs.com/portal/en/kb/articles/faq-what-are-the-minimum-requirements) — current Raspberry Pi OS support for Roon Bridge.
 - [Roon JavaScript API](https://github.com/RoonLabs/node-roon-api) — official extension pairing and service API.
 - [Roon transport API](https://github.com/RoonLabs/node-roon-api-transport) — zone metadata, playback, seek and volume controls.
+- [Home Assistant REST API](https://developers.home-assistant.io/docs/api/rest/) — authenticated entity state and service calls.
 
 ## Licence
 
