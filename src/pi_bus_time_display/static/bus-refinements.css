@@ -33,3 +33,27 @@ main { grid-template-rows: auto minmax(0, 1fr) auto auto; }
 .web-nav a { padding: 12px 8px 7px; color: var(--muted); text-align: center; text-decoration: none; font-size: 13px; font-weight: 750; }
 .web-nav a.active { color: var(--ink); box-shadow: inset 0 -4px var(--mint); }
 @media (max-height: 600px) and (orientation: landscape) { .web-nav a { padding: 7px 6px 5px; font-size: 11px; } }
+
+@media (max-width: 700px) and (orientation: portrait) {
+  main { gap: 18px; padding: 22px 30px 12px; }
+  header > div:first-child { max-width: 58%; }
+  .header-tools { flex-direction: column; align-items: flex-end; gap: 8px; }
+  .settings-link { order: -1; border-radius: 10px; padding: 10px 13px; }
+  #clock { font-size: 34px; }
+  .services { gap: 20px; }
+  .service {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto;
+    gap: 18px;
+    min-height: 0;
+    padding: 20px 18px 24px;
+    text-align: center;
+  }
+  .service-no { font-size: 88px; line-height: .9; }
+  .arrivals { width: 100%; }
+  .arrival { padding: 0 8px; font-size: 48px; line-height: 1; text-align: center; }
+  .arrival:first-child { border-left: 0; }
+  .arrival small { margin-top: 8px; }
+  .web-nav { padding-bottom: 10px; }
+  .web-nav a { padding: 16px 8px 13px; }
+}

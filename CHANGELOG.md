@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.5 — 30 September 2026
+
+- Increased the consistently rendered Home icon box from 48 to 72 pixels and restored balanced switch proportions, retaining sharp scalable SVG output and full-size touch targets.
+- Routine application updates now restart the backend, Roon controller and native touchscreen services instead of rebooting the Pi; display profile and orientation changes continue to reboot when required.
+- Rebuilt portrait web layouts: Music now isolates smaller artwork above non-overlapping controls, Bus Times uses a route-number headline above three arrivals, Settings uses a consistent rounded rectangle, and the bottom navigation has more breathing room.
+
 ## 0.7.4 — 30 September 2026
 
 - Load Home SVG artwork through GTK's scalable icon path instead of the file-image path that ignored the requested pixel size and stretched wide symbols.

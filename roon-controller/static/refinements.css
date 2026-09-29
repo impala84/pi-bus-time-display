@@ -58,17 +58,22 @@ h1 {
 
 @media (max-width: 700px) and (orientation: portrait) {
   main {
+    display: flex;
+    flex-direction: column;
     grid-template-columns: 1fr;
     grid-template-rows: auto auto;
     align-content: start;
     gap: 24px;
+    height: 100dvh;
     padding: 72px 20px 76px;
     overflow-y: auto;
   }
 
   .art {
-    width: min(82vw, 420px);
+    width: min(70vw, 380px);
+    flex: 0 0 auto;
     max-height: none;
+    margin: 0 auto;
     justify-self: center;
   }
 
@@ -82,4 +87,7 @@ h1 {
   #artist { margin-bottom: 20px; }
   .transport { justify-content: center; }
   .timeline > div { text-align: left; }
+  .settings { top: 18px; right: 18px; border-radius: 10px; }
+  .web-nav { padding: 0 18px 10px; }
+  .web-nav a { padding: 16px 8px 13px; }
 }

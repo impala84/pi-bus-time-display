@@ -75,7 +75,7 @@ def main() -> None:
     report("Working…")
     if action == "update":
         run(["/usr/local/sbin/pi-bus-update"])
-        report("Update installed. Reboot if requested.")
+        report("Update installed. Pi Home services restarted.")
     elif action in {"display_on", "display_off"}:
         display_power(action == "display_on", int(data.get("brightness", 100)))
         report("Display awake." if action == "display_on" else "Display asleep.")
