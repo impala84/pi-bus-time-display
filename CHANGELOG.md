@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.2 — 30 September 2026
+
+- Hard-bounded the Queue scroller to the available central viewport so large queues cannot displace either fixed navigation bar.
+- Disabled natural-size propagation from queue contents while retaining kinetic, scrollbar-free touch scrolling and tap-to-play rows.
+- Moved the Music sub-navigation closer to the physical top edge, renamed the main Now Playing destination to Music and added breathing room inside the touchscreen brightness control.
+
 ## 0.7.1 — 30 September 2026
 
 - Fixed the Queue viewport so it is height-bounded, touch-scrollable and does not hide the fixed bottom navigation.
