@@ -131,6 +131,42 @@ class DisplayModeTests(unittest.TestCase):
             with patch("pi_bus_time_display.server.time.monotonic", return_value=1700):
                 self.assertEqual(automatic_display_target(state, mode, {"zone": {"state": "paused"}}, overnight), "/sleep.html")
 
+    def test_manual_view_returns_to_automatic_at_next_schedule_boundary(self):
+        with tempfile.TemporaryDirectory() as directory:
+            mode = Path(directory) / "display-mode"
+            mode.write_text("home\n", encoding="utf-8")
+            state = State(Config(morning_start="07:00", morning_end="09:30", sleep_start="22:00", sleep_end="07:00"))
+            state.manual_mode_signature = (mode.stat().st_mtime_ns, "home")
+            state.manual_mode_period = "morning"
+            morning = datetime(2026, 9, 29, 8, 0, tzinfo=ZoneInfo("Asia/Singapore"))
+            daytime = datetime(2026, 9, 29, 9, 30, tzinfo=ZoneInfo("Asia/Singapore"))
+            self.assertEqual(automatic_display_target(state, mode, None, morning), "/home")
+            self.assertEqual(automatic_display_target(state, mode, None, daytime), "/")
+            self.assertEqual(read_display_mode(mode), "auto")
+
+    def test_manual_sleep_returns_to_automatic_at_morning_wake(self):
+        with tempfile.TemporaryDirectory() as directory:
+            mode = Path(directory) / "display-mode"
+            mode.write_text("sleep\n", encoding="utf-8")
+            state = State(Config(morning_start="07:00", morning_end="09:30", sleep_start="22:00", sleep_end="07:00"))
+            state.manual_mode_signature = (mode.stat().st_mtime_ns, "sleep")
+            state.manual_mode_period = "sleep"
+            morning = datetime(2026, 9, 29, 7, 0, tzinfo=ZoneInfo("Asia/Singapore"))
+            self.assertEqual(automatic_display_target(state, mode, None, morning), "/")
+            self.assertEqual(read_display_mode(mode), "auto")
+
+    def test_touch_can_temporarily_wake_a_manual_sleep_before_boundary(self):
+        with tempfile.TemporaryDirectory() as directory:
+            mode = Path(directory) / "display-mode"
+            mode.write_text("sleep\n", encoding="utf-8")
+            state = State(Config(sleep_start="22:00", sleep_end="07:00"))
+            state.manual_mode_signature = (mode.stat().st_mtime_ns, "sleep")
+            state.manual_mode_period = "sleep"
+            state.awake_until = 1600
+            overnight = datetime(2026, 9, 29, 1, 0, tzinfo=ZoneInfo("Asia/Singapore"))
+            with patch("pi_bus_time_display.server.time.monotonic", return_value=1200):
+                self.assertEqual(automatic_display_target(state, mode, None, overnight), "/")
+
     def test_wifi_reports_ssid_not_netplan_profile_name(self):
         with patch("pi_bus_time_display.server.command_output", side_effect=["netplan-wlan0-Boogaloo:802-11-wireless", "Boogaloo"]):
             self.assertEqual(active_wifi_ssid(), "Boogaloo")

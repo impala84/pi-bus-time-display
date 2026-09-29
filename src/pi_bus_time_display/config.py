@@ -24,6 +24,7 @@ class Config:
     sleep_when_roon_idle: bool = False
     roon_show_controls: bool = True
     roon_show_clock: bool = True
+    roon_show_queue: bool = True
     sleep_show_clock: bool = False
     auto_switch_to_roon: bool = True
     roon_idle_return_seconds: int = 300

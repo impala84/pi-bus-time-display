@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.0 — 30 September 2026
+
+- Added a fixed, understated Now Playing / Queue selector within the Roon section while retaining the existing main navigation.
+- Added a touch-scrollable, in-memory Roon queue with current-track treatment, compact metadata and tap-to-play-from-here navigation.
+- Subscribe to the selected Roon zone's bounded queue as soon as it becomes available, rather than loading it on first view.
+- Added a bounded thumbnail cache and background 96-pixel artwork loading so queue scrolling and GTK input remain responsive.
+- Added a Roon setting to hide Queue and stop its subscription when the feature is disabled.
+- Manual Bus Times, Now Playing, Home or Sleep choices now return to Automatic at the next schedule boundary; Home is also available in the web screen selector.
+
 ## 0.6.0 — 30 September 2026
 
 - Removed full system diagnostics from the touchscreen startup path, delivered core Bus/Home/Roon state before artwork downloads, and pre-measured dynamic hidden views so their first tab switch does not pay deferred GTK layout costs.

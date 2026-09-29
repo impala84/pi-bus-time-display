@@ -6,6 +6,7 @@ import json
 import threading
 import time
 import urllib.request
+from queue import Queue
 from datetime import datetime
 from pathlib import Path
 from urllib.parse import quote
@@ -13,7 +14,7 @@ from zoneinfo import ZoneInfo
 
 import gi
 gi.require_version("Gtk", "4.0")
-from gi.repository import Gdk, GLib, Gtk
+from gi.repository import Gdk, GLib, Gtk, Pango
 
 BUS = "http://127.0.0.1:8765"
 ROON = "http://127.0.0.1:8766"
@@ -37,6 +38,8 @@ button { border: 0; box-shadow: none; background-image: none; outline: none; }
 .arrival-sub { color: #7f8b87; font-size: 10px; font-weight: 650; }.muted { color: #78837f; font-size: 11px; font-weight: 400; }
 .nav { padding-top: 3px; }.nav button { min-height: 40px; border: 0; border-bottom: 5px solid transparent; border-radius: 0; background: transparent; color: #7f8b87; font-size: 14px; font-weight: 700; }
 .nav button.active { border-bottom-color: #6ed9ae; background: transparent; color: #dfe4e1; }.artwork { border-radius: 12px; }.roon-title { font-size: 35px; font-weight: 620; }.roon-artist { color: #b6c0bc; font-size: 18px; }
+.roon-subnav { margin-top: -4px; }.roon-subnav button { min-height: 29px; padding: 4px 13px 2px; border-radius: 0; border-top: 3px solid transparent; background: transparent; color: #68736f; font-size: 10px; font-weight: 750; letter-spacing: 1px; }.roon-subnav button.active { border-top-color: #5bcbd6; color: #f4f0e6; }
+.queue-scroll { background: transparent; }.queue-list { padding: 5px 8px 8px; }.queue-row { min-height: 66px; padding: 5px 9px; border-radius: 8px; background: transparent; color: #f4f0e6; }.queue-row:hover, .queue-row:active { background: #18211f; }.queue-row.current { background: #121e1c; border-left: 3px solid #5bcbd6; }.queue-art { min-width: 56px; min-height: 56px; border-radius: 5px; background: #18211f; }.queue-title { color: #f4f0e6; font-size: 16px; font-weight: 650; }.queue-meta { color: #84908c; font-size: 12px; }.queue-duration { color: #84908c; font-size: 12px; font-variant-numeric: tabular-nums; }.queue-empty { color: #78837f; font-size: 15px; padding: 60px 0; }
 .transport button { min-width: 50px; min-height: 50px; border-radius: 25px; padding: 0; background: #18211f; color: #e4e7e4; }.transport .play { min-width: 68px; min-height: 68px; border-radius: 34px; background: #285f4d; }
 .progress trough, .volume trough { min-height: 7px; border: 0; box-shadow: none; border-radius: 4px; background: #303a37; }.progress highlight, .volume highlight { border: 0; box-shadow: none; background: #6ed9ae; }.time { color: #87928e; font-size: 12px; }
 .sleep { background: #000; }.sleep-clock { font-size: 112px; font-weight: 550; }.settings-title { font-size: 32px; font-weight: 650; }
@@ -45,6 +48,7 @@ button { border: 0; box-shadow: none; background-image: none; outline: none; }
 .settings-controls { padding: 4px 0; }.settings-column { padding: 0 5px; }.setting-line { min-height: 52px; padding: 0 12px; border-radius: 8px; background: #0d1412; }.setting-line label { font-size: 14px; font-weight: 650; }.setting-line checkbutton { font-size: 14px; font-weight: 650; }.setting-line check { min-width: 22px; min-height: 22px; border-radius: 5px; border: 2px solid #61706b; background: #111a18; }.setting-line check:checked { background: #6ed9ae; border-color: #6ed9ae; color: #082018; }
 .stop-row { margin-bottom: 4px; }.home-grid { padding: 9px 0; }.home-tile { min-height: 120px; border-radius: 12px; padding: 10px 11px 8px; background: #131c1a; border: 1px solid #293633; color: #aab4b0; }.home-tile.on { background: #173229; border-color: #35785f; color: #f4f0e6; }.home-device-button { min-height: 92px; padding: 0; background: transparent; color: #9aaba5; }.home-tile.on .home-device-button { color: #6ed9ae; }.home-icon { opacity: .72; }.home-name { font-size: 15px; font-weight: 700; }.home-state { color: #7f8b87; font-size: 11px; }.home-level { min-width: 28px; min-height: 94px; }.home-level trough { min-width: 7px; border-radius: 4px; background: #303a37; }.home-level highlight { background: #6ed9ae; border-radius: 4px; }.home-level slider { min-width: 20px; min-height: 20px; border-radius: 10px; background: #f4f0e6; }
 .high-resolution .page { padding: 22px 30px 16px; }.high-resolution .stop { font-size: 34px; }.high-resolution .clock { font-size: 42px; }.high-resolution .eyebrow { font-size: 15px; }.high-resolution .service-no, .high-resolution .arrival { font-size: 108px; }.high-resolution .service.compact .service-no, .high-resolution .service.compact .arrival { font-size: 80px; }.high-resolution .service.dense .service-no, .high-resolution .service.dense .arrival { font-size: 62px; }.high-resolution .artwork { min-width: 380px; min-height: 380px; }.high-resolution .roon-title { font-size: 48px; }.high-resolution .roon-artist { font-size: 25px; }.high-resolution .nav button { min-height: 54px; font-size: 19px; }
+.high-resolution .roon-subnav button { min-height: 39px; font-size: 14px; }.high-resolution .queue-row { min-height: 86px; }.high-resolution .queue-art { min-width: 74px; min-height: 74px; }.high-resolution .queue-title { font-size: 22px; }.high-resolution .queue-meta, .high-resolution .queue-duration { font-size: 16px; }
 """
 
 
@@ -102,6 +106,13 @@ class Display(Gtk.Application):
         self.views_prewarmed = False
         self.started_at = time.monotonic()
         self.refresh_count = 0
+        self.queue_signature = None
+        self.queue_thumbnail_jobs = Queue()
+        self.queue_thumbnail_pending = set()
+        self.queue_thumbnail_cache = {}
+        self.queue_thumbnail_order = []
+        self.queue_pictures = {}
+        self.queue_artwork_keys = []
 
     def label(self, text="", css=None, x=0):
         widget = Gtk.Label(label=text, xalign=x)
@@ -137,6 +148,7 @@ class Display(Gtk.Application):
         self.stack = Gtk.Stack(transition_type=Gtk.StackTransitionType.NONE, transition_duration=0)
         self.stack.add_named(self.build_bus(), "bus"); self.stack.add_named(self.build_roon(), "roon"); self.stack.add_named(self.build_home(), "home"); self.stack.add_named(self.build_settings(), "settings"); self.stack.add_named(self.build_sleep(), "sleep")
         self.window.set_child(self.stack); self.window.present()
+        threading.Thread(target=self.thumbnail_worker, daemon=True).start()
         GLib.idle_add(self.adapt_display)
         GLib.timeout_add_seconds(1, self.tick); GLib.timeout_add_seconds(2, self.start_poll); self.tick(); self.start_poll()
 
@@ -175,6 +187,10 @@ class Display(Gtk.Application):
     def build_roon(self):
         page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8); page.add_css_class("page")
         self.zone = self.label("ROON NOW PLAYING", "eyebrow"); self.roon_clock = self.label("--:--", "clock", 1); page.append(self.header(self.zone, self.roon_clock))
+        subnav = Gtk.Box(spacing=3); subnav.add_css_class("roon-subnav"); subnav.set_halign(Gtk.Align.CENTER); self.roon_subnav = subnav
+        self.now_playing_tab = self.button("NOW PLAYING", lambda *_: self.set_roon_view("now"), ""); self.now_playing_tab.add_css_class("active")
+        self.queue_tab = self.button("QUEUE", lambda *_: self.set_roon_view("queue"), ""); subnav.append(self.now_playing_tab); subnav.append(self.queue_tab); page.append(subnav)
+        self.roon_views = Gtk.Stack(transition_type=Gtk.StackTransitionType.NONE, transition_duration=0); self.roon_views.set_vexpand(True)
         content = Gtk.Box(spacing=26); content.set_vexpand(True); content.set_margin_start(8); content.set_margin_end(8); content.set_margin_top(8); content.set_margin_bottom(8)
         self.artwork = Gtk.Picture(); self.artwork.add_css_class("artwork"); self.artwork.set_size_request(280, 280); self.artwork.set_valign(Gtk.Align.CENTER); self.artwork.set_content_fit(Gtk.ContentFit.COVER); content.append(self.artwork)
         centre = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=7); centre.set_valign(Gtk.Align.CENTER); centre.set_hexpand(True)
@@ -188,7 +204,11 @@ class Display(Gtk.Application):
         self.prev.set_size_request(50, 50); self.prev.set_valign(Gtk.Align.CENTER); self.play.set_size_request(68, 68); self.play.set_valign(Gtk.Align.CENTER); self.next.set_size_request(50, 50); self.next.set_valign(Gtk.Align.CENTER)
         self.controls.append(self.prev); self.controls.append(self.play); self.controls.append(self.next); centre.append(self.controls)
         volume_row = Gtk.Box(spacing=10); volume_row.append(self.label("VOL", "eyebrow")); self.volume = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 0, 100, 1); self.volume.add_css_class("volume"); self.volume.set_hexpand(True); self.volume.set_draw_value(False); self.volume.connect("value-changed", self.change_volume); volume_row.append(self.volume); self.volume_value = self.label("—", "time", 1); volume_row.append(self.volume_value); centre.append(volume_row)
-        content.append(centre); page.append(content); page.append(self.navigation("roon")); return page
+        content.append(centre); self.roon_views.add_named(content, "now")
+        self.queue_list = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2); self.queue_list.add_css_class("queue-list")
+        queue_scroll = Gtk.ScrolledWindow(); queue_scroll.add_css_class("queue-scroll"); queue_scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.NEVER); queue_scroll.set_kinetic_scrolling(True); queue_scroll.set_overlay_scrolling(True); queue_scroll.set_vexpand(True); queue_scroll.set_child(self.queue_list); self.queue_scroll = queue_scroll
+        queue_scroll.get_vadjustment().connect("value-changed", self.load_visible_queue_artwork)
+        self.roon_views.add_named(queue_scroll, "queue"); page.append(self.roon_views); page.append(self.navigation("roon")); return page
 
     def build_home(self):
         page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=7); page.add_css_class("page")
@@ -248,6 +268,8 @@ class Display(Gtk.Application):
         if config is not None:
             self.settings_data = config
             self.controls.set_visible(config.get("roon_show_controls", True)); self.roon_clock.set_visible(config.get("roon_show_clock", True))
+            self.roon_subnav.set_visible(config.get("roon_show_queue", True))
+            if not config.get("roon_show_queue", True) and self.roon_views.get_visible_child_name() == "queue": self.set_roon_view("now")
             show_sleep_clock = config.get("sleep_show_clock", False); self.sleep_clock.set_visible(show_sleep_clock); self.sleep_hint.set_visible(show_sleep_clock)
             for button in self.home_nav_buttons: button.set_visible(bool(config.get("home_assistant_enabled") and config.get("home_assistant_entities")))
         if system is not None:
@@ -362,7 +384,7 @@ class Display(Gtk.Application):
         updated = data.get("updated_at"); self.updated.set_text("Updated " + updated[11:19] if updated else "")
 
     def render_roon(self, data):
-        self.state = data; zone = (data or {}).get("zone")
+        self.state = data; self.render_queue((data or {}).get("queue") or {}); zone = (data or {}).get("zone")
         if not zone:
             self.zone.set_text(self.settings_data.get("roon_zone_name") or "ROON")
             if data is None:
@@ -381,6 +403,73 @@ class Display(Gtk.Application):
         self.play.set_child(Gtk.Image.new_from_icon_name("media-playback-pause-symbolic" if zone.get("state") == "playing" else "media-playback-start-symbolic")); self.prev.set_sensitive(bool(zone.get("can_previous"))); self.next.set_sensitive(bool(zone.get("can_next"))); self.play.set_sensitive(bool(zone.get("can_play") or zone.get("can_pause")))
         elapsed = int(zone.get("seek_position") or 0); length = int(playing.get("length") or 0); self.seek_updating = True; self.progress.set_range(0, max(1, length)); self.progress.set_value(min(elapsed, length) if length else 0); self.progress.set_sensitive(bool(zone.get("can_seek") and length)); self.seek_updating = False; self.elapsed.set_text(self.format_time(elapsed)); self.remaining.set_text("−" + self.format_time(max(0, length - elapsed)))
         output = zone.get("output") or {}; volume = output.get("volume") or {}; value = volume.get("value"); self.volume_updating = True; self.volume.set_sensitive(value is not None); self.volume.set_value(float(value or 0)); self.volume_value.set_text(str(value) if value is not None else "FIXED"); self.volume_updating = False
+
+    def set_roon_view(self, name):
+        self.roon_views.set_visible_child_name(name)
+        self.now_playing_tab.remove_css_class("active"); self.queue_tab.remove_css_class("active")
+        (self.queue_tab if name == "queue" else self.now_playing_tab).add_css_class("active")
+
+    def render_queue(self, queue):
+        items = queue.get("items") or []
+        signature = json.dumps(items, sort_keys=True, separators=(",", ":"), default=str)
+        if signature == self.queue_signature: return
+        self.queue_signature = signature; self.queue_pictures = {}; self.queue_artwork_keys = []
+        while child := self.queue_list.get_first_child(): self.queue_list.remove(child)
+        if not items:
+            message = "Queue is loading…" if queue.get("status") == "loading" else "Nothing is queued"
+            self.queue_list.append(self.label(message, "queue-empty", .5)); return
+        for item in items:
+            row = Gtk.Box(spacing=12); row.set_hexpand(True)
+            picture = Gtk.Picture(); picture.add_css_class("queue-art"); picture.set_size_request(56, 56); picture.set_content_fit(Gtk.ContentFit.COVER); row.append(picture)
+            key = item.get("image_key")
+            self.queue_artwork_keys.append(key)
+            if key:
+                self.queue_pictures.setdefault(key, []).append(picture)
+                texture = self.queue_thumbnail_cache.get(key)
+                if texture: picture.set_paintable(texture)
+            detail = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2); detail.set_valign(Gtk.Align.CENTER); detail.set_hexpand(True)
+            title = self.label(item.get("title") or "Untitled track", "queue-title"); title.set_ellipsize(Pango.EllipsizeMode.END); detail.append(title)
+            meta = " · ".join(filter(None, (item.get("artist"), item.get("album"))))
+            metadata = self.label(meta or "Roon", "queue-meta"); metadata.set_ellipsize(Pango.EllipsizeMode.END); detail.append(metadata); row.append(detail)
+            length = item.get("length"); row.append(self.label(self.format_time(int(length)) if length else "", "queue-duration", 1))
+            button = Gtk.Button(); button.add_css_class("queue-row"); button.set_child(row)
+            if item.get("is_current"): button.add_css_class("current")
+            else: button.connect("clicked", self.play_queue_item, item.get("queue_item_id"))
+            self.queue_list.append(button)
+        GLib.idle_add(self.load_visible_queue_artwork)
+
+    def load_visible_queue_artwork(self, *_):
+        adjustment = self.queue_scroll.get_vadjustment()
+        row_height = 88 if self.window.has_css_class("high-resolution") else 68
+        start = max(0, int(adjustment.get_value() / row_height) - 2)
+        count = max(8, int(adjustment.get_page_size() / row_height) + 5)
+        for key in self.queue_artwork_keys[start:start + count]:
+            if key and key not in self.queue_thumbnail_cache and key not in self.queue_thumbnail_pending:
+                self.queue_thumbnail_pending.add(key); self.queue_thumbnail_jobs.put(key)
+        return False
+
+    def thumbnail_worker(self):
+        while True:
+            key = self.queue_thumbnail_jobs.get()
+            image = get_bytes(f"{ROON}/api/image?key={quote(key, safe='')}&size=96", timeout=2.0)
+            GLib.idle_add(self.apply_queue_thumbnail, key, image)
+
+    def apply_queue_thumbnail(self, key, image):
+        self.queue_thumbnail_pending.discard(key)
+        if not image: return False
+        try: texture = Gdk.Texture.new_from_bytes(GLib.Bytes.new(image))
+        except GLib.Error: return False
+        self.queue_thumbnail_cache[key] = texture
+        if key in self.queue_thumbnail_order: self.queue_thumbnail_order.remove(key)
+        self.queue_thumbnail_order.append(key)
+        while len(self.queue_thumbnail_order) > 64:
+            old = self.queue_thumbnail_order.pop(0); self.queue_thumbnail_cache.pop(old, None)
+        for picture in self.queue_pictures.get(key, []): picture.set_paintable(texture)
+        return False
+
+    def play_queue_item(self, _button, queue_item_id):
+        if queue_item_id is not None:
+            threading.Thread(target=post_json, args=(ROON + "/api/queue/play", {"queue_item_id": queue_item_id}), daemon=True).start()
 
     def set_mode(self, mode):
         started = time.monotonic(); self.settings_open = False; self.last_mode = mode; self.stack.set_visible_child_name(mode); print(f"Pi Home switched to {mode} in {(time.monotonic() - started) * 1000:.1f}ms", flush=True); threading.Thread(target=post_json, args=(BUS + "/api/admin/display-mode", {"mode": mode}), daemon=True).start()

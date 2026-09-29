@@ -33,6 +33,8 @@ class State:
         self.last_roon_playing = 0.0
         self.awake_until = 0.0
         self.awake_view = "bus"
+        self.manual_mode_signature: tuple[int, str] | None = None
+        self.manual_mode_period: str | None = None
         self.state_dir = state_dir or Path(".state")
         try:
             self.display_brightness = max(10, min(100, int((self.state_dir / "display-brightness").read_text(encoding="ascii"))))
@@ -92,6 +94,15 @@ def within_sleep_window(config: Config, now: datetime) -> bool:
     start = wall_time.fromisoformat(config.sleep_start)
     end = wall_time.fromisoformat(config.sleep_end)
     return start <= current < end if start < end else current >= start or current < end
+
+
+def scheduled_period(config: Config, now: datetime) -> str:
+    """Name the current scheduled period so a manual override expires at its next boundary."""
+    if within_sleep_window(config, now):
+        return "sleep"
+    if within_window(config, now):
+        return "morning"
+    return "day"
 
 
 def poll(state: State, stop: threading.Event) -> None:
@@ -198,6 +209,7 @@ def write_config(path: Path, config: Config) -> None:
         f"sleep_when_roon_idle = {str(config.sleep_when_roon_idle).lower()}",
         f"roon_show_controls = {str(config.roon_show_controls).lower()}",
         f"roon_show_clock = {str(config.roon_show_clock).lower()}",
+        f"roon_show_queue = {str(config.roon_show_queue).lower()}",
         f"sleep_show_clock = {str(config.sleep_show_clock).lower()}",
         f"auto_switch_to_roon = {str(config.auto_switch_to_roon).lower()}",
         f"roon_idle_return_seconds = {config.roon_idle_return_seconds}",
@@ -281,10 +293,29 @@ def automatic_display_target(state: State, mode_path: Path, roon: dict | None, n
     mode = read_display_mode(mode_path)
     now = now or datetime.now(ZoneInfo(state.config.timezone))
     monotonic = time.monotonic()
-    if mode == "sleep" and monotonic < state.awake_until:
-        return "http://127.0.0.1:8766/" if state.awake_view == "roon" and roon is not None else "/"
     if mode != "auto":
-        return display_target(state.config, mode_path, roon, now)
+        try:
+            signature = (mode_path.stat().st_mtime_ns, mode)
+        except OSError:
+            signature = (0, mode)
+        if signature != state.manual_mode_signature:
+            state.manual_mode_signature = signature
+            try:
+                set_at = datetime.fromtimestamp(mode_path.stat().st_mtime, ZoneInfo(state.config.timezone))
+            except OSError:
+                set_at = now
+            state.manual_mode_period = scheduled_period(state.config, set_at)
+        if scheduled_period(state.config, now) == state.manual_mode_period:
+            if mode == "sleep" and monotonic < state.awake_until:
+                return "http://127.0.0.1:8766/" if state.awake_view == "roon" and roon is not None else "/"
+            return display_target(state.config, mode_path, roon, now)
+        mode_path.write_text("auto\n", encoding="utf-8")
+        state.manual_mode_signature = None
+        state.manual_mode_period = None
+        mode = "auto"
+    else:
+        state.manual_mode_signature = None
+        state.manual_mode_period = None
     zone_state = ((roon or {}).get("zone") or {}).get("state")
     if zone_state == "playing":
         state.last_roon_playing = monotonic
@@ -517,6 +548,7 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                     "sleep_when_roon_idle": config.sleep_when_roon_idle,
                     "roon_show_controls": config.roon_show_controls,
                     "roon_show_clock": config.roon_show_clock,
+                    "roon_show_queue": config.roon_show_queue,
                     "sleep_show_clock": config.sleep_show_clock,
                     "auto_switch_to_roon": config.auto_switch_to_roon,
                     "roon_idle_return_seconds": config.roon_idle_return_seconds,
@@ -772,6 +804,7 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                     sleep_when_roon_idle=bool(data.get("sleep_when_roon_idle", False)),
                     roon_show_controls=bool(data.get("roon_show_controls", True)),
                     roon_show_clock=bool(data.get("roon_show_clock", True)),
+                    roon_show_queue=bool(data.get("roon_show_queue", True)),
                     sleep_show_clock=bool(data.get("sleep_show_clock", False)),
                     auto_switch_to_roon=bool(data.get("auto_switch_to_roon", True)),
                     roon_idle_return_seconds=int(data.get("roon_idle_return_seconds", 300)),
