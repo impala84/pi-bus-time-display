@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.1 — 30 September 2026
+
+- Fixed the Queue viewport so it is height-bounded, touch-scrollable and does not hide the fixed bottom navigation.
+- Prevented Queue's natural height from resizing the Now Playing, Bus Times and Home pages after switching views.
+- Moved the Now Playing / Queue selector into the fixed top header so it no longer consumes album-art space.
+- Arranged the web screen selector as Automatic/Sleep above Now Playing/Bus Times/Home, and forced admin assets to revalidate so the Home option appears immediately after updating.
+
 ## 0.7.0 — 30 September 2026
 
 - Added a fixed, understated Now Playing / Queue selector within the Roon section while retaining the existing main navigation.

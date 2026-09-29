@@ -494,6 +494,12 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
         def __init__(self, *args, **kwargs):
             super().__init__(*args, directory=str(static), **kwargs)
 
+        def end_headers(self):
+            path = self.path.split("?", 1)[0]
+            if path in {"/admin.html", "/admin.css", "/admin.js", "/login.html"}:
+                self.send_header("Cache-Control", "no-cache, must-revalidate")
+            super().end_headers()
+
         def do_GET(self):
             if self.path == "/home":
                 self.send_response(302)
