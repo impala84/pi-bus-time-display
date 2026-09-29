@@ -115,6 +115,16 @@ def home_assistant_request(config: Config, path: str, payload: dict | None = Non
         return json.load(response)
 
 
+def home_assistant_set_value(config: Config, entity_id: str, value: int) -> object:
+    domain = entity_id.split(".", 1)[0]
+    value = max(0, min(100, int(value)))
+    if domain == "fan":
+        return home_assistant_request(config, "/api/services/fan/set_percentage", {"entity_id": entity_id, "percentage": value})
+    if domain == "light":
+        return home_assistant_request(config, "/api/services/light/turn_on", {"entity_id": entity_id, "brightness_pct": value})
+    raise ValueError("This device has no adjustable level")
+
+
 def home_assistant_poll(state: State, stop: threading.Event) -> None:
     while not stop.is_set():
         config = state.config
@@ -136,6 +146,10 @@ def home_assistant_poll(state: State, stop: threading.Event) -> None:
                     "entity_id": entity_id, "domain": domain, "state": item.get("state", "unknown"),
                     "name": attributes.get("friendly_name") or entity_id.split(".", 1)[-1].replace("_", " ").title(),
                     "percentage": attributes.get("percentage"), "brightness": attributes.get("brightness"),
+                    "supports_level": bool(
+                        (domain == "fan" and (attributes.get("percentage") is not None or attributes.get("percentage_step") is not None))
+                        or (domain == "light" and attributes.get("supported_color_modes") not in (None, [], ["onoff"]))
+                    ),
                 })
             order = {entity_id: index for index, entity_id in enumerate(config.home_assistant_entities)}
             entities.sort(key=lambda item: order.get(item["entity_id"], 99))
@@ -542,7 +556,7 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                 state.awake_until = time.monotonic() + state.config.outside_hours_wake_seconds
                 self.send_json(200, json.dumps({"ok": True, "awake_seconds": state.config.outside_hours_wake_seconds}).encode())
                 return
-            if self.path in {"/api/device/service-visibility", "/api/device/roon-bridge", "/api/device/home-toggle"}:
+            if self.path in {"/api/device/service-visibility", "/api/device/roon-bridge", "/api/device/home-toggle", "/api/device/home-value"}:
                 if self.client_address[0] not in {"127.0.0.1", "::1"}:
                     self.send_json(403, b'{"error":"Touchscreen only"}')
                     return
@@ -568,7 +582,10 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                         self.send_json(400, b'{"error":"This entity type cannot be toggled"}')
                         return
                     try:
-                        home_assistant_request(state.config, f"/api/services/{domain}/toggle", {"entity_id": entity_id})
+                        if self.path == "/api/device/home-value":
+                            home_assistant_set_value(state.config, entity_id, int(data.get("value", 0)))
+                        else:
+                            home_assistant_request(state.config, f"/api/services/{domain}/toggle", {"entity_id": entity_id})
                     except (OSError, ValueError, urllib.error.URLError) as exc:
                         self.send_json(502, json.dumps({"error": str(exc)}).encode())
                         return

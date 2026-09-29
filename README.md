@@ -33,7 +33,7 @@ On the touchscreen, tap the title at top left for Settings and tap the clock at 
 
 ### Home Assistant
 
-Under web Settings → Home, enable the integration, enter the local Home Assistant address and a Long-Lived Access Token, then list up to eight entity IDs in display order. The Home touchscreen panel supports `fan`, `light`, `switch` and `input_boolean` entities in a fixed 4×2 grid. Only those allow-listed entities can be controlled; locks, alarms, covers and other sensitive domains are deliberately rejected. The token is stored in `/etc/pi-bus-time-display/secrets.env` and is never sent to the touchscreen UI.
+Under web Settings → Home, enable the integration, enter the local Home Assistant address and a Long-Lived Access Token, then list up to eight entity IDs in display order. The Home touchscreen panel supports `fan`, `light`, `switch` and `input_boolean` entities in a fixed 4×2 grid. Tap a device icon to toggle it; supported lights and variable-speed fans also provide a vertical touch control for brightness or speed. Only those allow-listed entities can be controlled; locks, alarms, covers and other sensitive domains are deliberately rejected. The token is stored in `/etc/pi-bus-time-display/secrets.env` and is never sent to the touchscreen UI.
 
 The installer generates a unique admin password and prints it once. You can retrieve or change it later in `/etc/pi-bus-time-display/secrets.env`.
 
@@ -53,7 +53,7 @@ After the initial installation, update the appliance with one command:
 sudo pi-bus-update
 ```
 
-The updater follows the supported `main` branch, preserves any local checkout differences in a recoverable Git stash, reinstalls the application, reapplies saved display/input orientation, refreshes its services, verifies both HTTP services and reboots automatically. Updates can be started from the protected web System section or the restricted touchscreen Settings screen. Your settings and secrets remain untouched in `/etc/pi-bus-time-display/`. Releases use semantic versions, shown in Settings and recorded in [CHANGELOG.md](CHANGELOG.md). The current release is **v0.5.0**.
+The updater follows the supported `main` branch, preserves any local checkout differences in a recoverable Git stash, reinstalls the application, reapplies saved display/input orientation, refreshes its services, verifies both HTTP services and reboots automatically. Updates can be started from the protected web System section or the restricted touchscreen Settings screen. Your settings and secrets remain untouched in `/etc/pi-bus-time-display/`. Releases use semantic versions, shown in Settings and recorded in [CHANGELOG.md](CHANGELOG.md). The current release is **v0.5.1**.
 
 ## Lightweight appliance mode
 

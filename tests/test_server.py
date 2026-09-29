@@ -6,7 +6,7 @@ from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
 from pi_bus_time_display.config import Config
-from pi_bus_time_display.server import State, active_wifi_ssid, automatic_display_target, display_target, read_display_mode, within_sleep_window, write_control_request
+from pi_bus_time_display.server import State, active_wifi_ssid, automatic_display_target, display_target, home_assistant_set_value, read_display_mode, within_sleep_window, write_control_request
 
 
 class DisplayModeTests(unittest.TestCase):
@@ -121,6 +121,16 @@ class DisplayModeTests(unittest.TestCase):
     def test_wifi_reports_ssid_not_netplan_profile_name(self):
         with patch("pi_bus_time_display.server.command_output", side_effect=["netplan-wlan0-Boogaloo:802-11-wireless", "Boogaloo"]):
             self.assertEqual(active_wifi_ssid(), "Boogaloo")
+
+    def test_home_light_level_uses_brightness_percentage(self):
+        with patch("pi_bus_time_display.server.home_assistant_request", return_value=[]) as request:
+            home_assistant_set_value(Config(), "light.living_room", 63)
+            request.assert_called_once_with(Config(), "/api/services/light/turn_on", {"entity_id": "light.living_room", "brightness_pct": 63})
+
+    def test_home_fan_level_is_clamped(self):
+        with patch("pi_bus_time_display.server.home_assistant_request", return_value=[]) as request:
+            home_assistant_set_value(Config(), "fan.living_room", 140)
+            request.assert_called_once_with(Config(), "/api/services/fan/set_percentage", {"entity_id": "fan.living_room", "percentage": 100})
 
 
 if __name__ == "__main__":

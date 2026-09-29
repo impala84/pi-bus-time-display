@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.1 — 29 September 2026
+
+- Corrected the web sign-in focus order so username is selected before password.
+- Replaced cramped touchscreen switches with clear checkbox controls and aligned the Daily Controls and Display rows.
+- Left-aligned bus arrivals into consistent fixed columns and reduced the visual prominence of the stop code.
+- Added purpose-drawn fan, light and switch SVGs to Home controls, with labels anchored beneath each device.
+- Added vertical touch adjustment for light brightness and supported fan speeds, with debounced Home Assistant updates.
+
 ## 0.5.0 — 29 September 2026
 
 - Redesigned touchscreen Settings with a balanced daily-controls and display layout plus fixed, equal-width actions at the bottom.
