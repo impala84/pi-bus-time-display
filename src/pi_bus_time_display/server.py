@@ -221,10 +221,10 @@ def diagnostics_snapshot() -> dict:
     swap_total = memory.get("SwapTotal", 0)
     swap_free = memory.get("SwapFree", 0)
     groups = {
-        "display": {"label": "GTK display + Cage", "rss_kb": 0, "cpu_percent": 0.0, "pids": []},
-        "api": {"label": "Bus data service", "rss_kb": 0, "cpu_percent": 0.0, "pids": []},
-        "controller": {"label": "Roon controller", "rss_kb": 0, "cpu_percent": 0.0, "pids": []},
-        "bridge": {"label": "Roon Bridge", "rss_kb": 0, "cpu_percent": 0.0, "pids": []},
+        "display": {"label": "GTK display + Cage", "rss_kb": 0, "cpu_percent": 0.0, "pids": [], "active": False},
+        "api": {"label": "Bus data service", "rss_kb": 0, "cpu_percent": 0.0, "pids": [], "active": False},
+        "controller": {"label": "Roon controller", "rss_kb": 0, "cpu_percent": 0.0, "pids": [], "active": False},
+        "bridge": {"label": "Roon Bridge", "rss_kb": 0, "cpu_percent": 0.0, "pids": [], "active": False},
     }
     for line in command_output(["ps", "-eo", "pid=,rss=,pcpu=,args="]).splitlines():
         parts = line.strip().split(None, 3)
@@ -235,19 +235,24 @@ def diagnostics_snapshot() -> dict:
         group = None
         if "pi_bus_native.py" in lowered or "/cage" in lowered:
             group = "display"
-        elif "pi-bus-time-display" in lowered and "native" not in lowered:
-            group = "api"
         elif "roon-controller/server.js" in lowered:
             group = "controller"
         elif "roonbridge" in lowered or "roon bridge" in lowered:
             group = "bridge"
+        elif "pi-bus-time-display" in lowered and "native" not in lowered:
+            group = "api"
         if group:
             try:
                 groups[group]["rss_kb"] += int(rss)
                 groups[group]["cpu_percent"] += float(cpu)
                 groups[group]["pids"].append(int(pid))
+                groups[group]["active"] = True
             except ValueError:
                 pass
+    groups["controller"]["active"] = command_output(["systemctl", "is-active", "pi-bus-roon-controller.service"]) == "active" or groups["controller"]["active"]
+    groups["api"]["active"] = command_output(["systemctl", "is-active", "pi-bus-time-display.service"]) == "active" or groups["api"]["active"]
+    groups["display"]["active"] = command_output(["systemctl", "is-active", "pi-bus-native.service"]) == "active" or groups["display"]["active"]
+    groups["bridge"]["active"] = any(command_output(["systemctl", "is-active", name]) == "active" for name in ("roonbridge.service", "RoonBridge.service")) or groups["bridge"]["active"]
     try:
         uptime = float(Path("/proc/uptime").read_text(encoding="ascii").split()[0])
     except (OSError, ValueError, IndexError):
@@ -275,6 +280,15 @@ def diagnostics_snapshot() -> dict:
     }
 
 
+def active_wifi_ssid() -> str:
+    connections = command_output(["nmcli", "-t", "-f", "NAME,TYPE", "connection", "show", "--active"])
+    profile = next((line.rsplit(":", 1)[0] for line in connections.splitlines() if line.rsplit(":", 1)[-1] in {"802-11-wireless", "wifi"}), "")
+    if not profile:
+        return ""
+    ssid = command_output(["nmcli", "--escape", "no", "-g", "802-11-wireless.ssid", "connection", "show", profile])
+    return ssid or profile
+
+
 def system_snapshot(state_dir: Path) -> dict:
     roon_service = "unknown"
     for name in ("roonbridge.service", "RoonBridge.service"):
@@ -282,8 +296,7 @@ def system_snapshot(state_dir: Path) -> dict:
         if status and status != "unknown":
             roon_service = status
             break
-    wifi = command_output(["nmcli", "-t", "-f", "NAME,TYPE", "connection", "show", "--active"])
-    active_wifi = next((line.rsplit(":", 1)[0] for line in wifi.splitlines() if line.rsplit(":", 1)[-1] in {"802-11-wireless", "wifi"}), "")
+    active_wifi = active_wifi_ssid()
     try:
         update_status = (state_dir / "system-action-status").read_text(encoding="utf-8").strip()
     except OSError:

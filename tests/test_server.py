@@ -6,7 +6,7 @@ from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
 from pi_bus_time_display.config import Config
-from pi_bus_time_display.server import State, automatic_display_target, display_target, read_display_mode, within_sleep_window, write_control_request
+from pi_bus_time_display.server import State, active_wifi_ssid, automatic_display_target, display_target, read_display_mode, within_sleep_window, write_control_request
 
 
 class DisplayModeTests(unittest.TestCase):
@@ -97,6 +97,10 @@ class DisplayModeTests(unittest.TestCase):
                 self.assertEqual(automatic_display_target(state, mode, {"zone": {"state": "paused"}}, overnight), "/")
             with patch("pi_bus_time_display.server.time.monotonic", return_value=1700):
                 self.assertEqual(automatic_display_target(state, mode, {"zone": {"state": "paused"}}, overnight), "/sleep.html")
+
+    def test_wifi_reports_ssid_not_netplan_profile_name(self):
+        with patch("pi_bus_time_display.server.command_output", side_effect=["netplan-wlan0-Boogaloo:802-11-wireless", "Boogaloo"]):
+            self.assertEqual(active_wifi_ssid(), "Boogaloo")
 
 
 if __name__ == "__main__":

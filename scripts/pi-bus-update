@@ -54,7 +54,7 @@ fi
 systemctl daemon-reload
 systemctl enable --now pi-bus-system-action.path
 systemctl restart pi-bus-time-display.service
-systemctl enable pi-bus-roon-controller.service
+systemctl enable --now pi-bus-roon-controller.service
 systemctl restart pi-bus-roon-controller.service
 
 wait_for_url() {

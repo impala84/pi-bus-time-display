@@ -1,7 +1,7 @@
 [Unit]
 Description=Pi Bus native touchscreen appliance
-After=systemd-user-sessions.service network-online.target
-Wants=network-online.target
+After=systemd-user-sessions.service network-online.target pi-bus-roon-controller.service
+Wants=network-online.target pi-bus-roon-controller.service
 Conflicts=getty@tty1.service
 
 [Service]

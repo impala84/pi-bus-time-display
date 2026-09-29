@@ -86,6 +86,7 @@ class Display(Gtk.Application):
         self.system_data = {}
         self.last_config_fetch = 0.0
         self.last_system_fetch = 0.0
+        self.bus_signature = None
 
     def label(self, text="", css=None, x=0):
         widget = Gtk.Label(label=text, xalign=x)
@@ -207,13 +208,18 @@ class Display(Gtk.Application):
         GLib.idle_add(self.apply, target.get("target", "/"), status, roon, config, system, key, image); self.polling = False
 
     def apply(self, target, status, roon, config, system, image_key, image):
-        if config is not None: self.settings_data = config
-        if system is not None: self.system_data = system
+        if config is not None:
+            self.settings_data = config
+            self.controls.set_visible(config.get("roon_show_controls", True)); self.roon_clock.set_visible(config.get("roon_show_clock", True))
+            show_sleep_clock = config.get("sleep_show_clock", False); self.sleep_clock.set_visible(show_sleep_clock); self.sleep_hint.set_visible(show_sleep_clock)
+        if system is not None:
+            self.system_data = system
+            self.device_status.set_text(f"v{system.get('app_version', '—')}  ·  {system.get('update_status', 'Ready')}")
         config = self.settings_data; system = self.system_data
-        self.controls.set_visible(config.get("roon_show_controls", True)); self.roon_clock.set_visible(config.get("roon_show_clock", True))
-        show_sleep_clock = config.get("sleep_show_clock", False); self.sleep_clock.set_visible(show_sleep_clock); self.sleep_hint.set_visible(show_sleep_clock)
-        self.device_status.set_text(f"v{system.get('app_version', '—')}  ·  {system.get('update_status', 'Ready')}")
-        self.render_bus(status); self.render_roon(roon)
+        bus_signature = json.dumps(status, sort_keys=True, separators=(",", ":"), default=str)
+        if bus_signature != self.bus_signature:
+            self.render_bus(status); self.bus_signature = bus_signature
+        self.render_roon(roon)
         if image:
             try:
                 self.artwork.set_paintable(Gdk.Texture.new_from_bytes(GLib.Bytes.new(image))); self.image_key = image_key; self.image_misses = 0
@@ -221,9 +227,11 @@ class Display(Gtk.Application):
                 pass
         if self.settings_open:
             return False
-        if target == "/sleep.html": self.stack.set_visible_child_name("sleep"); self.set_screen_power(bool(config.get("sleep_show_clock", False)))
-        elif target == "/" or target.endswith(":8765/"): self.set_screen_power(True); self.last_mode = "bus"; self.stack.set_visible_child_name("bus")
-        else: self.set_screen_power(True); self.last_mode = "roon"; self.stack.set_visible_child_name("roon")
+        if target == "/sleep.html": desired = "sleep"; self.set_screen_power(bool(config.get("sleep_show_clock", False)))
+        elif target == "/" or target.endswith(":8765/"): desired = "bus"; self.set_screen_power(True); self.last_mode = "bus"
+        else: desired = "roon"; self.set_screen_power(True); self.last_mode = "roon"
+        if self.stack.get_visible_child_name() != desired:
+            self.stack.set_visible_child_name(desired)
         return False
 
     def render_bus(self, data):

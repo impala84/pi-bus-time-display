@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.2 — 29 September 2026
+
+- Corrected diagnostics that attributed the Roon controller process to the generic bus data service.
+- Use systemd state as a fallback when a running component's process metrics are not visible.
+- Explicitly enable and start the Roon controller during every update before readiness checks.
+- Stop rebuilding unchanged GTK bus rows and re-selecting the visible page every two seconds.
+- Make the Roon controller an explicit boot prerequisite of the native touchscreen service.
+- Show the active Wi-Fi profile's real SSID instead of Netplan's generated connection-profile name.
+
 ## 0.4.1 — 29 September 2026
 
 - Removed expensive System and Wi-Fi diagnostics from the touchscreen's two-second display loop.
