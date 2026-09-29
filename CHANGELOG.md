@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.1 — 29 September 2026
+
+- Removed expensive System and Wi-Fi diagnostics from the touchscreen's two-second display loop.
+- Refresh configuration once per minute and System status only while touchscreen Settings is open.
+- Replaced repeated Wi-Fi network listings with a lightweight active-connection query.
+- Added swap use, SoC temperature and Raspberry Pi throttling state to diagnostics.
+
 ## 0.4.0 — 29 September 2026
 
 - Added Automatic-mode Roon playback takeover with a configurable stopped-playing return delay.

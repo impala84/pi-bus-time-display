@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import threading
+import time
 import urllib.request
 from datetime import datetime
 from urllib.parse import quote
@@ -82,6 +83,9 @@ class Display(Gtk.Application):
         self.seek_updating = False
         self.seek_timeout = None
         self.screen_powered = None
+        self.system_data = {}
+        self.last_config_fetch = 0.0
+        self.last_system_fetch = 0.0
 
     def label(self, text="", css=None, x=0):
         widget = Gtk.Label(label=text, xalign=x)
@@ -193,12 +197,19 @@ class Display(Gtk.Application):
         return True
 
     def poll(self):
-        target = get_json(BUS + "/api/display-target") or {}; status = get_json(BUS + "/api/status"); roon = get_json(ROON + "/api/state"); config = get_json(BUS + "/api/admin/config") or {}; system = get_json(BUS + "/api/admin/system") or {}
+        target = get_json(BUS + "/api/display-target") or {}; status = get_json(BUS + "/api/status"); roon = get_json(ROON + "/api/state")
+        now = time.monotonic(); config = None; system = None
+        if not self.settings_data or now - self.last_config_fetch >= 60:
+            config = get_json(BUS + "/api/admin/config") or {}; self.last_config_fetch = now
+        if not self.system_data or (self.settings_open and now - self.last_system_fetch >= 15):
+            system = get_json(BUS + "/api/admin/system") or {}; self.last_system_fetch = now
         zone = (roon or {}).get("zone") or {}; key = (zone.get("now_playing") or {}).get("image_key"); image = get_bytes(f"{ROON}/api/image?key={quote(key, safe='')}") if key and key != self.image_key else None
         GLib.idle_add(self.apply, target.get("target", "/"), status, roon, config, system, key, image); self.polling = False
 
     def apply(self, target, status, roon, config, system, image_key, image):
-        self.settings_data = config
+        if config is not None: self.settings_data = config
+        if system is not None: self.system_data = system
+        config = self.settings_data; system = self.system_data
         self.controls.set_visible(config.get("roon_show_controls", True)); self.roon_clock.set_visible(config.get("roon_show_clock", True))
         show_sleep_clock = config.get("sleep_show_clock", False); self.sleep_clock.set_visible(show_sleep_clock); self.sleep_hint.set_visible(show_sleep_clock)
         self.device_status.set_text(f"v{system.get('app_version', '—')}  ·  {system.get('update_status', 'Ready')}")
@@ -263,7 +274,7 @@ class Display(Gtk.Application):
             self.artwork.set_paintable(None)
             self.image_key = None
 
-    def open_settings(self, *_): self.settings_open = True; self.stack.set_visible_child_name("settings")
+    def open_settings(self, *_): self.settings_open = True; self.last_system_fetch = 0; self.stack.set_visible_child_name("settings"); self.start_poll()
     def close_settings(self, *_): self.settings_open = False; self.stack.set_visible_child_name(self.last_mode)
     def sleep(self, *_): self.settings_open = False; self.stack.set_visible_child_name("sleep"); self.set_screen_power(bool(self.settings_data.get("sleep_show_clock", False))); threading.Thread(target=post_json, args=(BUS + "/api/admin/display-mode", {"mode": "sleep"}), daemon=True).start()
     def wake(self, *_):

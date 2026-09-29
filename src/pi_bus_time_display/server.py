@@ -218,6 +218,8 @@ def diagnostics_snapshot() -> dict:
         pass
     total = memory.get("MemTotal", 0)
     available = memory.get("MemAvailable", memory.get("MemFree", 0))
+    swap_total = memory.get("SwapTotal", 0)
+    swap_free = memory.get("SwapFree", 0)
     groups = {
         "display": {"label": "GTK display + Cage", "rss_kb": 0, "cpu_percent": 0.0, "pids": []},
         "api": {"label": "Bus data service", "rss_kb": 0, "cpu_percent": 0.0, "pids": []},
@@ -254,13 +256,21 @@ def diagnostics_snapshot() -> dict:
         load = list(os.getloadavg())
     except OSError:
         load = [0, 0, 0]
+    try:
+        temperature = round(int(Path("/sys/class/thermal/thermal_zone0/temp").read_text(encoding="ascii")) / 1000, 1)
+    except (OSError, ValueError):
+        temperature = None
+    throttled = command_output(["vcgencmd", "get_throttled"])
     return {
         "memory": {
             "total_kb": total, "available_kb": available,
             "used_kb": max(0, total - available),
             "used_percent": round((total - available) * 100 / total, 1) if total else 0,
         },
+        "swap": {"total_kb": swap_total, "used_kb": max(0, swap_total - swap_free)},
         "load": load, "cpu_count": os.cpu_count() or 1, "uptime_seconds": round(uptime),
+        "temperature_c": temperature,
+        "throttled": throttled.split("=", 1)[-1] if "=" in throttled else "unknown",
         "processes": list(groups.values()),
     }
 
@@ -272,8 +282,8 @@ def system_snapshot(state_dir: Path) -> dict:
         if status and status != "unknown":
             roon_service = status
             break
-    wifi = command_output(["nmcli", "-t", "-f", "active,ssid", "dev", "wifi"])
-    active_wifi = next((line.split(":", 1)[1] for line in wifi.splitlines() if line.startswith("yes:")), "")
+    wifi = command_output(["nmcli", "-t", "-f", "NAME,TYPE", "connection", "show", "--active"])
+    active_wifi = next((line.rsplit(":", 1)[0] for line in wifi.splitlines() if line.rsplit(":", 1)[-1] in {"802-11-wireless", "wifi"}), "")
     try:
         update_status = (state_dir / "system-action-status").read_text(encoding="utf-8").strip()
     except OSError:
