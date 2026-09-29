@@ -876,7 +876,7 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
             try:
                 with urllib.request.urlopen(request, timeout=35) as response:
                     self.send_response(response.status)
-                    for name in ("Content-Type", "Cache-Control"):
+                    for name in ("Content-Type", "Cache-Control", "X-Accel-Buffering"):
                         value = response.headers.get(name)
                         if value:
                             self.send_header(name, value)

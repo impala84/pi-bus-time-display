@@ -69,6 +69,10 @@ function render(next) {
   }
 }
 
+fetch(api('/api/state'), {cache: 'no-store'})
+  .then(response => response.ok ? response.json() : Promise.reject(new Error('Roon state unavailable')))
+  .then(render)
+  .catch(() => {});
 new EventSource(api('/api/events')).onmessage = event => render(JSON.parse(event.data));
 setInterval(() => {
   if (!state?.zone || state.zone.state !== 'playing') return;

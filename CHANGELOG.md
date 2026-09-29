@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.4 — 30 September 2026
+
+- Load Home SVG artwork through GTK's scalable icon path instead of the file-image path that ignored the requested pixel size and stretched wide symbols.
+- Standardised Home icons on a centred 48-pixel optical box with consistent source stroke weight, and reduced the visual size of switch controls without shrinking their touch targets.
+- Load current Roon state immediately in the web player and disable reverse-proxy buffering for subsequent live events, fixing a false “Waiting for Roon” screen behind Nginx without adding polling.
+- Reflow the web Music view on portrait phones with album artwork above centred track details and playback controls.
+
 ## 0.7.3 — 30 September 2026
 
 - Matched the web screen selector to the touchscreen hierarchy: Automatic/Sleep Now above Music/Bus Times/Home.

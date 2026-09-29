@@ -126,7 +126,7 @@ function cachedImage(key, size, callback) {
 const roon = new RoonApi({
   extension_id: 'com.impala84.pi-bus-time-display',
   display_name: 'Pi Home Roon Controller',
-  display_version: '0.7.3',
+  display_version: '0.7.4',
   publisher: 'Pi Home',
   email: 'noreply@example.invalid',
   website: 'https://github.com/impala84/pi-home',
@@ -181,7 +181,7 @@ http.createServer(async (request, response) => {
     const url = new URL(request.url, 'http://localhost');
     if (request.method === 'GET' && url.pathname === '/api/state') { ensureQueueSubscription(); return json(response, 200, publicState()); }
     if (request.method === 'GET' && url.pathname === '/api/events') {
-      response.writeHead(200, {'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive'});
+      response.writeHead(200, {'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no', Connection: 'keep-alive'});
       listeners.add(response); response.write(`data: ${JSON.stringify(publicState())}\n\n`);
       request.on('close', () => listeners.delete(response)); return;
     }
