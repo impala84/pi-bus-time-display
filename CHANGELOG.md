@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.12 — 1 October 2026
+
+- Made manual and scheduled sleep resistant to initiating releases and intermittent touchscreen ghost touches by requiring a deliberate double-tap to wake.
+- Reset the wake gesture whenever the backend transitions into scheduled sleep and log only a confirmed wake, making unexpected transitions easier to distinguish from schedule-boundary resumes.
+
 ## 0.7.11 — 1 October 2026
 
 - Kept the touchscreen update button in its in-progress state after a request is queued and surfaced the privileged updater's real status instead of immediately implying completion.
