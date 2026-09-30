@@ -42,9 +42,6 @@ def roon_service() -> str:
 
 def display_power(powered: bool, brightness_percent: int = 100) -> None:
     brightness_percent = max(10, min(100, int(brightness_percent)))
-    vcgencmd = Path("/usr/bin/vcgencmd")
-    if powered and vcgencmd.exists():
-        subprocess.run([str(vcgencmd), "display_power", "1"], check=False)
     devices = [item for item in sorted(Path("/sys/class/backlight").glob("*")) if (item / "bl_power").exists() or (item / "brightness").exists()]
     if not devices:
         raise RuntimeError("No display backlight control was found")
@@ -64,8 +61,6 @@ def display_power(powered: bool, brightness_percent: int = 100) -> None:
                 power.write_text("4", encoding="ascii")
             elif brightness_path.exists():
                 brightness_path.write_text("0", encoding="ascii")
-    if not powered and vcgencmd.exists():
-        subprocess.run([str(vcgencmd), "display_power", "0"], check=False)
 
 
 def pi_leds() -> list[tuple[Path, str]]:

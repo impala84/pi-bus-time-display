@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.16 — 1 October 2026
+
+- Fixed the underlying touchscreen wake failure by keeping the Raspberry Pi display pipeline active while the panel sleeps.
+- Sleep now switches off only the native Linux backlight, leaving GTK and the touch device able to receive the wake contact; no software dimming overlay or polling was added.
+
 ## 0.7.15 — 1 October 2026
 
 - Made sleeping-screen wake detection accept both the start and end of a deliberate touch, covering panels that consume the first contact while restoring hardware power.
