@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.17 — 1 October 2026
+
+- Added automatic recovery for a display pipeline left disabled by an earlier release, allowing this update to restore an already-dark panel without a reboot.
+- The pipeline is enabled when waking but remains active during all future sleeps; only the native backlight is switched off.
+
 ## 0.7.16 — 1 October 2026
 
 - Fixed the underlying touchscreen wake failure by keeping the Raspberry Pi display pipeline active while the panel sleeps.

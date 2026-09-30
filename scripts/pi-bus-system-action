@@ -42,6 +42,11 @@ def roon_service() -> str:
 
 def display_power(powered: bool, brightness_percent: int = 100) -> None:
     brightness_percent = max(10, min(100, int(brightness_percent)))
+    # Recover a display pipeline disabled by an older Pi Home release, but
+    # never disable it again: touchscreen wake events require it to stay live.
+    vcgencmd = Path("/usr/bin/vcgencmd")
+    if powered and vcgencmd.exists():
+        subprocess.run([str(vcgencmd), "display_power", "1"], check=False)
     devices = [item for item in sorted(Path("/sys/class/backlight").glob("*")) if (item / "bl_power").exists() or (item / "brightness").exists()]
     if not devices:
         raise RuntimeError("No display backlight control was found")
