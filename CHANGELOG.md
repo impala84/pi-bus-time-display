@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.13 — 1 October 2026
+
+- Restored reliable one-tap waking after manual or scheduled sleep by ignoring only the remainder of the initiating sleep gesture, then arming the next fresh touchscreen press.
+- Unified manual-sleep waking with the global touchscreen activity path already used successfully by daytime inactivity sleep.
+
 ## 0.7.12 — 1 October 2026
 
 - Made manual and scheduled sleep resistant to initiating releases and intermittent touchscreen ghost touches by requiring a deliberate double-tap to wake.

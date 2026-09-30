@@ -117,8 +117,8 @@ class Display(Gtk.Application):
         self.queue_artwork_keys = []
         self.last_interaction = time.monotonic()
         self.inactivity_sleeping = False
-        self.sleep_entered_at = 0.0
-        self.wake_tap_at = 0.0
+        self.sleep_wake_armed = False
+        self.sleep_wake_generation = 0
         self.detail_image_key = None
         self.detail_signature = None
 
@@ -264,8 +264,8 @@ class Display(Gtk.Application):
     def build_sleep(self):
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4); box.add_css_class("sleep"); box.set_halign(Gtk.Align.FILL); box.set_valign(Gtk.Align.FILL); box.set_hexpand(True); box.set_vexpand(True)
         centre = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4); centre.set_halign(Gtk.Align.CENTER); centre.set_valign(Gtk.Align.CENTER); centre.set_hexpand(True); centre.set_vexpand(True)
-        self.sleep_clock = self.label("--:--", "sleep-clock", .5); centre.append(self.sleep_clock); self.sleep_hint = self.label("DOUBLE TAP ANYWHERE TO WAKE", "eyebrow", .5); centre.append(self.sleep_hint); box.append(centre)
-        gesture = Gtk.GestureClick(); gesture.connect("released", self.wake); box.add_controller(gesture); return box
+        self.sleep_clock = self.label("--:--", "sleep-clock", .5); centre.append(self.sleep_clock); self.sleep_hint = self.label("TAP ANYWHERE TO WAKE", "eyebrow", .5); centre.append(self.sleep_hint); box.append(centre)
+        return box
 
     def tick(self):
         now = datetime.now(TZ).strftime("%H:%M"); self.bus_clock.set_text(now); self.roon_clock.set_text(now); self.home_clock.set_text(now); self.sleep_clock.set_text(now); return True
@@ -348,7 +348,7 @@ class Display(Gtk.Application):
             return False
         if target == "/sleep.html":
             self.settings_open = False; self.inactivity_sleeping = False; desired = "sleep"
-            if self.stack.get_visible_child_name() != "sleep": self.sleep_entered_at = time.monotonic(); self.wake_tap_at = 0.0
+            if self.stack.get_visible_child_name() != "sleep": self.prepare_sleep_wake()
             self.set_screen_power(bool(config.get("sleep_show_clock", False)))
         elif self.inactivity_sleeping: self.settings_open = False; desired = "sleep"; self.set_screen_power(False)
         elif target == "/home": desired = "home"; self.set_screen_power(True); self.last_mode = "home"
@@ -567,16 +567,27 @@ class Display(Gtk.Application):
         self.last_interaction = time.monotonic()
         if self.inactivity_sleeping:
             self.inactivity_sleeping = False; print("Pi Home waking after touchscreen input", flush=True); self.set_screen_power(True, force=True); self.stack.set_visible_child_name(self.last_mode or "bus")
+        elif self.stack.get_visible_child_name() == "sleep" and self.sleep_wake_armed:
+            self.wake()
         return False
-    def sleep(self, *_): self.inactivity_sleeping = False; self.settings_open = False; self.sleep_entered_at = time.monotonic(); self.wake_tap_at = 0.0; self.stack.set_visible_child_name("sleep"); self.set_screen_power(bool(self.settings_data.get("sleep_show_clock", False))); threading.Thread(target=post_json, args=(BUS + "/api/admin/display-mode", {"mode": "sleep"}), daemon=True).start()
+
+    def prepare_sleep_wake(self):
+        # The sleep button's touch can be followed by a synthetic mouse event.
+        # Arm only after that gesture has finished, so the next fresh touch wakes.
+        self.sleep_wake_generation += 1
+        generation = self.sleep_wake_generation
+        self.sleep_wake_armed = False
+        GLib.timeout_add(750, self.arm_sleep_wake, generation)
+
+    def arm_sleep_wake(self, generation):
+        if generation == self.sleep_wake_generation and self.stack.get_visible_child_name() == "sleep":
+            self.sleep_wake_armed = True
+        return False
+
+    def sleep(self, *_): self.inactivity_sleeping = False; self.settings_open = False; self.prepare_sleep_wake(); self.stack.set_visible_child_name("sleep"); self.set_screen_power(bool(self.settings_data.get("sleep_show_clock", False))); threading.Thread(target=post_json, args=(BUS + "/api/admin/display-mode", {"mode": "sleep"}), daemon=True).start()
     def wake(self, *_):
         now = time.monotonic()
-        if now - self.sleep_entered_at < 1.5:
-            return
-        if not self.wake_tap_at or now - self.wake_tap_at > 1.5:
-            self.wake_tap_at = now
-            return
-        self.wake_tap_at = 0.0; self.last_interaction = now; self.inactivity_sleeping = False; print("Pi Home waking after confirmed double tap", flush=True); self.set_screen_power(True, force=True); self.stack.set_visible_child_name(self.last_mode or "bus")
+        self.sleep_wake_generation += 1; self.sleep_wake_armed = False; self.last_interaction = now; self.inactivity_sleeping = False; print("Pi Home waking after fresh touchscreen input", flush=True); self.set_screen_power(True, force=True); self.stack.set_visible_child_name(self.last_mode or "bus")
         threading.Thread(target=post_json, args=(BUS + "/api/device/wake", {"view": self.last_mode or "bus"}), daemon=True).start()
     def control(self, action): threading.Thread(target=post_json, args=(ROON + "/api/control", {"action": action}), daemon=True).start()
     def toggle_bridge(self, button):
