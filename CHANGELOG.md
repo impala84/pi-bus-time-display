@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.15 — 1 October 2026
+
+- Made sleeping-screen wake detection accept both the start and end of a deliberate touch, covering panels that consume the first contact while restoring hardware power.
+- Kept the guarded arming period after entering sleep, so accepting touch releases cannot revive the display from the gesture that put it to sleep.
+- Added event-specific touchscreen wake logging to make any remaining hardware-path issue directly diagnosable.
+
 ## 0.7.14 — 1 October 2026
 
 - Fixed the scheduled morning wake being immediately cancelled by the daytime inactivity timeout after a full night asleep.

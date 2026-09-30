@@ -573,14 +573,19 @@ class Display(Gtk.Application):
     def close_settings(self, *_): self.settings_open = False; self.stack.set_visible_child_name(self.last_mode)
     def note_activity(self, _controller, event):
         # Legacy controllers also receive pointer motion, enter/leave and window
-        # events. Only deliberate contact should reset or wake the display.
-        if event.get_event_type() not in {Gdk.EventType.BUTTON_PRESS, Gdk.EventType.TOUCH_BEGIN, Gdk.EventType.KEY_PRESS}:
+        # events. A powered-down panel can consume the beginning of the first
+        # contact, so accept its release as a wake gesture as well.
+        event_type = event.get_event_type()
+        contact_started = event_type in {Gdk.EventType.BUTTON_PRESS, Gdk.EventType.TOUCH_BEGIN, Gdk.EventType.KEY_PRESS}
+        contact_finished = event_type in {Gdk.EventType.BUTTON_RELEASE, Gdk.EventType.TOUCH_END}
+        if not contact_started and not contact_finished:
             return False
         self.last_interaction = time.monotonic()
         if self.inactivity_sleeping:
-            self.inactivity_sleeping = False; print("Pi Home waking after touchscreen input", flush=True); self.set_screen_power(True, force=True); self.stack.set_visible_child_name(self.last_mode or "bus")
+            source = getattr(event_type, "value_nick", str(event_type))
+            self.inactivity_sleeping = False; print(f"Pi Home waking after touchscreen {source}", flush=True); self.set_screen_power(True, force=True); self.stack.set_visible_child_name(self.last_mode or "bus")
         elif self.stack.get_visible_child_name() == "sleep" and self.sleep_wake_armed:
-            self.wake()
+            self.wake(getattr(event_type, "value_nick", str(event_type)))
         return False
 
     def prepare_sleep_wake(self):
@@ -599,7 +604,8 @@ class Display(Gtk.Application):
     def sleep(self, *_): self.inactivity_sleeping = False; self.settings_open = False; self.prepare_sleep_wake(); self.stack.set_visible_child_name("sleep"); self.set_screen_power(bool(self.settings_data.get("sleep_show_clock", False))); threading.Thread(target=post_json, args=(BUS + "/api/admin/display-mode", {"mode": "sleep"}), daemon=True).start()
     def wake(self, *_):
         now = time.monotonic()
-        self.sleep_wake_generation += 1; self.sleep_wake_armed = False; self.last_interaction = now; self.inactivity_sleeping = False; print("Pi Home waking after fresh touchscreen input", flush=True); self.set_screen_power(True, force=True); self.stack.set_visible_child_name(self.last_mode or "bus")
+        source = _[0] if _ else "input"
+        self.sleep_wake_generation += 1; self.sleep_wake_armed = False; self.last_interaction = now; self.inactivity_sleeping = False; print(f"Pi Home waking after fresh touchscreen {source}", flush=True); self.set_screen_power(True, force=True); self.stack.set_visible_child_name(self.last_mode or "bus")
         threading.Thread(target=post_json, args=(BUS + "/api/device/wake", {"view": self.last_mode or "bus"}), daemon=True).start()
     def control(self, action): threading.Thread(target=post_json, args=(ROON + "/api/control", {"action": action}), daemon=True).start()
     def toggle_bridge(self, button):
