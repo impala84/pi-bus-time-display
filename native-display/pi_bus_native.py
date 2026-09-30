@@ -329,8 +329,9 @@ class Display(Gtk.Application):
             self.views_prewarmed = True; GLib.idle_add(self.prewarm_views)
         inactivity_seconds = max(0, int(config.get("daytime_inactivity_seconds", 0) or 0))
         inactivity_due = bool(inactivity_seconds and time.monotonic() - self.last_interaction >= inactivity_seconds and target != "/sleep.html")
-        if inactivity_due:
+        if inactivity_due and not self.inactivity_sleeping:
             self.inactivity_sleeping = True
+            print(f"Pi Home sleeping after {inactivity_seconds}s without a touch", flush=True)
         if self.settings_open and target != "/sleep.html" and not self.inactivity_sleeping:
             return False
         if target is None and not self.inactivity_sleeping:
@@ -545,10 +546,14 @@ class Display(Gtk.Application):
 
     def open_settings(self, *_): self.settings_open = True; self.last_system_fetch = 0; self.stack.set_visible_child_name("settings"); self.start_poll()
     def close_settings(self, *_): self.settings_open = False; self.stack.set_visible_child_name(self.last_mode)
-    def note_activity(self, *_):
+    def note_activity(self, _controller, event):
+        # Legacy controllers also receive pointer motion, enter/leave and window
+        # events. Only deliberate contact should reset or wake the display.
+        if event.get_event_type() not in {Gdk.EventType.BUTTON_PRESS, Gdk.EventType.TOUCH_BEGIN, Gdk.EventType.KEY_PRESS}:
+            return False
         self.last_interaction = time.monotonic()
         if self.inactivity_sleeping:
-            self.inactivity_sleeping = False; self.set_screen_power(True, force=True); self.stack.set_visible_child_name(self.last_mode or "bus")
+            self.inactivity_sleeping = False; print("Pi Home waking after touchscreen input", flush=True); self.set_screen_power(True, force=True); self.stack.set_visible_child_name(self.last_mode or "bus")
         return False
     def sleep(self, *_): self.inactivity_sleeping = False; self.settings_open = False; self.stack.set_visible_child_name("sleep"); self.set_screen_power(bool(self.settings_data.get("sleep_show_clock", False))); threading.Thread(target=post_json, args=(BUS + "/api/admin/display-mode", {"mode": "sleep"}), daemon=True).start()
     def wake(self, *_):

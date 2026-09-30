@@ -139,7 +139,7 @@ h1 {
     line-height: 1.08;
   }
 }
-.web-nav { position: fixed; z-index: 4; left: 22px; right: 22px; bottom: 18px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 8px 12px; background: rgba(8,11,10,.96); border: 1px solid var(--line); border-radius: 14px; }
+.web-nav { position: fixed; z-index: 4; left: 22px; right: 22px; bottom: 18px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 8px 12px; background: rgba(8,11,10,.96); border: 0; border-radius: 0; }
 .web-nav a { min-height: 48px; display: grid; place-items: center; padding: 12px 8px; color: var(--muted); text-align: center; text-decoration: none; font-size: 14px; font-weight: 750; }
 .web-nav a.active { color: var(--ink); box-shadow: inset 0 -4px var(--mint); }
 @media (max-height: 600px) and (orientation: landscape) { main { padding-bottom: 48px; } .web-nav a { padding: 7px 6px 5px; font-size: 11px; } }
@@ -192,6 +192,6 @@ h1 {
   .details-art { width: min(72vw, 330px); margin: 0 auto; }
   .details-copy { text-align: center; }
   .details-tracks { max-height: none; text-align: left; }
-  .web-nav { left: 0; right: 0; bottom: 0; padding: 0 18px max(8px, env(safe-area-inset-bottom)); border-width: 1px 0 0; border-radius: 0; }
+  .web-nav { left: 0; right: 0; bottom: 0; padding: 0 18px max(8px, env(safe-area-inset-bottom)); border: 0; border-radius: 0; }
   .web-nav a { padding: 12px 8px 10px; }
 }

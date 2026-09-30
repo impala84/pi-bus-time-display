@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.9 — 30 September 2026
+
+- Fixed daytime inactivity sleep being immediately cancelled by incidental pointer, window or display events; only deliberate touch, click or key input now resets the timer and wakes the panel.
+- Removed the outlined container around the fixed web dashboard navigation.
+
 ## 0.7.8 — 30 September 2026
 
 - Added a configurable daytime touchscreen inactivity timeout that uses native panel power, wakes on touch, and leaves the overnight schedule authoritative.
