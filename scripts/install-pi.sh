@@ -44,5 +44,6 @@ systemctl daemon-reload
 systemctl enable pi-bus-time-display.service
 systemctl enable pi-bus-roon-controller.service
 systemctl enable --now pi-bus-system-action.path
+systemctl enable --now pi-home-leds.service
 echo "Installed native GTK display. Edit /etc/pi-bus-time-display/config.toml and /etc/pi-bus-time-display/secrets.env, then reboot."
 echo "Future application updates: sudo pi-bus-update"

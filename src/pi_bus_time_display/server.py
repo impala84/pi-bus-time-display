@@ -434,6 +434,17 @@ def service_state(name: str) -> str:
     return "running" if command_output(["systemctl", "is-active", name]) == "active" else "stopped"
 
 
+def pi_led_state(state_dir: Path) -> str:
+    names = {item.name.lower() for item in Path("/sys/class/leds").glob("*")}
+    if not names.intersection({"act", "pwr", "led0", "led1"}):
+        return "not_installed"
+    try:
+        enabled = (state_dir / "leds-enabled").read_text(encoding="ascii").strip() == "true"
+    except OSError:
+        enabled = False
+    return "enabled" if enabled else "disabled"
+
+
 def system_snapshot(state_dir: Path) -> dict:
     roon_service = "unknown"
     for name in ("roonbridge.service", "RoonBridge.service"):
@@ -470,6 +481,7 @@ def system_snapshot(state_dir: Path) -> dict:
         "roon_bridge": roon_service,
         "roon_controller": roon_controller,
         "netdata": service_state("netdata.service"),
+        "pi_leds": pi_led_state(state_dir),
         "update_status": update_status,
         "display_rotation": display_rotation,
         "display_profile": display_profile,
@@ -759,7 +771,7 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                     return
                 if self.path == "/api/admin/system-action":
                     action = str(data.get("action", ""))
-                    allowed = {"update", "roon_start", "roon_stop", "roon_restart", "netdata_enable", "netdata_disable", "set_hostname", "set_wifi", "set_rotation", "set_display"}
+                    allowed = {"update", "roon_start", "roon_stop", "roon_restart", "netdata_enable", "netdata_disable", "leds_enable", "leds_disable", "set_hostname", "set_wifi", "set_rotation", "set_display"}
                     if action not in allowed:
                         raise ValueError("Unknown system action")
                     request = {"action": action}

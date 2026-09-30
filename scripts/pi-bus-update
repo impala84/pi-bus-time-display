@@ -33,6 +33,7 @@ install -m 0644 "${app_dir}/systemd/pi-bus-time-display.service" /etc/systemd/sy
 install -m 0644 "${app_dir}/systemd/pi-bus-roon-controller.service" /etc/systemd/system/pi-bus-roon-controller.service
 install -m 0644 "${app_dir}/systemd/pi-bus-system-action.service" /etc/systemd/system/pi-bus-system-action.service
 install -m 0644 "${app_dir}/systemd/pi-bus-system-action.path" /etc/systemd/system/pi-bus-system-action.path
+install -m 0644 "${app_dir}/systemd/pi-home-leds.service" /etc/systemd/system/pi-home-leds.service
 install -m 0755 "${app_dir}/scripts/pi-bus-update" /usr/local/sbin/pi-bus-update
 install -m 0755 "${app_dir}/scripts/pi-bus-system-action" /usr/local/sbin/pi-bus-system-action
 install -m 0755 "${app_dir}/scripts/pi-bus-appliance-mode" /usr/local/sbin/pi-bus-appliance-mode
@@ -53,6 +54,7 @@ fi
 
 systemctl daemon-reload
 systemctl enable --now pi-bus-system-action.path
+systemctl enable --now pi-home-leds.service
 systemctl restart pi-bus-time-display.service
 systemctl enable --now pi-bus-roon-controller.service
 systemctl restart pi-bus-roon-controller.service

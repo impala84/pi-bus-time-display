@@ -38,7 +38,7 @@ button { border: 0; box-shadow: none; background-image: none; outline: none; }
 .arrival-sub { color: #7f8b87; font-size: 10px; font-weight: 650; }.muted { color: #78837f; font-size: 11px; font-weight: 400; }
 .nav { padding-top: 3px; }.nav button { min-height: 40px; border: 0; border-bottom: 5px solid transparent; border-radius: 0; background: transparent; color: #7f8b87; font-size: 14px; font-weight: 700; }
 .nav button.active { border-bottom-color: #6ed9ae; background: transparent; color: #dfe4e1; }.artwork { border-radius: 12px; }.roon-title { font-size: 35px; font-weight: 620; }.roon-artist { color: #b6c0bc; font-size: 18px; }
-.artwork-button { padding: 0; border-radius: 12px; background: transparent; }.detail-panel { padding: 8px 10px; }.detail-artwork { border-radius: 12px; }.detail-title { font-size: 31px; font-weight: 650; }.detail-artist { color: #b6c0bc; font-size: 20px; }.detail-subtitle { color: #84908c; font-size: 13px; }.detail-back { min-width: 72px; min-height: 38px; border-radius: 8px; background: #18211f; color: #dfe4e1; font-weight: 750; }.detail-tracks { padding-top: 5px; }.detail-track { min-height: 30px; padding: 3px 6px; border-top: 1px solid #26312e; }.detail-track-no { color: #78837f; font-size: 11px; }.detail-track-title { color: #f4f0e6; font-size: 13px; }
+.artwork-button { padding: 0; border-radius: 12px; background: transparent; }.detail-takeover { padding: 18px; background: rgba(6, 10, 9, .96); }.detail-panel { padding: 0; }.detail-artwork { border-radius: 12px; }.detail-title { font-size: 31px; font-weight: 650; }.detail-artist { color: #b6c0bc; font-size: 20px; }.detail-subtitle { color: #84908c; font-size: 13px; }.detail-back { min-width: 72px; min-height: 38px; border-radius: 8px; background: #18211f; color: #dfe4e1; font-weight: 750; }.detail-tracks { padding-top: 5px; }.detail-track { min-height: 30px; padding: 3px 6px; border-top: 1px solid #26312e; }.detail-track-no { color: #78837f; font-size: 11px; }.detail-track-title { color: #f4f0e6; font-size: 13px; }
 .roon-subnav { margin-top: 0; }.roon-subnav button { min-height: 29px; padding: 4px 13px 2px; border-radius: 0; border-top: 3px solid transparent; background: transparent; color: #68736f; font-size: 10px; font-weight: 750; letter-spacing: 1px; }.roon-subnav button.active { border-top-color: #5bcbd6; color: #f4f0e6; }
 .queue-scroll { background: transparent; }.queue-scroll scrollbar { opacity: 0; min-width: 0; min-height: 0; }.queue-list { padding: 5px 8px 8px; }.queue-row { min-height: 66px; padding: 5px 9px; border-radius: 8px; background: transparent; color: #f4f0e6; }.queue-row:hover, .queue-row:active { background: #18211f; }.queue-row.current { background: #121e1c; border-left: 3px solid #5bcbd6; }.queue-row.previous { opacity: .5; }.queue-art { min-width: 56px; min-height: 56px; border-radius: 5px; background: #18211f; }.queue-title { color: #f4f0e6; font-size: 16px; font-weight: 650; }.queue-meta { color: #84908c; font-size: 12px; }.queue-duration { color: #84908c; font-size: 12px; font-variant-numeric: tabular-nums; }.queue-empty { color: #78837f; font-size: 15px; padding: 60px 0; }
 .transport button { min-width: 50px; min-height: 50px; border-radius: 25px; padding: 0; background: #18211f; color: #e4e7e4; }.transport .play { min-width: 68px; min-height: 68px; border-radius: 34px; background: #285f4d; }
@@ -117,6 +117,7 @@ class Display(Gtk.Application):
         self.queue_artwork_keys = []
         self.last_interaction = time.monotonic()
         self.inactivity_sleeping = False
+        self.sleep_entered_at = 0.0
         self.detail_image_key = None
         self.detail_signature = None
 
@@ -163,8 +164,10 @@ class Display(Gtk.Application):
     def adapt_display(self):
         monitors = Gdk.Display.get_default().get_monitors()
         monitor = monitors.get_item(0) if monitors.get_n_items() else None
-        if monitor and max(monitor.get_geometry().width, monitor.get_geometry().height) >= 1200:
-            self.window.add_css_class("high-resolution")
+        if monitor:
+            geometry = monitor.get_geometry()
+            self.detail_artwork.set_size_request(max(320, min(geometry.width, geometry.height) - 60), max(320, min(geometry.width, geometry.height) - 60))
+            if max(geometry.width, geometry.height) >= 1200: self.window.add_css_class("high-resolution")
         return False
 
     def header(self, centre, clock):
@@ -221,8 +224,8 @@ class Display(Gtk.Application):
         queue_scroll = Gtk.ScrolledWindow(); queue_scroll.add_css_class("queue-scroll"); queue_scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC); queue_scroll.set_kinetic_scrolling(True); queue_scroll.set_overlay_scrolling(True); queue_scroll.set_propagate_natural_height(False); queue_scroll.set_propagate_natural_width(False); queue_scroll.set_min_content_height(1); queue_scroll.set_size_request(-1, 1); queue_scroll.set_vexpand(True); queue_scroll.set_hexpand(True); queue_scroll.set_child(self.queue_list); self.queue_scroll = queue_scroll
         queue_scroll.get_vadjustment().connect("value-changed", self.load_visible_queue_artwork)
         self.roon_views.add_named(queue_scroll, "queue")
-        detail_panel = Gtk.Box(spacing=24); detail_panel.add_css_class("detail-panel"); detail_panel.set_vexpand(True)
-        self.detail_artwork = Gtk.Picture(); self.detail_artwork.add_css_class("detail-artwork"); self.detail_artwork.set_size_request(260, 260); self.detail_artwork.set_content_fit(Gtk.ContentFit.COVER); self.detail_artwork.set_valign(Gtk.Align.CENTER); detail_panel.append(self.detail_artwork)
+        detail_panel = Gtk.Box(spacing=24); detail_panel.add_css_class("detail-panel"); detail_panel.set_hexpand(True); detail_panel.set_vexpand(True)
+        self.detail_artwork = Gtk.Picture(); self.detail_artwork.add_css_class("detail-artwork"); self.detail_artwork.set_size_request(420, 420); self.detail_artwork.set_content_fit(Gtk.ContentFit.COVER); self.detail_artwork.set_valign(Gtk.Align.CENTER); detail_panel.append(self.detail_artwork)
         detail_copy = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6); detail_copy.set_hexpand(True); detail_copy.set_valign(Gtk.Align.CENTER)
         detail_copy.append(self.button("BACK", lambda *_: self.set_roon_view("now"), "detail-back")); detail_copy.append(self.label("ALBUM & ARTIST", "eyebrow"))
         self.detail_title = self.label("Nothing playing", "detail-title"); self.detail_title.set_wrap(True); self.detail_title.set_lines(2); self.detail_title.set_ellipsize(Pango.EllipsizeMode.END); detail_copy.append(self.detail_title)
@@ -230,7 +233,10 @@ class Display(Gtk.Application):
         self.detail_subtitle = self.label("", "detail-subtitle"); self.detail_subtitle.set_wrap(True); detail_copy.append(self.detail_subtitle)
         self.detail_tracks = Gtk.Box(orientation=Gtk.Orientation.VERTICAL); self.detail_tracks.add_css_class("detail-tracks")
         detail_scroll = Gtk.ScrolledWindow(); detail_scroll.add_css_class("queue-scroll"); detail_scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC); detail_scroll.set_kinetic_scrolling(True); detail_scroll.set_overlay_scrolling(True); detail_scroll.set_vexpand(True); detail_scroll.set_child(self.detail_tracks); detail_copy.append(detail_scroll)
-        detail_panel.append(detail_copy); self.roon_views.add_named(detail_panel, "details"); page.append(self.roon_views); page.append(self.navigation("roon")); return page
+        detail_panel.append(detail_copy); page.append(self.roon_views); page.append(self.navigation("roon"))
+        takeover = Gtk.Box(); takeover.add_css_class("detail-takeover"); takeover.set_hexpand(True); takeover.set_vexpand(True)
+        takeover.append(detail_panel); takeover.set_visible(False); self.detail_takeover = takeover
+        root = Gtk.Overlay(); root.set_child(page); root.add_overlay(takeover); return root
 
     def build_home(self):
         page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=7); page.add_css_class("page")
@@ -449,7 +455,8 @@ class Display(Gtk.Application):
         output = zone.get("output") or {}; volume = output.get("volume") or {}; value = volume.get("value"); self.volume_updating = True; self.volume.set_sensitive(value is not None); self.volume.set_value(float(value or 0)); self.volume_value.set_text(str(value) if value is not None else "FIXED"); self.volume_updating = False
 
     def set_roon_view(self, name):
-        self.roon_views.set_visible_child_name(name)
+        self.detail_takeover.set_visible(name == "details")
+        if name != "details": self.roon_views.set_visible_child_name(name)
         self.now_playing_tab.remove_css_class("active"); self.queue_tab.remove_css_class("active")
         if name == "queue": self.queue_tab.add_css_class("active")
         elif name == "now": self.now_playing_tab.add_css_class("active")
@@ -555,8 +562,10 @@ class Display(Gtk.Application):
         if self.inactivity_sleeping:
             self.inactivity_sleeping = False; print("Pi Home waking after touchscreen input", flush=True); self.set_screen_power(True, force=True); self.stack.set_visible_child_name(self.last_mode or "bus")
         return False
-    def sleep(self, *_): self.inactivity_sleeping = False; self.settings_open = False; self.stack.set_visible_child_name("sleep"); self.set_screen_power(bool(self.settings_data.get("sleep_show_clock", False))); threading.Thread(target=post_json, args=(BUS + "/api/admin/display-mode", {"mode": "sleep"}), daemon=True).start()
+    def sleep(self, *_): self.inactivity_sleeping = False; self.settings_open = False; self.sleep_entered_at = time.monotonic(); self.stack.set_visible_child_name("sleep"); self.set_screen_power(bool(self.settings_data.get("sleep_show_clock", False))); threading.Thread(target=post_json, args=(BUS + "/api/admin/display-mode", {"mode": "sleep"}), daemon=True).start()
     def wake(self, *_):
+        if time.monotonic() - self.sleep_entered_at < .75:
+            return
         self.last_interaction = time.monotonic(); self.inactivity_sleeping = False; self.set_screen_power(True, force=True); self.stack.set_visible_child_name(self.last_mode or "bus")
         threading.Thread(target=post_json, args=(BUS + "/api/device/wake", {"view": self.last_mode or "bus"}), daemon=True).start()
     def control(self, action): threading.Thread(target=post_json, args=(ROON + "/api/control", {"action": action}), daemon=True).start()

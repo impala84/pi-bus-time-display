@@ -1,0 +1,9 @@
+[Unit]
+Description=Apply Pi Home Raspberry Pi status light preference
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/pi-bus-system-action --apply-leds
+
+[Install]
+WantedBy=multi-user.target

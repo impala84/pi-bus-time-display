@@ -4,11 +4,13 @@ import json
 import os
 import re
 import subprocess
+import sys
 from pathlib import Path
 
 STATE = Path("/var/lib/pi-bus-time-display")
 REQUEST = STATE / "system-action-request.json"
 STATUS = STATE / "system-action-status"
+LEDS_ENABLED = STATE / "leds-enabled"
 
 
 def report(message: str) -> None:
@@ -66,6 +68,50 @@ def display_power(powered: bool, brightness_percent: int = 100) -> None:
         subprocess.run([str(vcgencmd), "display_power", "0"], check=False)
 
 
+def pi_leds() -> list[tuple[Path, str]]:
+    result = []
+    for device in sorted(Path("/sys/class/leds").glob("*")):
+        name = device.name.lower()
+        if name in {"act", "led0"}: result.append((device, "activity"))
+        elif name in {"pwr", "led1"}: result.append((device, "power"))
+    return result
+
+
+def set_pi_leds(enabled: bool) -> None:
+    devices = pi_leds()
+    if not devices:
+        raise RuntimeError("Raspberry Pi status LEDs were not found")
+    for device, kind in devices:
+        trigger = device / "trigger"
+        brightness = device / "brightness"
+        if trigger.exists():
+            choices = trigger.read_text(encoding="ascii").replace("[", "").replace("]", "").split()
+            if enabled:
+                preferred = ("mmc0", "disk-activity", "heartbeat") if kind == "activity" else ("default-on",)
+                selected = next((candidate for candidate in preferred if candidate in choices), None)
+                if selected: trigger.write_text(selected, encoding="ascii")
+            elif "none" in choices:
+                trigger.write_text("none", encoding="ascii")
+        if brightness.exists():
+            maximum_path = device / "max_brightness"
+            maximum = int(maximum_path.read_text(encoding="ascii")) if maximum_path.exists() else 1
+            brightness.write_text(str(maximum if enabled else 0), encoding="ascii")
+
+
+def save_led_preference(enabled: bool) -> None:
+    temporary = LEDS_ENABLED.with_suffix(".tmp")
+    temporary.write_text("true\n" if enabled else "false\n", encoding="ascii")
+    os.chmod(temporary, 0o644)
+    temporary.replace(LEDS_ENABLED)
+
+
+def apply_led_preference() -> None:
+    if not pi_leds():
+        return
+    enabled = LEDS_ENABLED.exists() and LEDS_ENABLED.read_text(encoding="ascii").strip() == "true"
+    set_pi_leds(enabled)
+
+
 def main() -> None:
     if not REQUEST.exists():
         return
@@ -115,6 +161,11 @@ def main() -> None:
         else:
             run(["systemctl", "disable", "--now", "netdata.service"])
             report("Netdata is stopped and disabled at boot.")
+    elif action in {"leds_enable", "leds_disable"}:
+        enabled = action == "leds_enable"
+        set_pi_leds(enabled)
+        save_led_preference(enabled)
+        report("Pi status lights are on." if enabled else "Pi status lights are off.")
     elif action == "set_hostname":
         hostname = str(data.get("hostname", ""))
         if not re.fullmatch(r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?", hostname):
@@ -134,7 +185,8 @@ def main() -> None:
 
 if __name__ == "__main__":
     try:
-        main()
+        if len(sys.argv) == 2 and sys.argv[1] == "--apply-leds": apply_led_preference()
+        else: main()
     except Exception as error:
         report(f"Failed: {error}")
         raise

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.10 — 1 October 2026
+
+- Fixed a manual top-right sleep tap being immediately treated as a wake gesture by ignoring the release from the initiating tap.
+- Changed the touchscreen artwork detail into a full-display takeover with near full-height artwork, information alongside it, and the normal interface heavily tinted behind it.
+- Added a persistent System toggle for the Raspberry Pi ACT/PWR status lights. The restricted helper manages only recognised Pi LED devices, and the lights default to off after installation or update.
+- Added a boot-time oneshot service that reapplies the saved Pi status-light preference without running a background process.
+
 ## 0.7.9 — 30 September 2026
 
 - Fixed daytime inactivity sleep being immediately cancelled by incidental pointer, window or display events; only deliberate touch, click or key input now resets the timer and wakes the panel.
