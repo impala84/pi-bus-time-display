@@ -253,14 +253,15 @@ class Display(Gtk.Application):
 
     def poll(self):
         started = time.monotonic()
-        target = get_json(BUS + "/api/display-target") or {}; status = get_json(BUS + "/api/status"); roon = get_json(ROON + "/api/state"); device = get_json(BUS + "/api/device/controls") or {}
+        target_response = get_json(BUS + "/api/display-target"); status = get_json(BUS + "/api/status"); roon = get_json(ROON + "/api/state"); device = get_json(BUS + "/api/device/controls") or {}
         now = time.monotonic(); config = None; system = None
         if not self.settings_data or now - self.last_config_fetch >= 60:
             config = get_json(BUS + "/api/admin/config") or {}; self.last_config_fetch = now
         if self.settings_open and (not self.system_data or now - self.last_system_fetch >= 15):
             system = get_json(BUS + "/api/admin/system") or {}; self.last_system_fetch = now
         zone = (roon or {}).get("zone") or {}; key = (zone.get("now_playing") or {}).get("image_key")
-        GLib.idle_add(self.apply, target.get("target", "/"), status, roon, config, system, device, key, None)
+        target = target_response.get("target") if isinstance(target_response, dict) else None
+        GLib.idle_add(self.apply, target, status, roon, config, system, device, key, None)
         self.polling = False
         image = get_bytes(f"{ROON}/api/image?key={quote(key, safe='')}") if key and key != self.image_key else None
         if image:
@@ -305,9 +306,12 @@ class Display(Gtk.Application):
         self.render_roon(roon)
         if not self.views_prewarmed:
             self.views_prewarmed = True; GLib.idle_add(self.prewarm_views)
-        if self.settings_open:
+        if self.settings_open and target != "/sleep.html":
             return False
-        if target == "/sleep.html": desired = "sleep"; self.set_screen_power(bool(config.get("sleep_show_clock", False)))
+        if target is None:
+            # A transient backend timeout must not wake a sleeping panel or force Bus Times.
+            return False
+        if target == "/sleep.html": self.settings_open = False; desired = "sleep"; self.set_screen_power(bool(config.get("sleep_show_clock", False)))
         elif target == "/home": desired = "home"; self.set_screen_power(True); self.last_mode = "home"
         elif target == "/" or target.endswith(":8765/"): desired = "bus"; self.set_screen_power(True); self.last_mode = "bus"
         else: desired = "roon"; self.set_screen_power(True); self.last_mode = "roon"

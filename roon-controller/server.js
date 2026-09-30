@@ -129,7 +129,7 @@ function cachedImage(key, size, callback) {
 const roon = new RoonApi({
   extension_id: 'com.impala84.pi-bus-time-display',
   display_name: 'Pi Home Roon Controller',
-  display_version: '0.7.6',
+  display_version: '0.7.7',
   publisher: 'Pi Home',
   email: 'noreply@example.invalid',
   website: 'https://github.com/impala84/pi-home',
@@ -169,10 +169,10 @@ function body(request) {
 }
 
 function serveStatic(request, response) {
-  const names = {'/': 'index.html', '/app.js': 'app.js', '/style.css': 'style.css', '/refinements.css': 'refinements.css'};
+  const names = {'/': 'index.html', '/app.js': 'app.js', '/style.css': 'style.css', '/refinements.css': 'refinements.css', '/favicon.svg': 'favicon.svg'};
   const name = names[new URL(request.url, 'http://localhost').pathname];
   if (!name) return false;
-  const types = {'.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8'};
+  const types = {'.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml'};
   const data = fs.readFileSync(path.join(staticDir, name));
   response.writeHead(200, {'Content-Type': types[path.extname(name)], 'Content-Length': data.length, 'Cache-Control': 'no-cache'});
   response.end(data);

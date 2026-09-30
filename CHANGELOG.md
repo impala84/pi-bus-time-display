@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.7 — 30 September 2026
+
+- Made scheduled sleep take precedence over an open touchscreen Settings panel and stopped transient backend timeouts from incorrectly waking a sleeping display or forcing Bus Times.
+- Replaced the malformed browser settings symbol with a clean stroked cog and added the Pi Home favicon to every display, sign-in, fallback and Roon page.
+- Restored the browser navigation order to Music, Bus Times, Home on every page and gave the desktop navigation a taller inset panel with comfortable bottom spacing.
+- Slightly enlarged the desktop bus-stop name and clock while preserving the compact portrait treatment.
+
 ## 0.7.6 — 30 September 2026
 
 - Added the subscribed Roon Queue to the web Music view with instant Now Playing / Queue navigation, cached thumbnails and bounded touch scrolling.
