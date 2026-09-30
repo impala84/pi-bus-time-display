@@ -308,6 +308,8 @@ class Display(Gtk.Application):
         if system is not None:
             self.system_data = system
             self.device_status.set_text(f"v{system.get('app_version', '—')}  ·  {system.get('update_status', 'Ready')}")
+            if str(system.get("update_status", "")).startswith("Failed:"):
+                self.update_button.set_sensitive(True)
             diagnostics = system.get("diagnostics") or {}; memory = diagnostics.get("memory") or {}; processes = diagnostics.get("processes") or []
             states = {item.get("label"): item.get("active", bool(item.get("pids"))) for item in processes}
             temperature = diagnostics.get("temperature_c"); load = diagnostics.get("load") or [0]
@@ -631,8 +633,12 @@ class Display(Gtk.Application):
 
     def _request_update(self):
         result = post_json(BUS + "/api/device/update", {})
-        GLib.idle_add(self.device_status.set_text, "Update started…" if result else "Could not start update")
-        GLib.idle_add(self.update_button.set_sensitive, True)
+        GLib.idle_add(self.device_status.set_text, "Update queued…" if result else "Could not start update")
+        if result:
+            self.last_system_fetch = 0
+            GLib.idle_add(self.start_poll)
+        else:
+            GLib.idle_add(self.update_button.set_sensitive, True)
 
     def request_display_settings(self, *_):
         profiles = ("original", "touch2-5-7", "touch2-10"); orientations = ("normal", "90", "180", "270")

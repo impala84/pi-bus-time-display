@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.11 — 1 October 2026
+
+- Kept the touchscreen update button in its in-progress state after a request is queued and surfaced the privileged updater's real status instead of immediately implying completion.
+- Made the updater re-launch the newly fetched updater before installation so updater and system-component changes take effect during the same run.
+- Prevented an unsupported status-light device from aborting an otherwise successful Pi Home application update.
+
 ## 0.7.10 — 1 October 2026
 
 - Fixed a manual top-right sleep tap being immediately treated as a wake gesture by ignoring the release from the initiating tap.

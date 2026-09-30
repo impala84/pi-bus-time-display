@@ -22,6 +22,13 @@ fi
 git -c safe.directory="${app_dir}" -C "${app_dir}" fetch origin main
 git -c safe.directory="${app_dir}" -C "${app_dir}" checkout -B main origin/main
 
+# Continue with the updater from the checkout we just fetched. This makes
+# updater/install changes effective in this run instead of the next one.
+if [[ ${PI_HOME_UPDATE_REEXECUTED:-0} != 1 ]]; then
+  export PI_HOME_UPDATE_REEXECUTED=1
+  exec /usr/bin/env bash "${app_dir}/scripts/pi-bus-update"
+fi
+
 echo "Installing native display runtime…"
 apt-get update
 apt-get install -y python3-gi gir1.2-gtk-4.0 fonts-inter
@@ -54,7 +61,10 @@ fi
 
 systemctl daemon-reload
 systemctl enable --now pi-bus-system-action.path
-systemctl enable --now pi-home-leds.service
+systemctl enable pi-home-leds.service
+if ! systemctl restart pi-home-leds.service; then
+  echo "Warning: the Pi status-light preference could not be applied; continuing the application update."
+fi
 systemctl restart pi-bus-time-display.service
 systemctl enable --now pi-bus-roon-controller.service
 systemctl restart pi-bus-roon-controller.service
