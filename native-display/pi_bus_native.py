@@ -336,6 +336,18 @@ class Display(Gtk.Application):
         self.render_roon(roon)
         if not self.views_prewarmed:
             self.views_prewarmed = True; GLib.idle_add(self.prewarm_views)
+        scheduled_wake = bool(
+            target is not None
+            and target != "/sleep.html"
+            and self.stack.get_visible_child_name() == "sleep"
+            and not self.inactivity_sleeping
+        )
+        if scheduled_wake:
+            # Overnight time must not count towards daytime inactivity. Without
+            # this reset, the wake boundary and inactivity sleep happen in the
+            # same refresh and the panel appears never to wake.
+            self.last_interaction = time.monotonic()
+            print("Pi Home resuming at the scheduled wake boundary", flush=True)
         inactivity_seconds = max(0, int(config.get("daytime_inactivity_seconds", 0) or 0))
         inactivity_due = bool(inactivity_seconds and time.monotonic() - self.last_interaction >= inactivity_seconds and target != "/sleep.html")
         if inactivity_due and not self.inactivity_sleeping:

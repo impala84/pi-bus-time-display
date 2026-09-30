@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.14 — 1 October 2026
+
+- Fixed the scheduled morning wake being immediately cancelled by the daytime inactivity timeout after a full night asleep.
+- Reset the daytime inactivity clock when the overnight schedule ends, giving the newly awakened display its configured daytime interval from that point.
+
 ## 0.7.13 — 1 October 2026
 
 - Restored reliable one-tap waking after manual or scheduled sleep by ignoring only the remainder of the initiating sleep gesture, then arming the next fresh touchscreen press.
