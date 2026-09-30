@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.8 — 30 September 2026
+
+- Added a configurable daytime touchscreen inactivity timeout that uses native panel power, wakes on touch, and leaves the overnight schedule authoritative.
+- Added a lightweight album-and-artist panel to the touchscreen and web Roon views, opened by tapping the current artwork and populated asynchronously through Roon Browse with cached artwork and graceful metadata fallbacks.
+- Renamed the main Music tab to Roon throughout the touchscreen, web dashboard, and display selector.
+
 ## 0.7.7 — 30 September 2026
 
 - Made scheduled sleep take precedence over an open touchscreen Settings panel and stopped transient backend timeouts from incorrectly waking a sleeping display or forcing Bus Times.

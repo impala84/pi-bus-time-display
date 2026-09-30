@@ -26,6 +26,7 @@ function render(next) {
   lastTick = Date.now();
   const zone = next.zone;
   renderQueue(next.queue || {});
+  renderDetails(next.details || {});
   if (!zone) {
     $('title').textContent = next.connected ? 'Choose a Roon zone' : 'Waiting for Roon';
     $('artist').textContent = next.connected ? 'Start playback in a zone' : 'Enable Pi Home Roon Controller in Roon → Settings → Extensions';
@@ -111,9 +112,29 @@ function scrollQueueToCurrent() {
 function setMusicView(view) {
   musicView = view;
   const queue = view === 'queue';
-  $('now-view').hidden = queue; $('queue-view').hidden = !queue;
-  $('now-tab').classList.toggle('active', !queue); $('queue-tab').classList.toggle('active', queue);
+  const details = view === 'details';
+  $('now-view').hidden = queue || details; $('queue-view').hidden = !queue; $('details-view').hidden = !details;
+  $('now-tab').classList.toggle('active', view === 'now'); $('queue-tab').classList.toggle('active', queue);
   if (queue) requestAnimationFrame(scrollQueueToCurrent);
+}
+
+function renderDetails(info) {
+  const zone = state?.zone;
+  const fallback = zone?.now_playing?.three_line || zone?.now_playing?.two_line || zone?.now_playing?.one_line || {};
+  $('details-title').textContent = info.album || fallback.line3 || fallback.line1 || 'Nothing playing';
+  $('details-artist').textContent = info.artist || fallback.line2 || '';
+  $('details-subtitle').textContent = info.status === 'loading' ? 'Loading available Roon information…' : (info.subtitle || '');
+  const key = info.artist_image_key || info.album_image_key || info.image_key;
+  if (key) { $('details-art').src = api(`/api/image?key=${encodeURIComponent(key)}&size=700`); $('details-placeholder').hidden = true; }
+  else { $('details-art').removeAttribute('src'); $('details-placeholder').hidden = false; }
+  const list = $('details-tracks'); list.replaceChildren();
+  (info.tracks || []).forEach((track, index) => {
+    const item = document.createElement('li');
+    const number = document.createElement('span'); number.textContent = index + 1;
+    const copy = document.createElement('span'); const title = document.createElement('strong'); title.textContent = track.title;
+    copy.append(title); if (track.subtitle) { const subtitle = document.createElement('small'); subtitle.textContent = track.subtitle; copy.append(subtitle); }
+    item.append(number, copy); list.append(item);
+  });
 }
 
 fetch(api('/api/state'), {cache: 'no-store'})
@@ -139,3 +160,5 @@ $('volume').onchange = event => post('/api/volume', {output_id: state.zone.outpu
 $('mute').onclick = () => post('/api/mute', {output_id: state.zone.output.id});
 $('now-tab').onclick = () => setMusicView('now');
 $('queue-tab').onclick = () => setMusicView('queue');
+$('details-open').onclick = () => setMusicView('details');
+$('details-close').onclick = () => setMusicView('now');

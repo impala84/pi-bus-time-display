@@ -4,21 +4,28 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const RoonApi = require('node-roon-api');
+const RoonApiBrowse = require('node-roon-api-browse');
 const RoonApiImage = require('node-roon-api-image');
 const RoonApiStatus = require('node-roon-api-status');
 const RoonApiTransport = require('node-roon-api-transport');
 const {publicQueueItems, updateQueueState} = require('./queue-state');
+const {playingMetadata, loadDetails} = require('./details-state');
 
 const port = Number(process.env.PORT || 8766);
 const staticDir = path.join(__dirname, 'static');
 let core = null;
 let transport = null;
 let imageService = null;
+let browseService = null;
 let zones = new Map();
 let queueItems = [];
 let queueHistory = [];
 let queueZoneId = null;
 let queueSubscription = null;
+let details = {status: 'unavailable'};
+let detailsKey = '';
+let detailsRequest = 0;
+const detailsCache = new Map();
 const listeners = new Set();
 const imageCache = new Map();
 const QUEUE_LIMIT = 100;
@@ -49,7 +56,7 @@ function selectedZone() {
 
 function publicState() {
   const zone = selectedZone();
-  if (!zone) return {connected: Boolean(core), authorised: Boolean(core), zones: [], zone: null, queue: {status: 'unavailable', items: []}};
+  if (!zone) return {connected: Boolean(core), authorised: Boolean(core), zones: [], zone: null, queue: {status: 'unavailable', items: []}, details: {status: 'unavailable'}};
   const output = (zone.outputs || []).find(item => item.volume) || (zone.outputs || [])[0] || null;
   return {
     connected: true,
@@ -63,7 +70,8 @@ function publicState() {
       can_play: Boolean(zone.is_play_allowed), can_pause: Boolean(zone.is_pause_allowed),
       can_seek: Boolean(zone.is_seek_allowed), output: output ? {id: output.output_id, volume: output.volume || null} : null
     },
-    queue: {status: !configuredQueueEnabled() ? 'disabled' : (queueZoneId === zone.zone_id ? 'ready' : 'loading'), items: queueZoneId === zone.zone_id ? publicQueueItems(queueItems, queueHistory) : []}
+    queue: {status: !configuredQueueEnabled() ? 'disabled' : (queueZoneId === zone.zone_id ? 'ready' : 'loading'), items: queueZoneId === zone.zone_id ? publicQueueItems(queueItems, queueHistory) : []},
+    details
   };
 }
 
@@ -78,7 +86,32 @@ function mergeZones(command, data) {
   for (const zone of data.zones_changed || []) zones.set(zone.zone_id, {...zones.get(zone.zone_id), ...zone});
   for (const zone of data.zones_removed || []) zones.delete(typeof zone === 'string' ? zone : zone.zone_id);
   ensureQueueSubscription();
+  ensureDetails();
   broadcast();
+}
+
+function ensureDetails() {
+  const zone = selectedZone();
+  const metadata = playingMetadata(zone);
+  const nextKey = zone ? `${zone.zone_id}|${metadata.key}` : '';
+  if (!zone || !metadata.key) {
+    detailsKey = nextKey; details = {status: 'unavailable', ...metadata}; return;
+  }
+  if (nextKey === detailsKey) return;
+  detailsKey = nextKey;
+  const cached = detailsCache.get(nextKey);
+  if (cached) { details = cached; return; }
+  details = {status: 'loading', ...metadata, album_image_key: metadata.image_key, artist_image_key: null, subtitle: '', tracks: []};
+  const requestId = ++detailsRequest;
+  loadDetails(browseService, zone).then(result => {
+    if (requestId !== detailsRequest || detailsKey !== nextKey) return;
+    details = result; detailsCache.set(nextKey, result);
+    while (detailsCache.size > 24) detailsCache.delete(detailsCache.keys().next().value);
+    broadcast();
+  }).catch(() => {
+    if (requestId !== detailsRequest || detailsKey !== nextKey) return;
+    details = {...details, status: 'ready'}; broadcast();
+  });
 }
 
 function stopQueueSubscription() {
@@ -129,7 +162,7 @@ function cachedImage(key, size, callback) {
 const roon = new RoonApi({
   extension_id: 'com.impala84.pi-bus-time-display',
   display_name: 'Pi Home Roon Controller',
-  display_version: '0.7.7',
+  display_version: '0.7.8',
   publisher: 'Pi Home',
   email: 'noreply@example.invalid',
   website: 'https://github.com/impala84/pi-home',
@@ -137,20 +170,22 @@ const roon = new RoonApi({
     core = pairedCore;
     transport = core.services.RoonApiTransport;
     imageService = core.services.RoonApiImage;
+    browseService = core.services.RoonApiBrowse;
     status.set_status('Connected to Roon; touchscreen controller ready', false);
     transport.subscribe_zones(mergeZones);
     broadcast();
   },
   core_unpaired: () => {
     stopQueueSubscription();
-    core = transport = imageService = null;
+    core = transport = imageService = browseService = null;
+    details = {status: 'unavailable'}; detailsKey = ''; detailsRequest += 1;
     zones.clear();
     status.set_status('Waiting for Roon authorisation', false);
     broadcast();
   }
 });
 const status = new RoonApiStatus(roon);
-roon.init_services({required_services: [RoonApiTransport, RoonApiImage], provided_services: [status]});
+roon.init_services({required_services: [RoonApiTransport, RoonApiImage, RoonApiBrowse], provided_services: [status]});
 status.set_status('Waiting for Roon authorisation', false);
 roon.start_discovery();
 

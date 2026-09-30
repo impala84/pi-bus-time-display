@@ -19,6 +19,7 @@ sleep_show_clock = false
 auto_switch_to_roon = true
 roon_idle_return_seconds = 300
 outside_hours_wake_seconds = 600
+daytime_inactivity_seconds = 900
 home_assistant_enabled = false
 home_assistant_url = "http://homeassistant.local:8123"
 home_assistant_entities = []

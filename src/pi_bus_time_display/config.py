@@ -29,6 +29,7 @@ class Config:
     auto_switch_to_roon: bool = True
     roon_idle_return_seconds: int = 300
     outside_hours_wake_seconds: int = 600
+    daytime_inactivity_seconds: int = 900
     home_assistant_enabled: bool = False
     home_assistant_url: str = ""
     home_assistant_entities: tuple[str, ...] = ()
@@ -66,6 +67,8 @@ def load_config(path: Path) -> Config:
         raise ValueError("roon_idle_return_seconds must be between 0 and 7200")
     if not (30 <= config.outside_hours_wake_seconds <= 7200):
         raise ValueError("outside_hours_wake_seconds must be between 30 and 7200")
+    if not (0 <= config.daytime_inactivity_seconds <= 7200):
+        raise ValueError("daytime_inactivity_seconds must be between 0 and 7200")
     if len(config.home_assistant_entities) > 8:
         raise ValueError("A maximum of eight Home Assistant entities can be shown")
     return config

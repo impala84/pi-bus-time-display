@@ -214,6 +214,7 @@ def write_config(path: Path, config: Config) -> None:
         f"auto_switch_to_roon = {str(config.auto_switch_to_roon).lower()}",
         f"roon_idle_return_seconds = {config.roon_idle_return_seconds}",
         f"outside_hours_wake_seconds = {config.outside_hours_wake_seconds}",
+        f"daytime_inactivity_seconds = {config.daytime_inactivity_seconds}",
         f"home_assistant_enabled = {str(config.home_assistant_enabled).lower()}",
         f"home_assistant_url = {json.dumps(config.home_assistant_url)}",
         "home_assistant_entities = [" + ", ".join(json.dumps(item) for item in config.home_assistant_entities) + "]",
@@ -559,6 +560,7 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                     "auto_switch_to_roon": config.auto_switch_to_roon,
                     "roon_idle_return_seconds": config.roon_idle_return_seconds,
                     "outside_hours_wake_seconds": config.outside_hours_wake_seconds,
+                    "daytime_inactivity_seconds": config.daytime_inactivity_seconds,
                     "home_assistant_enabled": config.home_assistant_enabled,
                     "home_assistant_url": config.home_assistant_url,
                     "home_assistant_entities": list(config.home_assistant_entities),
@@ -815,6 +817,7 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                     auto_switch_to_roon=bool(data.get("auto_switch_to_roon", True)),
                     roon_idle_return_seconds=int(data.get("roon_idle_return_seconds", 300)),
                     outside_hours_wake_seconds=int(data.get("outside_hours_wake_seconds", 600)),
+                    daytime_inactivity_seconds=int(data.get("daytime_inactivity_seconds", 900)),
                     home_assistant_enabled=bool(data.get("home_assistant_enabled", False)),
                     home_assistant_url=home_url,
                     home_assistant_entities=requested_home_entities,
@@ -830,6 +833,8 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                     raise ValueError("Roon return delay must be between 0 and 7200 seconds")
                 if not (30 <= candidate.outside_hours_wake_seconds <= 7200):
                     raise ValueError("Wake timeout must be between 30 and 7200 seconds")
+                if not (0 <= candidate.daytime_inactivity_seconds <= 7200):
+                    raise ValueError("Daytime inactivity timeout must be between 0 and 7200 seconds")
                 wall_time.fromisoformat(candidate.morning_start)
                 wall_time.fromisoformat(candidate.morning_end)
                 wall_time.fromisoformat(candidate.sleep_start)
