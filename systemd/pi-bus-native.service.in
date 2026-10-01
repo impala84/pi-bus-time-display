@@ -18,6 +18,7 @@ TTYVHangup=yes
 TTYVTDisallocate=yes
 Environment=GDK_BACKEND=wayland
 Environment=XDG_SESSION_TYPE=wayland
+Environment=PYTHONUNBUFFERED=1
 ExecStart=/usr/bin/cage -s -- /opt/pi-bus-time-display/scripts/pi-bus-cage-launch
 Restart=always
 RestartSec=2

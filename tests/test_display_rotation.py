@@ -22,6 +22,14 @@ class DisplayRotationTests(unittest.TestCase):
         self.assertIn("180) flags=',invx,invy'", script)
         self.assertIn("270) flags=',swapxy,invy'", script)
         self.assertIn("vc4-kms-dsi-ili9881-7inch", script)
+        self.assertIn('cmp -s "${boot_config}.tmp" "${boot_config}"', script)
+
+    def test_goodix_multitouch_contact_can_wake_the_display(self):
+        display = (ROOT / "native-display" / "pi_bus_native.py").read_text(encoding="utf-8")
+        service = (ROOT / "systemd" / "pi-bus-native.service.in").read_text(encoding="utf-8")
+        self.assertIn("event_type == 3 and code == 57", display)
+        self.assertIn("value != 0xFFFFFFFF", display)
+        self.assertIn("Environment=PYTHONUNBUFFERED=1", service)
 
     def test_wayland_uses_inverse_quarter_turn(self):
         script = (ROOT / "scripts" / "pi-bus-cage-launch").read_text(encoding="utf-8")

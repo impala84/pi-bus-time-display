@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.3 — 2 October 2026
+
+- Fixed manual-sleep wake detection for the Goodix Touch Display 2 by accepting native multitouch contact-start events as well as legacy `BTN_TOUCH` events.
+- Made native touchscreen logging unbuffered so the active low-level wake listener and each wake event are visible immediately in the service journal.
+- Stopped unchanged Touch Display 2 configuration from generating another reboot requirement during every software update.
+- Restored the web settings action bar's green keyline and made display/reboot messages temporary rather than permanently pinned.
+
 ## 0.9.2 — 2 October 2026
 
 - Replaced ineffective generic Touch Display 2 input matrices with Raspberry Pi's supported Device Tree `swapxy`/axis-inversion calibration for non-desktop rotation.

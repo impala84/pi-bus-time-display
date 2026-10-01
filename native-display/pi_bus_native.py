@@ -317,7 +317,12 @@ class Display(Gtk.Application):
                         except OSError: continue
                         for offset in range(0, len(packet) - event_struct.size + 1, event_struct.size):
                             _sec, _usec, event_type, code, value = event_struct.unpack_from(packet, offset)
-                            if event_type == 1 and code == 330 and value == 1:
+                            # Goodix panels can announce a new contact as
+                            # BTN_TOUCH or as an MT tracking id. Accept either
+                            # real contact start, but ignore coordinate motion.
+                            button_touch = event_type == 1 and code == 330 and value == 1
+                            tracking_start = event_type == 3 and code == 57 and value != 0xFFFFFFFF
+                            if button_touch or tracking_start:
                                 GLib.idle_add(self.low_level_touch_wake)
             finally:
                 for handle, _name in handles:

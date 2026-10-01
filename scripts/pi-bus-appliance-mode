@@ -102,9 +102,11 @@ configure_touch2_overlay() {
     printf 'dtoverlay=%s%s\n' "${overlay}" "${flags}"
     printf '# END PI HOME TOUCH DISPLAY\n'
   } >>"${boot_config}.tmp"
-  install -m 0755 -d "$(dirname "${reboot_marker}")"
-  cat /proc/sys/kernel/random/boot_id >"${reboot_marker}"
-  install -m 0644 "${boot_config}.tmp" "${boot_config}"
+  if ! cmp -s "${boot_config}.tmp" "${boot_config}"; then
+    install -m 0755 -d "$(dirname "${reboot_marker}")"
+    cat /proc/sys/kernel/random/boot_id >"${reboot_marker}"
+    install -m 0644 "${boot_config}.tmp" "${boot_config}"
+  fi
   rm -f "${boot_config}.tmp"
 }
 
