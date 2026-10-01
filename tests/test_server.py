@@ -16,6 +16,14 @@ class DisplayModeTests(unittest.TestCase):
             write_config(path, Config(roon_display_name="Hi-Fi"))
             self.assertEqual(load_config(path).roon_display_name, "Hi-Fi")
 
+    def test_custom_roon_view_names_persist(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "config.toml"
+            write_config(path, Config(roon_now_playing_name="Roon", roon_queue_name="Q"))
+            loaded = load_config(path)
+            self.assertEqual(loaded.roon_now_playing_name, "Roon")
+            self.assertEqual(loaded.roon_queue_name, "Q")
+
     def test_system_summary_skips_diagnostics_unless_requested(self):
         with tempfile.TemporaryDirectory() as directory, patch("pi_bus_time_display.server.command_output", return_value=""), patch("pi_bus_time_display.server.diagnostics_snapshot", return_value={"checked": True}) as diagnostics:
             self.assertNotIn("diagnostics", system_snapshot(Path(directory)))

@@ -73,7 +73,7 @@ h1 {
   top: 14px;
   left: 50%;
   display: flex;
-  gap: 16px;
+  gap: clamp(18px, 2.6vw, 38px);
   transform: translateX(-50%);
 }
 
@@ -137,7 +137,7 @@ h1 {
 .source-volume { display: grid; grid-template-columns: 96px minmax(150px,240px) 96px; align-items: center; justify-content: center; gap: clamp(20px,4vw,50px); }
 .source-volume output { font-size: clamp(88px,16vw,170px); font-weight: 620; font-variant-numeric: tabular-nums; text-align: center; }
 .source-volume button { width: 96px; height: 96px; border: 0; border-radius: 50%; color: var(--ink); background: var(--panel); font-size: 46px; }
-.source-mute { margin-top: 22px; min-width: 96px; padding: 12px 18px; border: 0; border-radius: 9px; color: var(--ink); background: var(--panel); font-weight: 800; }
+.source-mute { margin-top: 22px; min-width: 150px; min-height: 58px; padding: 12px 22px; border: 0; border-radius: 12px; color: var(--ink); background: var(--panel); font-size: 17px; font-weight: 800; }
 
 @media (max-height: 560px) and (orientation: landscape) {
   h1 {

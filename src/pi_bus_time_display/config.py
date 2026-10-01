@@ -22,6 +22,8 @@ class Config:
     roon_display_url: str = ""
     roon_zone_name: str = ""
     roon_display_name: str = "Roon"
+    roon_now_playing_name: str = "Now Playing"
+    roon_queue_name: str = "Queue"
     sleep_when_roon_idle: bool = False
     roon_show_controls: bool = True
     roon_show_clock: bool = True

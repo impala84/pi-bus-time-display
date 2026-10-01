@@ -25,6 +25,10 @@ async function post(path, data) {
 
 function render(next) {
   state = next;
+  const labels = next.labels || {};
+  $('roon-link').textContent = labels.display || 'Roon';
+  $('now-tab').textContent = (labels.now_playing || 'Now Playing').toUpperCase();
+  $('queue-tab').textContent = (labels.queue || 'Queue').toUpperCase();
   lastTick = Date.now();
   const zone = next.zone;
   const amplifier = next.amplifier || {};

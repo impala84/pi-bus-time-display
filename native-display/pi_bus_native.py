@@ -62,13 +62,17 @@ button { border: 0; box-shadow: none; background-image: none; outline: none; }
 .touch-landscape .stop-row { margin-bottom: 14px; }
 .touch-landscape .service { border-width: 2px; padding-top: 11px; padding-bottom: 11px; }
 .touch-landscape .home-tile { border-width: 2px; }
-.touch-landscape .roon-subnav button { min-height: 42px; padding: 2px 10px 4px; }
-.touch-landscape .settings-page button { padding: 14px 24px; }
-.touch-landscape .settings-page .settings-card { padding: 28px 32px; }
-.touch-landscape .settings-page .setting-line { min-height: 90px; padding: 10px 20px; }
-.touch-landscape .settings-page .brightness-setting { padding-top: 12px; padding-bottom: 12px; }
-.touch-landscape .settings-page .settings-select { padding: 10px 18px; }
-.touch-landscape .settings-page .settings-diagnostic { line-height: 1.45; }
+.touch-landscape .bus-page { padding-top: 10px; }.touch-landscape .bus-footer .muted { color: #68736f; }.touch-landscape .service-no { opacity: .82; }
+.touch-landscape .home-name { font-size: 20px; }.touch-landscape .home-state { font-size: 15px; }
+.touch-landscape .roon-subnav button { min-height: 42px; padding: 2px 14px 4px; }
+.touch-landscape .source-volume { font-size: 190px; }.touch-landscape .source-step { min-width: 112px; min-height: 112px; border-radius: 56px; font-size: 58px; }.touch-landscape .source-mute { min-width: 160px; min-height: 62px; font-size: 20px; }
+.touch-landscape .settings-page { padding-top: 10px; padding-bottom: 8px; }.touch-landscape .settings-page button { padding: 8px 20px; }
+.touch-landscape .settings-page .settings-card { padding: 16px 24px; }
+.touch-landscape .settings-page .setting-line { min-height: 72px; padding: 5px 18px; }
+.touch-landscape .settings-page .brightness-setting { padding-top: 6px; padding-bottom: 6px; }
+.touch-landscape .settings-page .settings-select { min-height: 62px; padding: 5px 18px; }
+.touch-landscape .settings-page .settings-diagnostic { line-height: 1.25; }
+.touch-landscape .settings-page .settings-action { min-height: 62px; }
 """
 
 
@@ -219,18 +223,18 @@ class Display(Gtk.Application):
         return page
 
     def build_bus(self):
-        page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=7); page.add_css_class("page")
+        page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=7); page.add_css_class("page"); page.add_css_class("bus-page")
         self.bus_clock = self.label("--:--", "clock", 1); page.append(self.header(self.label("PI HOME", "eyebrow"), self.bus_clock))
         stop_row = Gtk.Box(spacing=8); stop_row.add_css_class("stop-row"); stop_row.set_halign(Gtk.Align.CENTER); self.stop = self.label("Connecting…", "stop"); self.stop_code = self.label("", "stop-code"); stop_row.append(self.stop); stop_row.append(self.stop_code); page.append(stop_row)
         self.services = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14); self.services.set_vexpand(True); page.append(self.services)
-        footer = Gtk.Box(); self.bus_status = self.label("Starting", "muted"); self.updated = self.label("", "muted", 1); self.updated.set_hexpand(True); footer.append(self.bus_status); footer.append(self.updated); page.append(footer)
+        footer = Gtk.Box(); footer.add_css_class("bus-footer"); self.bus_status = self.label("Starting", "muted"); self.updated = self.label("", "muted", 1); self.updated.set_hexpand(True); footer.append(self.bus_status); footer.append(self.updated); page.append(footer)
         page.append(self.navigation("bus")); return page
 
     def build_roon(self):
         page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8); page.add_css_class("page")
         self.zone = self.label("ROON NOW PLAYING", "eyebrow"); self.roon_clock = self.label("--:--", "clock", 1)
         header_overlay = Gtk.Overlay(); header_overlay.set_child(self.header(self.zone, self.roon_clock))
-        subnav = Gtk.Box(spacing=3); subnav.add_css_class("roon-subnav"); subnav.set_halign(Gtk.Align.CENTER); subnav.set_valign(Gtk.Align.START); self.roon_subnav = subnav
+        subnav = Gtk.Box(spacing=12); subnav.add_css_class("roon-subnav"); subnav.set_halign(Gtk.Align.CENTER); subnav.set_valign(Gtk.Align.START); self.roon_subnav = subnav
         self.now_playing_tab = self.button("NOW PLAYING", self.show_roon_now, ""); self.now_playing_tab.add_css_class("active")
         self.queue_tab = self.button("QUEUE", lambda *_: self.set_roon_view("queue"), ""); subnav.append(self.now_playing_tab); subnav.append(self.queue_tab)
         header_overlay.add_overlay(subnav); page.append(header_overlay)
@@ -387,6 +391,8 @@ class Display(Gtk.Application):
         if config is not None:
             self.settings_data = config
             for button in self.roon_nav_buttons: button.set_label(config.get("roon_display_name") or "Roon")
+            self.now_playing_tab.set_label((config.get("roon_now_playing_name") or "Now Playing").upper())
+            self.queue_tab.set_label((config.get("roon_queue_name") or "Queue").upper())
             self.controls.set_visible(config.get("roon_show_controls", True)); self.roon_clock.set_visible(config.get("roon_show_clock", True))
             self.roon_subnav.set_visible(True); self.queue_tab.set_visible(config.get("roon_show_queue", True))
             if not config.get("roon_show_queue", True) and self.roon_views.get_visible_child_name() == "queue": self.set_roon_view("now")

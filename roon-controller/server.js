@@ -37,13 +37,16 @@ let runtimeConfigExpires = 0;
 function configuredRuntime() {
   const now = Date.now();
   if (runtimeConfig && now < runtimeConfigExpires) return runtimeConfig;
-  const defaults = {zoneName: process.env.ROON_ZONE_NAME || '', queueEnabled: true, bluos: {enabled: false, address: '', visibleInputs: [], inputNames: []}};
+  const defaults = {zoneName: process.env.ROON_ZONE_NAME || '', displayName: 'Roon', nowPlayingName: 'Now Playing', queueName: 'Queue', queueEnabled: true, bluos: {enabled: false, address: '', visibleInputs: [], inputNames: []}};
   try {
     const text = fs.readFileSync(process.env.CONFIG_PATH || '/etc/pi-bus-time-display/config.toml', 'utf8');
     const stringValue = name => JSON.parse(text.match(new RegExp(`^${name}\\s*=\\s*("(?:[^"\\\\]|\\\\.)*")`, 'm'))?.[1] || '""');
     const arrayValue = name => JSON.parse(text.match(new RegExp(`^${name}\\s*=\\s*(\\[[^\\n]*\\])`, 'm'))?.[1] || '[]');
     runtimeConfig = {
       zoneName: process.env.ROON_ZONE_NAME || stringValue('roon_zone_name'),
+      displayName: stringValue('roon_display_name') || 'Roon',
+      nowPlayingName: stringValue('roon_now_playing_name') || 'Now Playing',
+      queueName: stringValue('roon_queue_name') || 'Queue',
       queueEnabled: text.match(/^roon_show_queue\s*=\s*(true|false)/m)?.[1] !== 'false',
       bluos: {
         enabled: text.match(/^bluos_enabled\s*=\s*(true|false)/m)?.[1] === 'true',
@@ -93,8 +96,10 @@ function resumeRoon(zone) {
 
 function publicState() {
   bluos.refreshConfig().catch(() => {});
+  const configured = configuredRuntime();
   const zone = selectedZone();
-  if (!zone) return {connected: Boolean(core), authorised: Boolean(core), zones: [], zone: null, queue: {status: 'unavailable', items: []}, details: {status: 'unavailable'}, amplifier: publicAmplifierState()};
+  const labels = {display: configured.displayName, now_playing: configured.nowPlayingName, queue: configured.queueName};
+  if (!zone) return {connected: Boolean(core), authorised: Boolean(core), zones: [], zone: null, labels, queue: {status: 'unavailable', items: []}, details: {status: 'unavailable'}, amplifier: publicAmplifierState()};
   const output = (zone.outputs || []).find(item => item.volume) || (zone.outputs || [])[0] || null;
   return {
     connected: true,
@@ -109,7 +114,7 @@ function publicState() {
       can_seek: Boolean(zone.is_seek_allowed), output: output ? {id: output.output_id, volume: output.volume || null} : null
     },
     queue: {status: !configuredQueueEnabled() ? 'disabled' : (queueZoneId === zone.zone_id ? 'ready' : 'loading'), items: queueZoneId === zone.zone_id ? publicQueueItems(queueItems, queueHistory) : []},
-    details, amplifier: publicAmplifierState()
+    labels, details, amplifier: publicAmplifierState()
   };
 }
 
@@ -203,7 +208,7 @@ function cachedImage(key, size, callback) {
 const roon = new RoonApi({
   extension_id: 'com.impala84.pi-bus-time-display',
   display_name: 'Pi Home Roon Controller',
-  display_version: '0.9.4',
+  display_version: '0.9.5',
   publisher: 'Pi Home',
   email: 'noreply@example.invalid',
   website: 'https://github.com/impala84/pi-home',

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.5 — 2 October 2026
+
+- Added separate editable names for the Roon Now Playing and Queue selectors, shared by the touchscreen and web player.
+- Enlarged the external-input volume, circular step controls and mute target, while adding more space between source selectors.
+- Rebalanced Touchscreen Settings spacing to keep its bottom actions fully visible within the 1280×720 display.
+- Moved Bus Times content upward, softened secondary bus/footer text and enlarged Home tile labels for better distance legibility.
+
 ## 0.9.4 — 2 October 2026
 
 - Fixed NAD/BlueOS source switching by preventing already encoded Capture URLs from being encoded a second time before the M33 `/Play` request.
