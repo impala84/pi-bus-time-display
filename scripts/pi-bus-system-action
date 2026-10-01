@@ -140,8 +140,7 @@ def execute(data: dict) -> None:
         if profile not in {"original", "touch2-5-7", "touch2-10"} or transform not in {"normal", "90", "180", "270"}:
             raise ValueError("Invalid display configuration")
         run(["/usr/local/sbin/pi-bus-appliance-mode", "display", profile, transform])
-        report("Display settings updated. Rebooting…")
-        run(["systemctl", "reboot"])
+        report("Display settings updated.")
     elif action in {"roon_start", "roon_stop", "roon_restart"}:
         service = roon_service()
         verb = action.removeprefix("roon_")

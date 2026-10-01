@@ -57,7 +57,7 @@ After the initial installation, update the appliance with one command:
 sudo pi-bus-update
 ```
 
-The updater follows the supported `main` branch, preserves any local checkout differences in a recoverable Git stash, reinstalls the application, reapplies saved display/input orientation, refreshes and verifies its services, then restarts the native touchscreen without rebooting the Pi. Display profile or orientation changes still reboot because they alter the boot/display stack. Updates can be started from the protected web System section or the restricted touchscreen Settings screen. Your settings and secrets remain untouched in `/etc/pi-bus-time-display/`. Both interfaces show live installation stages while an update is running. Releases use semantic versions, shown in Settings and recorded in [CHANGELOG.md](CHANGELOG.md). The current release is **v0.8.4**.
+The updater follows the supported `main` branch, preserves any local checkout differences in a recoverable Git stash, reinstalls the application, reapplies saved display/input orientation, refreshes and verifies its services, then restarts the native touchscreen without rebooting the Pi. Display profile and orientation changes restart only the touchscreen application; reboot once after changing orientation if the boot console must change too. Updates can be started from the protected web System section or the restricted touchscreen Settings screen. Your settings and secrets remain untouched in `/etc/pi-bus-time-display/`. Both interfaces show live installation stages while an update is running. Releases use semantic versions, shown in Settings and recorded in [CHANGELOG.md](CHANGELOG.md). The current release is **v0.8.5**.
 
 Display brightness is shared between touchscreen Settings and web Settings → System. It is applied through Linux's hardware backlight interface, persisted across reboots and limited to 10–100% so the panel cannot accidentally become unusable. The System page also reports the real `netdata.service` state when Netdata is installed and can enable/start or disable/stop that single service through Pi Home's existing fixed-action privileged broker; no general sudo access is granted. The same page can turn the Raspberry Pi ACT/PWR status lights on or off; they default to off, persist across reboots, and are reapplied by a one-shot boot service rather than a resident process.
 
@@ -79,7 +79,7 @@ sudo reboot
 
 Check the current mode with `sudo pi-bus-appliance-mode status`.
 
-Display orientation can be changed remotely under **System → Display**. The original Touch Display retains its kernel rotation path. Touch Display 2 is natively portrait, so Pi Home rotates its actual Cage/Wayland application output and maps touch to that same DSI output; selecting 90° or 270° therefore produces a real landscape workspace instead of merely flipping between portrait directions. The native display hides its pointer without disabling input devices. Reboot after changing the display profile or orientation.
+Display orientation can be changed remotely under **System → Display**. The original Touch Display retains its kernel rotation path. Touch Display 2 is natively portrait, so Pi Home rotates its actual Cage/Wayland application output and applies the corresponding touchscreen calibration; selecting 90° or 270° therefore produces a landscape workspace with matching touch coordinates. The same setting rotates the boot console after the next reboot. The native display hides its pointer without disabling input devices.
 
 ### Official touchscreen
 

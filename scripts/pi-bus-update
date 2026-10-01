@@ -61,7 +61,7 @@ install -m 0755 "${app_dir}/scripts/pi-bus-appliance-mode" /usr/local/sbin/pi-bu
 
 if systemctl is-enabled --quiet pi-bus-native.service && [[ -f /etc/pi-bus-time-display/display-transform ]]; then
   progress "Applying the saved display configuration…"
-  /usr/local/sbin/pi-bus-appliance-mode rotate "$(</etc/pi-bus-time-display/display-transform)"
+  PI_HOME_NO_RESTART=1 /usr/local/sbin/pi-bus-appliance-mode rotate "$(</etc/pi-bus-time-display/display-transform)"
 fi
 chmod 0755 "${app_dir}/native-display/pi_bus_native.py"
 chmod 0755 "${app_dir}/scripts/pi-bus-cage-launch"

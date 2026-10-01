@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.8.5 — 1 October 2026
+
+- Fixed Touch Display 2 touch coordinates after landscape rotation by applying the matching libinput calibration as well as binding touch to the DSI output.
+- Corrected the opposing clockwise conventions used by Raspberry Pi settings and Wayland output transforms.
+- Restored boot-console rotation so the new display is landscape from the beginning of startup.
+- Scaled the native touchscreen typography, controls, artwork and Home icons for the denser 720p 7-inch panel.
+- Stopped display changes and updates from causing multiple mid-install restarts; a display change now restarts only the touchscreen application.
+
 ## 0.8.4 — 1 October 2026
 
 - Fixed Touch Display 2 rotation at the Cage/Wayland output layer, where the GTK application is actually rendered, instead of relying on kernel console rotation.

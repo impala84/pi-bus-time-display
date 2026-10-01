@@ -10,6 +10,12 @@ profile_file=/etc/pi-bus-time-display/display-profile
 # established kernel path to avoid reintroducing its historic double rotation.
 if [[ -x /usr/bin/wlr-randr && -f ${profile_file} && -f ${transform_file} ]] && [[ $(<"${profile_file}") == touch2-* ]]; then
   transform=$(<"${transform_file}")
+  # Pi Home describes rotation clockwise, as the Raspberry Pi kernel does.
+  # Wayland output transforms are counter-clockwise, so invert quarter turns.
+  case ${transform} in
+    90) transform=270 ;;
+    270) transform=90 ;;
+  esac
   for _attempt in {1..30}; do
     output=$(/usr/bin/wlr-randr 2>/dev/null | awk '/^DSI-/ {print $1; exit}')
     if [[ -n ${output} ]] && /usr/bin/wlr-randr --output "${output}" --transform "${transform}"; then
