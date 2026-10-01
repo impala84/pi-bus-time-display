@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8.4 — 1 October 2026
+
+- Fixed Touch Display 2 rotation at the Cage/Wayland output layer, where the GTK application is actually rendered, instead of relying on kernel console rotation.
+- Kept the original Touch Display on its established kernel rotation path to avoid reintroducing double rotation.
+- Mapped Touch Display 2 input to the transformed DSI output so landscape picture and touch coordinates remain aligned.
+- Added the lightweight `wlr-randr` output-management client to installation and update dependencies.
+
 ## 0.8.3 — 1 October 2026
 
 - Replaced the lossy single-file privileged action handoff with an ordered atomic queue, preventing rapid sleep/wake, brightness or service requests from overwriting one another.

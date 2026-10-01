@@ -32,21 +32,33 @@ set_boot_rotation() {
   local mode=800x480
   [[ ${profile} == touch2-5-7 ]] && mode=720x1280
   [[ ${profile} == touch2-10 ]] && mode=1200x1920
-  printf '%s video=DSI-1:%s@60,rotate=%s\n' "${current}" "${mode}" "${transform/normal/0}" >"${cmdline}.tmp"
+  local boot_transform=${transform/normal/0}
+  # Touch Display 2's application output is rotated by Cage/wlr-randr. Keep
+  # the console neutral so no kernel version can apply the same transform a
+  # second time to the DRM output.
+  [[ ${profile} == touch2-* ]] && boot_transform=0
+  printf '%s video=DSI-1:%s@60,rotate=%s\n' "${current}" "${mode}" "${boot_transform}" >"${cmdline}.tmp"
   install -m 0644 "${cmdline}.tmp" "${cmdline}"
   rm -f "${cmdline}.tmp"
 }
 
 configure_input() {
   local transform=$1
+  local profile=${2:-original}
   {
     echo 'ACTION=="remove", GOTO="pi_bus_input_end"'
-    case ${transform} in
-      90) echo 'ENV{ID_INPUT_TOUCHSCREEN}=="1", ENV{LIBINPUT_CALIBRATION_MATRIX}="0 -1 1 1 0 0"' ;;
-      180) echo 'ENV{ID_INPUT_TOUCHSCREEN}=="1", ENV{LIBINPUT_CALIBRATION_MATRIX}="-1 0 1 0 -1 1"' ;;
-      270) echo 'ENV{ID_INPUT_TOUCHSCREEN}=="1", ENV{LIBINPUT_CALIBRATION_MATRIX}="0 1 0 -1 0 1"' ;;
-      *) echo 'ENV{ID_INPUT_TOUCHSCREEN}=="1", ENV{LIBINPUT_CALIBRATION_MATRIX}="1 0 0 0 1 0"' ;;
-    esac
+    if [[ ${profile} == touch2-* ]]; then
+      # Mapping the device lets wlroots apply the output transform to touch as
+      # well as pixels; an additional calibration matrix would rotate twice.
+      echo 'ENV{ID_INPUT_TOUCHSCREEN}=="1", ENV{WL_OUTPUT}="DSI-1", ENV{LIBINPUT_CALIBRATION_MATRIX}="1 0 0 0 1 0"'
+    else
+      case ${transform} in
+        90) echo 'ENV{ID_INPUT_TOUCHSCREEN}=="1", ENV{LIBINPUT_CALIBRATION_MATRIX}="0 -1 1 1 0 0"' ;;
+        180) echo 'ENV{ID_INPUT_TOUCHSCREEN}=="1", ENV{LIBINPUT_CALIBRATION_MATRIX}="-1 0 1 0 -1 1"' ;;
+        270) echo 'ENV{ID_INPUT_TOUCHSCREEN}=="1", ENV{LIBINPUT_CALIBRATION_MATRIX}="0 1 0 -1 0 1"' ;;
+        *) echo 'ENV{ID_INPUT_TOUCHSCREEN}=="1", ENV{LIBINPUT_CALIBRATION_MATRIX}="1 0 0 0 1 0"' ;;
+      esac
+    fi
     echo 'LABEL="pi_bus_input_end"'
   } >"${input_rules}.tmp"
   install -m 0644 "${input_rules}.tmp" "${input_rules}"
@@ -71,13 +83,13 @@ case ${1:-} in
       exit 1
     fi
     apt-get update
-    apt-get install -y cage
+    apt-get install -y cage wlr-randr
     install -d -m 0755 /etc/pi-bus-time-display
     printf '%s\n' "${display_user}" >"${user_file}"
     [[ -f ${transform_file} ]] || printf '180\n' >"${transform_file}"
     [[ -f ${profile_file} ]] || printf 'original\n' >"${profile_file}"
     set_boot_rotation "$(<"${transform_file}")" "$(<"${profile_file}")"
-    configure_input "$(<"${transform_file}")"
+    configure_input "$(<"${transform_file}")" "$(<"${profile_file}")"
     install_service "${display_user}"
     systemctl enable pi-bus-native.service
     systemctl disable display-manager.service >/dev/null 2>&1 || true
@@ -99,7 +111,7 @@ case ${1:-} in
     printf '%s\n' "${transform}" >"${transform_file}"
     [[ -f ${profile_file} ]] || printf 'original\n' >"${profile_file}"
     set_boot_rotation "${transform}" "$(<"${profile_file}")"
-    configure_input "${transform}"
+    configure_input "${transform}" "$(<"${profile_file}")"
     display_user=$(<"${user_file}")
     install_service "${display_user}"
     systemctl restart pi-bus-native.service
@@ -119,7 +131,7 @@ case ${1:-} in
     printf '%s\n' "${profile}" >"${profile_file}"
     printf '%s\n' "${transform}" >"${transform_file}"
     set_boot_rotation "${transform}" "${profile}"
-    configure_input "${transform}"
+    configure_input "${transform}" "${profile}"
     echo "Display profile set to ${profile}, rotation ${transform}. Reboot to apply it."
     ;;
   status)

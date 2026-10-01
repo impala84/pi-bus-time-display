@@ -43,7 +43,7 @@ fi
 
 progress "Refreshing system components…"
 apt-get update
-apt-get install -y python3-gi gir1.2-gtk-4.0 fonts-inter avahi-utils
+apt-get install -y python3-gi gir1.2-gtk-4.0 fonts-inter avahi-utils wlr-randr
 install -d -o morningbus -g morningbus /var/lib/pi-bus-time-display/roon
 
 progress "Installing Pi Home application files…"

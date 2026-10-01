@@ -1,4 +1,22 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+transform_file=/etc/pi-bus-time-display/display-transform
+profile_file=/etc/pi-bus-time-display/display-profile
+
+# Touch Display 2 is natively portrait. The kernel video rotation only affects
+# the console; Cage owns the DRM output used by GTK and must transform it via
+# the Wayland output-management protocol. Keep the original display on its
+# established kernel path to avoid reintroducing its historic double rotation.
+if [[ -x /usr/bin/wlr-randr && -f ${profile_file} && -f ${transform_file} ]] && [[ $(<"${profile_file}") == touch2-* ]]; then
+  transform=$(<"${transform_file}")
+  for _attempt in {1..30}; do
+    output=$(/usr/bin/wlr-randr 2>/dev/null | awk '/^DSI-/ {print $1; exit}')
+    if [[ -n ${output} ]] && /usr/bin/wlr-randr --output "${output}" --transform "${transform}"; then
+      break
+    fi
+    sleep 0.1
+  done
+fi
+
 exec /opt/pi-bus-time-display/native-display/pi_bus_native.py
