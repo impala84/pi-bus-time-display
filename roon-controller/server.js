@@ -54,13 +54,16 @@ function configuredBluOS() {
     const enabled = text.match(/^bluos_enabled\s*=\s*(true|false)/m)?.[1] === 'true';
     const address = JSON.parse(text.match(/^bluos_player_address\s*=\s*("(?:[^"\\]|\\.)*")/m)?.[1] || '""');
     const visibleInputs = JSON.parse(text.match(/^bluos_visible_inputs\s*=\s*(\[[^\n]*\])/m)?.[1] || '[]');
-    return {enabled, address, visibleInputs};
-  } catch (_) { return {enabled: false, address: '', visibleInputs: []}; }
+    const inputNames = JSON.parse(text.match(/^bluos_input_names\s*=\s*(\[[^\n]*\])/m)?.[1] || '[]');
+    return {enabled, address, visibleInputs, inputNames};
+  } catch (_) { return {enabled: false, address: '', visibleInputs: [], inputNames: []}; }
 }
 
 function publicAmplifierState() {
-  const state = bluos.publicState(); const visible = new Set(configuredBluOS().visibleInputs || []);
-  return {...state, inputs: visible.size ? state.inputs.filter(input => visible.has(String(input.id))) : state.inputs};
+  const state = bluos.publicState(); const config = configuredBluOS(); const visible = new Set(config.visibleInputs || []);
+  const aliases = new Map((config.inputNames || []).map(item => { const split = String(item).indexOf('='); return split < 0 ? [item, ''] : [item.slice(0, split), item.slice(split + 1)]; }));
+  const named = input => input ? {...input, name: aliases.get(String(input.id)) || input.name} : null;
+  return {...state, inputs: (visible.size ? state.inputs.filter(input => visible.has(String(input.id))) : state.inputs).map(named), active_input: named(state.active_input)};
 }
 
 function selectedZone() {
@@ -68,6 +71,14 @@ function selectedZone() {
   const all = [...zones.values()];
   return all.find(zone => zone.display_name === requested) ||
     all.find(zone => zone.state === 'playing') || all[0] || null;
+}
+
+function resumeRoon(zone) {
+  const play = () => transport.control(zone, 'play', () => {});
+  // BluOS can leave Roon reporting "playing" after a physical input takes over.
+  // A deliberate pause/play edge makes the endpoint reclaim the audio source.
+  if (zone.state === 'playing') transport.control(zone, 'pause', () => setTimeout(play, 160));
+  else play();
 }
 
 function publicState() {
@@ -182,7 +193,7 @@ function cachedImage(key, size, callback) {
 const roon = new RoonApi({
   extension_id: 'com.impala84.pi-bus-time-display',
   display_name: 'Pi Home Roon Controller',
-  display_version: '0.8.0',
+  display_version: '0.8.1',
   publisher: 'Pi Home',
   email: 'noreply@example.invalid',
   website: 'https://github.com/impala84/pi-home',
@@ -258,7 +269,7 @@ http.createServer(async (request, response) => {
       if (url.pathname === '/api/bluos/input') {
         if (data.input_id === 'roon') {
           if (!transport || !zone) return json(response, 409, {error: 'Roon is not connected'});
-          transport.control(zone, 'play'); return json(response, 200, {ok: true});
+          resumeRoon(zone); return json(response, 200, {ok: true});
         }
         await bluos.selectInput(data.input_id); return json(response, 200, {ok: true});
       }

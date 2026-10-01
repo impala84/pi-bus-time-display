@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.8.1 — 1 October 2026
+
+- Replaced the BluOS source dropdown with enabled inputs beside Now Playing and Queue.
+- Added optional Pi Home display names for amplifier inputs.
+- Fixed returning from a physical input to Roon by forcing a clean playback transition when BluOS left Roon reporting an already-playing state.
+- Added a dedicated physical-input display with a large live volume number, large minus/plus controls and a compact mute button.
+- Fixed manual touchscreen sleep becoming permanently unwakeable when its delayed wake-arm callback did not complete; fresh touches are now accepted using a deterministic gesture-tail guard.
+
 ## 0.8.0 — 1 October 2026
 
 - Added lightweight NAD/BluOS amplifier discovery and configuration.

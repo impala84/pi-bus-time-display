@@ -18,6 +18,7 @@ roon_show_queue = true
 bluos_enabled = false
 bluos_player_address = ""
 bluos_visible_inputs = []
+bluos_input_names = []
 sleep_show_clock = false
 auto_switch_to_roon = true
 roon_idle_return_seconds = 300

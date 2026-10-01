@@ -28,6 +28,7 @@ class Config:
     bluos_enabled: bool = False
     bluos_player_address: str = ""
     bluos_visible_inputs: tuple[str, ...] = ()
+    bluos_input_names: tuple[str, ...] = ()
     sleep_show_clock: bool = False
     auto_switch_to_roon: bool = True
     roon_idle_return_seconds: int = 300
@@ -63,6 +64,8 @@ def load_config(path: Path) -> Config:
         data["home_assistant_entities"] = tuple(str(item) for item in data["home_assistant_entities"])
     if "bluos_visible_inputs" in data:
         data["bluos_visible_inputs"] = tuple(str(item) for item in data["bluos_visible_inputs"])
+    if "bluos_input_names" in data:
+        data["bluos_input_names"] = tuple(str(item) for item in data["bluos_input_names"])
     config = Config(**data)
     if not (5 <= config.poll_seconds <= 300):
         raise ValueError("poll_seconds must be between 5 and 300")

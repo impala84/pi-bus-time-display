@@ -40,7 +40,7 @@ button { border: 0; box-shadow: none; background-image: none; outline: none; }
 .nav button.active { border-bottom-color: #6ed9ae; background: transparent; color: #dfe4e1; }.artwork { border-radius: 12px; }.roon-title { font-size: 35px; font-weight: 620; }.roon-artist { color: #b6c0bc; font-size: 18px; }
 .artwork-button { padding: 0; border-radius: 12px; background: transparent; }.detail-takeover { padding: 18px; background: rgba(6, 10, 9, .96); }.detail-panel { padding: 0; }.detail-artwork { border-radius: 12px; }.detail-title { font-size: 31px; font-weight: 650; }.detail-artist { color: #b6c0bc; font-size: 20px; }.detail-subtitle { color: #84908c; font-size: 13px; }.detail-back { min-width: 72px; min-height: 38px; border-radius: 8px; background: #18211f; color: #dfe4e1; font-weight: 750; }.detail-tracks { padding-top: 5px; }.detail-track { min-height: 30px; padding: 3px 6px; border-top: 1px solid #26312e; }.detail-track-no { color: #78837f; font-size: 11px; }.detail-track-title { color: #f4f0e6; font-size: 13px; }
 .roon-subnav { margin-top: 0; }.roon-subnav button { min-height: 29px; padding: 4px 13px 2px; border-radius: 0; border-top: 3px solid transparent; background: transparent; color: #68736f; font-size: 10px; font-weight: 750; letter-spacing: 1px; }.roon-subnav button.active { border-top-color: #5bcbd6; color: #f4f0e6; }
-.input-picker { min-width: 220px; min-height: 30px; border-radius: 7px; background: #121b19; color: #dfe4e1; font-size: 11px; }
+.source-view { padding: 8px; }.source-title { font-size: 25px; font-weight: 700; }.source-volume { font-size: 104px; font-weight: 620; font-variant-numeric: tabular-nums; }.source-step { min-width: 92px; min-height: 92px; border-radius: 46px; background: #18211f; color: #f4f0e6; font-size: 45px; }.source-mute { min-width: 92px; min-height: 38px; border-radius: 8px; background: #18211f; color: #dfe4e1; font-size: 11px; font-weight: 750; }
 .queue-scroll { background: transparent; }.queue-scroll scrollbar { opacity: 0; min-width: 0; min-height: 0; }.queue-list { padding: 5px 8px 8px; }.queue-row { min-height: 66px; padding: 5px 9px; border-radius: 8px; background: transparent; color: #f4f0e6; }.queue-row:hover, .queue-row:active { background: #18211f; }.queue-row.current { background: #121e1c; border-left: 3px solid #5bcbd6; }.queue-row.previous { opacity: .5; }.queue-art { min-width: 56px; min-height: 56px; border-radius: 5px; background: #18211f; }.queue-title { color: #f4f0e6; font-size: 16px; font-weight: 650; }.queue-meta { color: #84908c; font-size: 12px; }.queue-duration { color: #84908c; font-size: 12px; font-variant-numeric: tabular-nums; }.queue-empty { color: #78837f; font-size: 15px; padding: 60px 0; }
 .transport button { min-width: 50px; min-height: 50px; border-radius: 25px; padding: 0; background: #18211f; color: #e4e7e4; }.transport .play { min-width: 68px; min-height: 68px; border-radius: 34px; background: #285f4d; }
 .progress trough, .volume trough { min-height: 7px; border: 0; box-shadow: none; border-radius: 4px; background: #303a37; }.progress highlight, .volume highlight { border: 0; box-shadow: none; background: #6ed9ae; }.time { color: #87928e; font-size: 12px; }
@@ -120,12 +120,10 @@ class Display(Gtk.Application):
         self.queue_artwork_keys = []
         self.last_interaction = time.monotonic()
         self.inactivity_sleeping = False
-        self.sleep_wake_armed = False
-        self.sleep_wake_generation = 0
+        self.sleep_entered_at = 0.0
         self.detail_image_key = None
         self.detail_signature = None
-        self.bluos_input_ids = []
-        self.bluos_inputs_updating = False
+        self.bluos_source_buttons = {}
 
     def label(self, text="", css=None, x=0):
         widget = Gtk.Label(label=text, xalign=x)
@@ -206,13 +204,9 @@ class Display(Gtk.Application):
         self.zone = self.label("ROON NOW PLAYING", "eyebrow"); self.roon_clock = self.label("--:--", "clock", 1)
         header_overlay = Gtk.Overlay(); header_overlay.set_child(self.header(self.zone, self.roon_clock))
         subnav = Gtk.Box(spacing=3); subnav.add_css_class("roon-subnav"); subnav.set_halign(Gtk.Align.CENTER); subnav.set_valign(Gtk.Align.START); self.roon_subnav = subnav
-        self.now_playing_tab = self.button("NOW PLAYING", lambda *_: self.set_roon_view("now"), ""); self.now_playing_tab.add_css_class("active")
+        self.now_playing_tab = self.button("NOW PLAYING", self.show_roon_now, ""); self.now_playing_tab.add_css_class("active")
         self.queue_tab = self.button("QUEUE", lambda *_: self.set_roon_view("queue"), ""); subnav.append(self.now_playing_tab); subnav.append(self.queue_tab)
         header_overlay.add_overlay(subnav); page.append(header_overlay)
-        self.bluos_input_model = Gtk.StringList()
-        self.bluos_input_picker = Gtk.DropDown(model=self.bluos_input_model)
-        self.bluos_input_picker.add_css_class("input-picker"); self.bluos_input_picker.set_halign(Gtk.Align.CENTER); self.bluos_input_picker.set_visible(False)
-        self.bluos_input_picker.connect("notify::selected", self.select_bluos_input); page.append(self.bluos_input_picker)
         self.roon_views = Gtk.Stack(transition_type=Gtk.StackTransitionType.NONE, transition_duration=0); self.roon_views.set_vexpand(True)
         self.roon_views.set_hhomogeneous(False); self.roon_views.set_vhomogeneous(False)
         content = Gtk.Box(spacing=26); content.set_vexpand(True); content.set_margin_start(8); content.set_margin_end(8); content.set_margin_top(8); content.set_margin_bottom(8)
@@ -230,6 +224,11 @@ class Display(Gtk.Application):
         self.controls.append(self.prev); self.controls.append(self.play); self.controls.append(self.next); centre.append(self.controls)
         volume_row = Gtk.Box(spacing=10); self.mute = self.button("MUTE", self.toggle_audio_mute, "utility"); self.mute.set_size_request(62, 38); volume_row.append(self.mute); self.volume = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 0, 100, 1); self.volume.add_css_class("volume"); self.volume.set_hexpand(True); self.volume.set_draw_value(False); self.volume.connect("value-changed", self.change_volume); volume_row.append(self.volume); self.volume_value = self.label("—", "time", 1); volume_row.append(self.volume_value); centre.append(volume_row)
         content.append(centre); self.roon_views.add_named(content, "now")
+        source = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12); source.add_css_class("source-view"); source.set_halign(Gtk.Align.CENTER); source.set_valign(Gtk.Align.CENTER); source.set_hexpand(True); source.set_vexpand(True)
+        self.source_title = self.label("EXTERNAL INPUT", "source-title", .5); source.append(self.source_title)
+        source_volume = Gtk.Box(spacing=28); source_volume.set_halign(Gtk.Align.CENTER); source_volume.set_valign(Gtk.Align.CENTER)
+        source_volume.append(self.button("−", lambda *_: self.step_bluos_volume(-2), "source-step")); self.source_volume = self.label("—", "source-volume", .5); self.source_volume.set_size_request(190, -1); source_volume.append(self.source_volume); source_volume.append(self.button("+", lambda *_: self.step_bluos_volume(2), "source-step")); source.append(source_volume)
+        self.source_mute = self.button("MUTE", self.toggle_audio_mute, "source-mute"); self.source_mute.set_halign(Gtk.Align.CENTER); source.append(self.source_mute); self.roon_views.add_named(source, "source")
         self.queue_list = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2); self.queue_list.add_css_class("queue-list")
         queue_scroll = Gtk.ScrolledWindow(); queue_scroll.add_css_class("queue-scroll"); queue_scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC); queue_scroll.set_kinetic_scrolling(True); queue_scroll.set_overlay_scrolling(True); queue_scroll.set_propagate_natural_height(False); queue_scroll.set_propagate_natural_width(False); queue_scroll.set_min_content_height(1); queue_scroll.set_size_request(-1, 1); queue_scroll.set_vexpand(True); queue_scroll.set_hexpand(True); queue_scroll.set_child(self.queue_list); self.queue_scroll = queue_scroll
         queue_scroll.get_vadjustment().connect("value-changed", self.load_visible_queue_artwork)
@@ -311,7 +310,7 @@ class Display(Gtk.Application):
         if config is not None:
             self.settings_data = config
             self.controls.set_visible(config.get("roon_show_controls", True)); self.roon_clock.set_visible(config.get("roon_show_clock", True))
-            self.roon_subnav.set_visible(config.get("roon_show_queue", True))
+            self.roon_subnav.set_visible(True); self.queue_tab.set_visible(config.get("roon_show_queue", True))
             if not config.get("roon_show_queue", True) and self.roon_views.get_visible_child_name() == "queue": self.set_roon_view("now")
             show_sleep_clock = config.get("sleep_show_clock", False); self.sleep_clock.set_visible(show_sleep_clock); self.sleep_hint.set_visible(show_sleep_clock)
             for button in self.home_nav_buttons: button.set_visible(bool(config.get("home_assistant_enabled") and config.get("home_assistant_entities")))
@@ -471,15 +470,13 @@ class Display(Gtk.Application):
         amplifier = (data or {}).get("amplifier") or {}; active_input = amplifier.get("active_input")
         self.render_bluos_inputs(amplifier, bool(zone))
         external = bool(amplifier.get("connected") and active_input)
-        self.artwork_button.set_visible(not external); self.controls.set_visible(not external and self.settings_data.get("roon_show_controls", True)); self.progress.set_visible(not external); self.roon_times.set_visible(not external); self.roon_subnav.set_sensitive(not external)
+        self.artwork_button.set_visible(not external); self.controls.set_visible(not external and self.settings_data.get("roon_show_controls", True)); self.progress.set_visible(not external); self.roon_times.set_visible(not external); self.roon_subnav.set_sensitive(True); self.queue_tab.set_sensitive(not external)
         if external:
             player = amplifier.get("player") or {}; volume = amplifier.get("volume") or {}; value = volume.get("value")
-            self.zone.set_text(player.get("name") or player.get("model") or "BLUOS")
-            self.title.set_text(active_input.get("name") or "External input")
-            self.artist.set_text(" · ".join(filter(None, (player.get("model"), (amplifier.get("playback") or {}).get("format")))) or "NAD amplifier")
-            self.volume_updating = True; self.volume.set_sensitive(value is not None); self.volume.set_value(float(value or 0)); self.volume_value.set_text(str(round(value)) if value is not None else "FIXED"); self.mute.set_sensitive(value is not None); self.mute.set_label("UNMUTE" if volume.get("muted") else "MUTE"); self.volume_updating = False
-            if self.roon_views.get_visible_child_name() == "queue": self.set_roon_view("now")
+            self.zone.set_text(player.get("name") or player.get("model") or "BLUOS"); self.source_title.set_text((active_input.get("name") or "External input").upper()); self.source_volume.set_text(str(round(value)) if value is not None else "—"); self.source_mute.set_sensitive(value is not None); self.source_mute.set_label("UNMUTE" if volume.get("muted") else "MUTE")
+            self.set_roon_view("source")
             return
+        if self.roon_views.get_visible_child_name() == "source": self.set_roon_view("now")
         if not zone:
             self.zone.set_text(self.settings_data.get("roon_zone_name") or "ROON")
             if data is None:
@@ -500,23 +497,26 @@ class Display(Gtk.Application):
         output = zone.get("output") or {}; volume = output.get("volume") or {}; value = volume.get("value"); self.volume_updating = True; self.volume.set_sensitive(value is not None); self.volume.set_value(float(value or 0)); self.volume_value.set_text(str(value) if value is not None else "FIXED"); self.mute.set_sensitive(value is not None); self.mute.set_label("UNMUTE" if volume.get("is_muted") else "MUTE"); self.volume_updating = False
 
     def render_bluos_inputs(self, amplifier, have_roon):
-        inputs = ([{"id": "roon", "name": "Roon"}] if have_roon else []) + list(amplifier.get("inputs") or [])
+        inputs = list(amplifier.get("inputs") or [])
         signature = [(str(item.get("id")), item.get("name") or "Input") for item in inputs]
         if signature != getattr(self, "bluos_input_signature", None):
-            self.bluos_input_signature = signature; self.bluos_inputs_updating = True
-            while self.bluos_input_model.get_n_items(): self.bluos_input_model.remove(0)
-            self.bluos_input_ids = []
-            for input_id, name in signature: self.bluos_input_ids.append(input_id); self.bluos_input_model.append(name)
-            self.bluos_inputs_updating = False
-        self.bluos_input_picker.set_visible(bool(amplifier.get("enabled")))
-        active_id = str((amplifier.get("active_input") or {}).get("id") or ("roon" if have_roon else ""))
-        if active_id in self.bluos_input_ids:
-            self.bluos_inputs_updating = True; self.bluos_input_picker.set_selected(self.bluos_input_ids.index(active_id)); self.bluos_inputs_updating = False
+            self.bluos_input_signature = signature
+            while child := self.roon_subnav.get_first_child(): self.roon_subnav.remove(child)
+            self.bluos_source_buttons = {}
+            for input_id, name in signature:
+                button = self.button(name.upper(), lambda _button, value=input_id: self.select_bluos_input(value), ""); self.bluos_source_buttons[input_id] = button; self.roon_subnav.append(button)
+            self.roon_subnav.append(self.now_playing_tab); self.roon_subnav.append(self.queue_tab)
+        active_id = str((amplifier.get("active_input") or {}).get("id") or "")
+        for input_id, button in self.bluos_source_buttons.items():
+            if input_id == active_id: button.add_css_class("active")
+            else: button.remove_css_class("active")
 
-    def select_bluos_input(self, dropdown, _property):
-        if self.bluos_inputs_updating: return
-        selected = dropdown.get_selected()
-        if selected < len(self.bluos_input_ids): threading.Thread(target=post_json, args=(ROON + "/api/bluos/input", {"input_id": self.bluos_input_ids[selected]}), daemon=True).start()
+    def select_bluos_input(self, input_id):
+        threading.Thread(target=post_json, args=(ROON + "/api/bluos/input", {"input_id": input_id}), daemon=True).start()
+
+    def step_bluos_volume(self, amount):
+        value = ((((self.state or {}).get("amplifier") or {}).get("volume")) or {}).get("value")
+        if value is not None: threading.Thread(target=post_json, args=(ROON + "/api/bluos/volume", {"value": round(float(value) + amount)}), daemon=True).start()
 
     def set_roon_view(self, name):
         self.detail_takeover.set_visible(name == "details")
@@ -525,6 +525,10 @@ class Display(Gtk.Application):
         if name == "queue": self.queue_tab.add_css_class("active")
         elif name == "now": self.now_playing_tab.add_css_class("active")
         if name == "queue": GLib.idle_add(self.scroll_queue_to_current)
+
+    def show_roon_now(self, *_):
+        if ((self.state or {}).get("amplifier") or {}).get("active_input"): self.select_bluos_input("roon")
+        self.set_roon_view("now")
 
     def render_details(self, details):
         signature = json.dumps(details, sort_keys=True, separators=(",", ":"), default=str)
@@ -630,28 +634,21 @@ class Display(Gtk.Application):
         if self.inactivity_sleeping:
             source = getattr(event_type, "value_nick", str(event_type))
             self.inactivity_sleeping = False; print(f"Pi Home waking after touchscreen {source}", flush=True); self.set_screen_power(True, force=True); self.stack.set_visible_child_name(self.last_mode or "bus")
-        elif self.stack.get_visible_child_name() == "sleep" and self.sleep_wake_armed:
+        elif self.stack.get_visible_child_name() == "sleep" and time.monotonic() - self.sleep_entered_at >= .45:
             self.wake(getattr(event_type, "value_nick", str(event_type)))
         return False
 
     def prepare_sleep_wake(self):
-        # The sleep button's touch can be followed by a synthetic mouse event.
-        # Arm only after that gesture has finished, so the next fresh touch wakes.
-        self.sleep_wake_generation += 1
-        generation = self.sleep_wake_generation
-        self.sleep_wake_armed = False
-        GLib.timeout_add(750, self.arm_sleep_wake, generation)
-
-    def arm_sleep_wake(self, generation):
-        if generation == self.sleep_wake_generation and self.stack.get_visible_child_name() == "sleep":
-            self.sleep_wake_armed = True
-        return False
+        # Ignore only the short tail of the gesture that pressed Sleep. Using a
+        # timestamp avoids depending on a delayed GLib arming callback, which
+        # could leave manual sleep permanently unable to accept a wake touch.
+        self.sleep_entered_at = time.monotonic()
 
     def sleep(self, *_): self.inactivity_sleeping = False; self.settings_open = False; self.prepare_sleep_wake(); self.stack.set_visible_child_name("sleep"); self.set_screen_power(bool(self.settings_data.get("sleep_show_clock", False))); threading.Thread(target=post_json, args=(BUS + "/api/admin/display-mode", {"mode": "sleep"}), daemon=True).start()
     def wake(self, *_):
         now = time.monotonic()
         source = _[0] if _ else "input"
-        self.sleep_wake_generation += 1; self.sleep_wake_armed = False; self.last_interaction = now; self.inactivity_sleeping = False; print(f"Pi Home waking after fresh touchscreen {source}", flush=True); self.set_screen_power(True, force=True); self.stack.set_visible_child_name(self.last_mode or "bus")
+        self.sleep_entered_at = 0.0; self.last_interaction = now; self.inactivity_sleeping = False; print(f"Pi Home waking after fresh touchscreen {source}", flush=True); self.set_screen_power(True, force=True); self.stack.set_visible_child_name(self.last_mode or "bus")
         threading.Thread(target=post_json, args=(BUS + "/api/device/wake", {"view": self.last_mode or "bus"}), daemon=True).start()
     def control(self, action): threading.Thread(target=post_json, args=(ROON + "/api/control", {"action": action}), daemon=True).start()
     def toggle_bridge(self, button):
