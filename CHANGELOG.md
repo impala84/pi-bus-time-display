@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.8 — 2 October 2026
+
+- Reduced the main touchscreen Now Playing artwork by 10% without expanding surrounding content.
+- Doubled the album/artist Back target and anchored it at the bottom of the information column.
+- Enlarged playback glyphs, elapsed/remaining times and the volume value without materially increasing their control circles.
+
 ## 0.9.7 — 2 October 2026
 
 - Clarified the Roon naming fields as bottom navigation, top navigation play screen and top navigation queue names.
