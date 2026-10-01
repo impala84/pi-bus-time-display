@@ -27,15 +27,20 @@ set_boot_rotation() {
     exit 1
   fi
   [[ -f ${cmdline}.pi-bus-backup ]] || cp "${cmdline}" "${cmdline}.pi-bus-backup"
-  local current
-  current=$(<"${cmdline}")
-  current=$(printf '%s\n' "${current}" | sed -E 's/(^|[[:space:]])video=DSI-[^[:space:]]+//g' | xargs)
+  local current='' token
+  for token in $(<"${cmdline}"); do
+    case ${token} in
+      video=DSI-*|quiet|logo.nologo|vt.global_cursor_default=*|loglevel=*|systemd.show_status=*) ;;
+      *) current+=" ${token}" ;;
+    esac
+  done
+  current=${current# }
   local mode=800x480
-  [[ ${profile} == touch2-5-7 ]] && mode=720x1280
+  [[ ${profile} =~ ^touch2-(5|7|5-7)$ ]] && mode=720x1280
   [[ ${profile} == touch2-10 ]] && mode=1200x1920
   # Kernel rotation owns the boot console; Touch Display 2 additionally needs
   # a Cage/Wayland transform once the graphical kiosk starts.
-  printf '%s video=DSI-1:%s@60,rotate=%s\n' "${current}" "${mode}" "${transform/normal/0}" >"${cmdline}.tmp"
+  printf '%s quiet loglevel=3 logo.nologo vt.global_cursor_default=0 systemd.show_status=false video=DSI-1:%s@60,rotate=%s\n' "${current}" "${mode}" "${transform/normal/0}" >"${cmdline}.tmp"
   install -m 0644 "${cmdline}.tmp" "${cmdline}"
   rm -f "${cmdline}.tmp"
 }
@@ -99,6 +104,7 @@ configure_touch2_overlay() {
   {
     printf '\n# BEGIN PI HOME TOUCH DISPLAY\n'
     printf '[all]\n'
+    printf 'disable_splash=1\n'
     printf 'dtoverlay=%s%s\n' "${overlay}" "${flags}"
     printf '# END PI HOME TOUCH DISPLAY\n'
   } >>"${boot_config}.tmp"

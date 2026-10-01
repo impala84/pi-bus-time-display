@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {BluOSClient, normaliseAddress, parseInputs, parsePlayer, parseStatus, parseVolume} = require('./bluos-client');
+const {BluOSClient, encodedBluOSUrl, normaliseAddress, parseInputs, parsePlayer, parseStatus, parseVolume} = require('./bluos-client');
 
 test('normalises a player hostname onto the BluOS port', () => {
   assert.equal(normaliseAddress('nad-m33.local'), 'http://nad-m33.local:11000');
@@ -23,6 +23,16 @@ test('keeps only selectable capture inputs', () => {
 
 test('parses compact RadioBrowse input items', () => {
   assert.deepEqual(parseInputs('<browse><item id="input2" inputType="analog" text="Record player" url="capture:analog-1"/></browse>'), [{id: 'input2', name: 'Record player', input_type: 'analog', url: 'capture:analog-1'}]);
+});
+
+test('sends an already encoded NAD capture URL exactly once', async () => {
+  assert.equal(encodedBluOSUrl('Capture%3Ahw%3Aimxspdif%2C0%2F1%3Fid%3Dinput0'), 'Capture%3Ahw%3Aimxspdif%2C0%2F1%3Fid%3Dinput0');
+  const client = new BluOSClient(() => ({enabled: true, address: 'nad.local'}), () => {});
+  client.state.inputs = [{id: 'input0', url: 'Capture%3Ahw%3Aimxspdif%2C0%2F1%3Fid%3Dinput0'}];
+  let requested = '';
+  client.command = async path => { requested = path; };
+  await client.selectInput('input0');
+  assert.equal(requested, '/Play?url=Capture%3Ahw%3Aimxspdif%2C0%2F1%3Fid%3Dinput0');
 });
 
 test('connects for playback and volume when input browsing is unavailable', async () => {

@@ -41,14 +41,25 @@ if [[ ${PI_HOME_UPDATE_REEXECUTED:-0} != 1 ]]; then
   exec /usr/bin/env bash "${app_dir}/scripts/pi-bus-update"
 fi
 
-progress "Refreshing system components…"
-apt-get update
-apt-get install -y python3-gi gir1.2-gtk-4.0 fonts-inter avahi-utils wlr-randr
+required_packages=(python3-gi gir1.2-gtk-4.0 fonts-inter avahi-utils wlr-randr)
+missing_packages=()
+for package in "${required_packages[@]}"; do
+  if ! dpkg-query -W -f='${Status}' "${package}" 2>/dev/null | grep -q '^install ok installed$'; then
+    missing_packages+=("${package}")
+  fi
+done
+if ((${#missing_packages[@]})); then
+  progress "Installing missing system components…"
+  apt-get update
+  apt-get install -y "${missing_packages[@]}"
+else
+  progress "System components are already ready."
+fi
 install -d -o morningbus -g morningbus /var/lib/pi-bus-time-display/roon
 
 progress "Installing Pi Home application files…"
 "${app_dir}/.venv/bin/pip" install --no-deps "${app_dir}"
-npm --prefix "${app_dir}/roon-controller" install --omit=dev
+npm --prefix "${app_dir}/roon-controller" install --omit=dev --prefer-offline --no-audit --no-fund
 progress "Installing service definitions…"
 install -m 0644 "${app_dir}/systemd/pi-bus-time-display.service" /etc/systemd/system/pi-bus-time-display.service
 install -m 0644 "${app_dir}/systemd/pi-bus-roon-controller.service" /etc/systemd/system/pi-bus-roon-controller.service

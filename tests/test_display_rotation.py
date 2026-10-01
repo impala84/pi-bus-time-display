@@ -41,6 +41,14 @@ class DisplayRotationTests(unittest.TestCase):
         self.assertIn('self.window.add_css_class("touch-landscape")', display)
         self.assertIn(".touch-landscape .settings-title", display)
         self.assertIn(".touch-landscape .roon-subnav button", display)
+        self.assertIn('self.stack.add_named(self.build_boot_splash(), "boot")', display)
+        self.assertIn('.boot-logo { color: #6ef0be', display)
+
+    def test_appliance_boot_is_quiet_and_splash_free(self):
+        script = (ROOT / "scripts" / "pi-bus-appliance-mode").read_text(encoding="utf-8")
+        self.assertIn("disable_splash=1", script)
+        self.assertIn("quiet loglevel=3 logo.nologo vt.global_cursor_default=0 systemd.show_status=false", script)
+        self.assertIn("^touch2-(5|7|5-7)$", script)
 
 
 if __name__ == "__main__":

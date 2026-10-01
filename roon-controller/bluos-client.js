@@ -10,6 +10,11 @@ const decode = value => String(value || '')
 const attribute = (source, name) => decode(source.match(new RegExp(`\\b${name}="([^"]*)"`, 'i'))?.[1] || '');
 const element = (source, name) => decode(source.match(new RegExp(`<${name}(?:\\s[^>]*)?>([\\s\\S]*?)</${name}>`, 'i'))?.[1]?.replace(/<[^>]+>/g, '') || '').trim();
 const number = value => Number.isFinite(Number(value)) ? Number(value) : null;
+const encodedBluOSUrl = value => {
+  const raw = String(value || '');
+  try { return encodeURIComponent(decodeURIComponent(raw)); }
+  catch { return encodeURIComponent(raw); }
+};
 
 function parseStatus(xml) {
   const root = xml.match(/<status\b([^>]*)>/i)?.[1] || '';
@@ -136,10 +141,10 @@ class BluOSClient {
   selectInput(inputId) {
     const input = this.state.inputs.find(item => String(item.id) === String(inputId));
     if (!input) throw new Error('Input is no longer available');
-    return this.command(`/Play?url=${encodeURIComponent(input.url)}`);
+    return this.command(`/Play?url=${encodedBluOSUrl(input.url)}`);
   }
   setVolume(value) { return this.command(`/Volume?level=${encodeURIComponent(Math.max(0, Math.min(100, Number(value))))}`); }
   toggleMute() { return this.command(`/Volume?mute=${this.state.volume?.muted ? 0 : 1}`); }
 }
 
-module.exports = {BluOSClient, discoverPlayers, normaliseAddress, parseInputs, parsePlayer, parseStatus, parseVolume};
+module.exports = {BluOSClient, discoverPlayers, encodedBluOSUrl, normaliseAddress, parseInputs, parsePlayer, parseStatus, parseVolume};

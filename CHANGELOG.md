@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.4 — 2 October 2026
+
+- Fixed NAD/BlueOS source switching by preventing already encoded Capture URLs from being encoded a second time before the M33 `/Play` request.
+- Removed the routine Debian package-index refresh from ordinary updates when every required system component is already installed, and made Node installation prefer its local cache.
+- Added a quiet black appliance boot followed by a centred mint Pi Home startup mark, suppressing incorrectly oriented firmware and console graphics.
+- Refined the 1280×720 touchscreen: stronger bus and Home borders, more separation between bus rows, a smaller stop heading, better header alignment and tighter Roon secondary navigation.
+- Increased padding throughout Touchscreen Settings, separated its controls and condensed health information onto one line.
+
 ## 0.9.3 — 2 October 2026
 
 - Fixed manual-sleep wake detection for the Goodix Touch Display 2 by accepting native multitouch contact-start events as well as legacy `BTN_TOUCH` events.
