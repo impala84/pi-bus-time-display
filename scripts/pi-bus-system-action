@@ -62,10 +62,13 @@ def display_power(powered: bool, brightness_percent: int = 100) -> None:
             if power.exists():
                 power.write_text("0", encoding="ascii")
         else:
-            if power.exists():
-                power.write_text("4", encoding="ascii")
-            elif brightness_path.exists():
+            # Keep the panel and touch controller powered. On the official
+            # Touch Display 2, bl_power can take the assembly far enough down
+            # that the contact needed to wake GTK is never delivered.
+            if brightness_path.exists():
                 brightness_path.write_text("0", encoding="ascii")
+            elif power.exists():
+                power.write_text("4", encoding="ascii")
 
 
 def pi_leds() -> list[tuple[Path, str]]:
@@ -118,7 +121,7 @@ def main() -> None:
     data = json.loads(REQUEST.read_text(encoding="utf-8"))
     REQUEST.unlink(missing_ok=True)
     action = data.get("action")
-    report("Working…")
+    report("Update · Starting…" if action == "update" else "Working…")
     if action == "update":
         run(["/usr/local/sbin/pi-bus-update"])
         report("Update installed. Pi Home services restarted.")

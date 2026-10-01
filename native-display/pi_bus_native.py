@@ -105,6 +105,8 @@ class Display(Gtk.Application):
         self.brightness_updating = False
         self.brightness_timeout = None
         self.brightness_applied = False
+        self.update_in_progress = False
+        self.update_status_seen = False
         self.views_prewarmed = False
         self.started_at = time.monotonic()
         self.refresh_count = 0
@@ -281,7 +283,7 @@ class Display(Gtk.Application):
         now = time.monotonic(); config = None; system = None
         if not self.settings_data or now - self.last_config_fetch >= 60:
             config = get_json(BUS + "/api/admin/config") or {}; self.last_config_fetch = now
-        if self.settings_open and (not self.system_data or now - self.last_system_fetch >= 15):
+        if self.settings_open and (not self.system_data or self.update_in_progress or now - self.last_system_fetch >= 15):
             system = get_json(BUS + "/api/admin/system") or {}; self.last_system_fetch = now
         zone = (roon or {}).get("zone") or {}; key = (zone.get("now_playing") or {}).get("image_key")
         details = (roon or {}).get("details") or {}; detail_key = details.get("artist_image_key") or details.get("album_image_key") or details.get("image_key")
@@ -308,8 +310,14 @@ class Display(Gtk.Application):
             for button in self.home_nav_buttons: button.set_visible(bool(config.get("home_assistant_enabled") and config.get("home_assistant_entities")))
         if system is not None:
             self.system_data = system
-            self.device_status.set_text(f"v{system.get('app_version', '—')}  ·  {system.get('update_status', 'Ready')}")
-            if str(system.get("update_status", "")).startswith("Failed:"):
+            update_status = str(system.get("update_status", "Ready"))
+            self.device_status.set_text(f"v{system.get('app_version', '—')}  ·  {update_status}")
+            if update_status.startswith("Update ·"):
+                self.update_status_seen = True
+            elif self.update_in_progress and self.update_status_seen:
+                self.update_in_progress = False
+                self.update_button.set_sensitive(True)
+            if update_status.startswith("Failed:"):
                 self.update_button.set_sensitive(True)
             diagnostics = system.get("diagnostics") or {}; memory = diagnostics.get("memory") or {}; processes = diagnostics.get("processes") or []
             states = {item.get("label"): item.get("active", bool(item.get("pids"))) for item in processes}
@@ -665,16 +673,17 @@ class Display(Gtk.Application):
         return False
 
     def request_update(self, *_):
-        self.update_button.set_sensitive(False); self.device_status.set_text("Update requested…")
+        self.update_in_progress = True; self.update_status_seen = False; self.update_button.set_sensitive(False); self.device_status.set_text("Update · Requesting installation…")
         threading.Thread(target=self._request_update, daemon=True).start()
 
     def _request_update(self):
         result = post_json(BUS + "/api/device/update", {})
-        GLib.idle_add(self.device_status.set_text, "Update queued…" if result else "Could not start update")
+        GLib.idle_add(self.device_status.set_text, "Update · Queued…" if result else "Could not start update")
         if result:
             self.last_system_fetch = 0
             GLib.idle_add(self.start_poll)
         else:
+            self.update_in_progress = False
             GLib.idle_add(self.update_button.set_sensitive, True)
 
     def request_display_settings(self, *_):

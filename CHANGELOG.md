@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.19 — 1 October 2026
+
+- Fixed touchscreen sleep at the native backlight layer: sleep now writes brightness `0` while leaving panel power and the touch controller active, and wake restores the saved brightness.
+- Added real updater progress stages covering version checks, download, dependencies, application files, services, readiness checks and touchscreen restart.
+- Added a compact live update history to the web System page that reconnects through service restarts and highlights the current installation stage.
+- Made touchscreen Settings refresh and display the current updater stage throughout installation instead of stopping at a generic queued or working message.
+
 ## 0.7.18 — 1 October 2026
 
 - Prevented a manually selected Sleep override from surviving a Pi Home service restart or Raspberry Pi reboot and immediately blacking the touchscreen again.

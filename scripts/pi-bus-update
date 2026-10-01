@@ -2,6 +2,16 @@
 set -euo pipefail
 
 app_dir=/opt/pi-bus-time-display
+status_file=/var/lib/pi-bus-time-display/system-action-status
+
+progress() {
+  local message=$1
+  local temporary="${status_file}.tmp"
+  echo "${message}"
+  printf '%s\n' "Update · ${message}" >"${temporary}"
+  chmod 0644 "${temporary}"
+  mv -f "${temporary}" "${status_file}"
+}
 
 if [[ ${EUID} -ne 0 ]]; then
   echo "Run with sudo: sudo pi-bus-update"
@@ -13,29 +23,33 @@ if [[ ! -d ${app_dir}/.git ]]; then
   exit 1
 fi
 
-echo "Checking for Pi Home updates…"
+progress "Checking the installed version…"
 if [[ -n $(git -c safe.directory="${app_dir}" -C "${app_dir}" status --porcelain) ]]; then
   backup_name="pi-bus-update backup $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-  echo "Preserving local appliance changes as: ${backup_name}"
+  progress "Preserving local appliance changes…"
   git -c safe.directory="${app_dir}" -C "${app_dir}" stash push --include-untracked --message "${backup_name}"
 fi
+progress "Downloading the latest Pi Home release…"
 git -c safe.directory="${app_dir}" -C "${app_dir}" fetch origin main
 git -c safe.directory="${app_dir}" -C "${app_dir}" checkout -B main origin/main
 
 # Continue with the updater from the checkout we just fetched. This makes
 # updater/install changes effective in this run instead of the next one.
 if [[ ${PI_HOME_UPDATE_REEXECUTED:-0} != 1 ]]; then
+  progress "Switching to the latest updater…"
   export PI_HOME_UPDATE_REEXECUTED=1
   exec /usr/bin/env bash "${app_dir}/scripts/pi-bus-update"
 fi
 
-echo "Installing native display runtime…"
+progress "Refreshing system components…"
 apt-get update
 apt-get install -y python3-gi gir1.2-gtk-4.0 fonts-inter
 install -d -o morningbus -g morningbus /var/lib/pi-bus-time-display/roon
 
+progress "Installing Pi Home application files…"
 "${app_dir}/.venv/bin/pip" install --no-deps "${app_dir}"
 npm --prefix "${app_dir}/roon-controller" install --omit=dev
+progress "Installing service definitions…"
 install -m 0644 "${app_dir}/systemd/pi-bus-time-display.service" /etc/systemd/system/pi-bus-time-display.service
 install -m 0644 "${app_dir}/systemd/pi-bus-roon-controller.service" /etc/systemd/system/pi-bus-roon-controller.service
 install -m 0644 "${app_dir}/systemd/pi-bus-system-action.service" /etc/systemd/system/pi-bus-system-action.service
@@ -46,6 +60,7 @@ install -m 0755 "${app_dir}/scripts/pi-bus-system-action" /usr/local/sbin/pi-bus
 install -m 0755 "${app_dir}/scripts/pi-bus-appliance-mode" /usr/local/sbin/pi-bus-appliance-mode
 
 if systemctl is-enabled --quiet pi-bus-native.service && [[ -f /etc/pi-bus-time-display/display-transform ]]; then
+  progress "Applying the saved display configuration…"
   /usr/local/sbin/pi-bus-appliance-mode rotate "$(</etc/pi-bus-time-display/display-transform)"
 fi
 chmod 0755 "${app_dir}/native-display/pi_bus_native.py"
@@ -59,6 +74,7 @@ if [[ -n ${desktop_user} && ${desktop_user} != root ]]; then
   rm -f "${desktop_home}/.config/autostart/pi-bus-time-display.desktop"
 fi
 
+progress "Restarting Pi Home services…"
 systemctl daemon-reload
 systemctl enable --now pi-bus-system-action.path
 systemctl enable pi-home-leds.service
@@ -76,7 +92,7 @@ wait_for_url() {
   local attempt
   for attempt in {1..30}; do
     if python3 -c 'import sys, urllib.request; urllib.request.urlopen(sys.argv[1], timeout=1).read()' "${url}" >/dev/null 2>&1; then
-      echo "${name} is ready."
+      progress "${name} is ready."
       return 0
     fi
     sleep 1
@@ -86,12 +102,14 @@ wait_for_url() {
   return 1
 }
 
+progress "Waiting for the main display service…"
 wait_for_url "Main display" "http://127.0.0.1:8765/api/status" "pi-bus-time-display.service"
+progress "Waiting for the Roon controller…"
 wait_for_url "Roon controller" "http://127.0.0.1:8766/api/state" "pi-bus-roon-controller.service"
 
 if systemctl is-enabled --quiet pi-bus-native.service; then
-  echo "Restarting the native touchscreen…"
+  progress "Restarting the touchscreen…"
   systemctl restart pi-bus-native.service
 fi
 
-echo "Pi Home is updated and all services are responding."
+progress "Complete — all Pi Home services are responding."
