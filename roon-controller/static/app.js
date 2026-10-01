@@ -3,6 +3,7 @@ let state = null;
 let lastTick = Date.now();
 let musicView = 'now';
 let queueSignature = '';
+let inputSignature = '';
 const proxied = location.pathname.startsWith('/roon');
 const api = path => `${proxied ? '/roon' : ''}${path}`;
 const mainOrigin = proxied ? location.origin : `${location.protocol}//${location.hostname}:8765`;
@@ -25,6 +26,15 @@ function render(next) {
   state = next;
   lastTick = Date.now();
   const zone = next.zone;
+  const amplifier = next.amplifier || {};
+  renderAmplifier(amplifier, zone);
+  const external = Boolean(amplifier.connected && amplifier.active_input);
+  $('source-view').hidden = !external;
+  $('now-view').hidden = external || musicView !== 'now';
+  $('queue-view').hidden = external || musicView !== 'queue';
+  $('details-view').hidden = external || musicView !== 'details';
+  $('now-tab').disabled = $('queue-tab').disabled = external;
+  if (external) return;
   renderQueue(next.queue || {});
   renderDetails(next.details || {});
   if (!zone) {
@@ -60,7 +70,7 @@ function render(next) {
   $('elapsed').textContent = format(zone.seek_position);
   $('remaining').textContent = `−${format(length - (zone.seek_position || 0))}`;
 
-  const volume = zone.output?.volume;
+  const volume = amplifier.connected && amplifier.volume ? {min: 0, max: 100, step: 1, value: amplifier.volume.value, is_muted: amplifier.volume.muted} : zone.output?.volume;
   $('volume-panel').hidden = !volume;
   $('fixed').hidden = Boolean(volume);
   if (volume) {
@@ -71,6 +81,28 @@ function render(next) {
     $('volume-value').textContent = volume.type === 'db' ? `${volume.value} dB` : Math.round(volume.value);
     $('mute').textContent = volume.is_muted ? 'UNMUTE' : 'MUTE';
   }
+}
+
+function renderAmplifier(amplifier, zone) {
+  const inputs = amplifier.inputs || [];
+  const signature = JSON.stringify([amplifier.connected, amplifier.active_input?.id, inputs.map(item => [item.id, item.name])]);
+  if (signature !== inputSignature) {
+    inputSignature = signature;
+    const picker = $('input-picker'); picker.replaceChildren(); picker.hidden = !amplifier.enabled;
+    if (zone) picker.append(inputButton({id: 'roon', name: 'Roon'}, !amplifier.active_input));
+    inputs.forEach(input => picker.append(inputButton(input, String(input.id) === String(amplifier.active_input?.id))));
+  }
+  const active = amplifier.active_input;
+  $('source-title').textContent = active?.name || 'External input';
+  $('source-subtitle').textContent = [amplifier.player?.name || amplifier.player?.model, amplifier.playback?.format].filter(Boolean).join(' · ') || amplifier.status || 'BluOS amplifier';
+  const volume = amplifier.volume;
+  $('amp-volume-panel').hidden = !volume;
+  if (volume) { $('amp-volume').value = volume.value ?? 0; $('amp-volume-value').textContent = Math.round(volume.value ?? 0); $('amp-mute').textContent = volume.muted ? 'UNMUTE' : 'MUTE'; }
+}
+
+function inputButton(input, active) {
+  const button = document.createElement('button'); button.textContent = input.name; button.className = active ? 'active' : '';
+  button.onclick = () => post('/api/bluos/input', {input_id: input.id}); return button;
 }
 
 function queueRow(item) {
@@ -156,8 +188,10 @@ $('previous').onclick = () => post('/api/control', {action: 'previous'});
 $('play').onclick = () => post('/api/control', {action: 'playpause'});
 $('next').onclick = () => post('/api/control', {action: 'next'});
 $('seek').onchange = event => post('/api/seek', {seconds: Number(event.target.value)});
-$('volume').onchange = event => post('/api/volume', {output_id: state.zone.output.id, value: Number(event.target.value)});
-$('mute').onclick = () => post('/api/mute', {output_id: state.zone.output.id});
+$('volume').onchange = event => state.amplifier?.connected ? post('/api/bluos/volume', {value: Number(event.target.value)}) : post('/api/volume', {output_id: state.zone.output.id, value: Number(event.target.value)});
+$('mute').onclick = () => state.amplifier?.connected ? post('/api/bluos/mute', {}) : post('/api/mute', {output_id: state.zone.output.id});
+$('amp-volume').onchange = event => post('/api/bluos/volume', {value: Number(event.target.value)});
+$('amp-mute').onclick = () => post('/api/bluos/mute', {});
 $('now-tab').onclick = () => setMusicView('now');
 $('queue-tab').onclick = () => setMusicView('queue');
 $('details-open').onclick = () => setMusicView('details');

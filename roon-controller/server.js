@@ -10,6 +10,7 @@ const RoonApiStatus = require('node-roon-api-status');
 const RoonApiTransport = require('node-roon-api-transport');
 const {publicQueueItems, updateQueueState} = require('./queue-state');
 const {playingMetadata, loadDetails} = require('./details-state');
+const {BluOSClient, discoverPlayers} = require('./bluos-client');
 
 const port = Number(process.env.PORT || 8766);
 const staticDir = path.join(__dirname, 'static');
@@ -47,6 +48,21 @@ function configuredQueueEnabled() {
   } catch (_) { return true; }
 }
 
+function configuredBluOS() {
+  try {
+    const text = fs.readFileSync(process.env.CONFIG_PATH || '/etc/pi-bus-time-display/config.toml', 'utf8');
+    const enabled = text.match(/^bluos_enabled\s*=\s*(true|false)/m)?.[1] === 'true';
+    const address = JSON.parse(text.match(/^bluos_player_address\s*=\s*("(?:[^"\\]|\\.)*")/m)?.[1] || '""');
+    const visibleInputs = JSON.parse(text.match(/^bluos_visible_inputs\s*=\s*(\[[^\n]*\])/m)?.[1] || '[]');
+    return {enabled, address, visibleInputs};
+  } catch (_) { return {enabled: false, address: '', visibleInputs: []}; }
+}
+
+function publicAmplifierState() {
+  const state = bluos.publicState(); const visible = new Set(configuredBluOS().visibleInputs || []);
+  return {...state, inputs: visible.size ? state.inputs.filter(input => visible.has(String(input.id))) : state.inputs};
+}
+
 function selectedZone() {
   const requested = configuredZoneName();
   const all = [...zones.values()];
@@ -55,8 +71,9 @@ function selectedZone() {
 }
 
 function publicState() {
+  bluos.refreshConfig().catch(() => {});
   const zone = selectedZone();
-  if (!zone) return {connected: Boolean(core), authorised: Boolean(core), zones: [], zone: null, queue: {status: 'unavailable', items: []}, details: {status: 'unavailable'}};
+  if (!zone) return {connected: Boolean(core), authorised: Boolean(core), zones: [], zone: null, queue: {status: 'unavailable', items: []}, details: {status: 'unavailable'}, amplifier: publicAmplifierState()};
   const output = (zone.outputs || []).find(item => item.volume) || (zone.outputs || [])[0] || null;
   return {
     connected: true,
@@ -71,7 +88,7 @@ function publicState() {
       can_seek: Boolean(zone.is_seek_allowed), output: output ? {id: output.output_id, volume: output.volume || null} : null
     },
     queue: {status: !configuredQueueEnabled() ? 'disabled' : (queueZoneId === zone.zone_id ? 'ready' : 'loading'), items: queueZoneId === zone.zone_id ? publicQueueItems(queueItems, queueHistory) : []},
-    details
+    details, amplifier: publicAmplifierState()
   };
 }
 
@@ -79,6 +96,9 @@ function broadcast() {
   const message = `data: ${JSON.stringify(publicState())}\n\n`;
   for (const response of listeners) response.write(message);
 }
+
+const bluos = new BluOSClient(configuredBluOS, () => broadcast());
+bluos.refreshConfig().catch(() => {});
 
 function mergeZones(command, data) {
   if (command === 'Subscribed') zones = new Map((data.zones || []).map(zone => [zone.zone_id, zone]));
@@ -162,7 +182,7 @@ function cachedImage(key, size, callback) {
 const roon = new RoonApi({
   extension_id: 'com.impala84.pi-bus-time-display',
   display_name: 'Pi Home Roon Controller',
-  display_version: '0.7.19',
+  display_version: '0.8.0',
   publisher: 'Pi Home',
   email: 'noreply@example.invalid',
   website: 'https://github.com/impala84/pi-home',
@@ -218,6 +238,8 @@ http.createServer(async (request, response) => {
   try {
     const url = new URL(request.url, 'http://localhost');
     if (request.method === 'GET' && url.pathname === '/api/state') { ensureQueueSubscription(); return json(response, 200, publicState()); }
+    if (request.method === 'GET' && url.pathname === '/api/bluos/players') return json(response, 200, {players: await discoverPlayers()});
+    if (request.method === 'GET' && url.pathname === '/api/bluos/inputs') return json(response, 200, {connected: bluos.publicState().connected, inputs: bluos.publicState().inputs});
     if (request.method === 'GET' && url.pathname === '/api/events') {
       response.writeHead(200, {'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no', Connection: 'keep-alive'});
       listeners.add(response); response.write(`data: ${JSON.stringify(publicState())}\n\n`);
@@ -233,6 +255,15 @@ http.createServer(async (request, response) => {
     }
     if (request.method === 'POST' && url.pathname.startsWith('/api/')) {
       const data = await body(request); const zone = selectedZone();
+      if (url.pathname === '/api/bluos/input') {
+        if (data.input_id === 'roon') {
+          if (!transport || !zone) return json(response, 409, {error: 'Roon is not connected'});
+          transport.control(zone, 'play'); return json(response, 200, {ok: true});
+        }
+        await bluos.selectInput(data.input_id); return json(response, 200, {ok: true});
+      }
+      if (url.pathname === '/api/bluos/volume') { await bluos.setVolume(data.value); return json(response, 200, {ok: true}); }
+      if (url.pathname === '/api/bluos/mute') { await bluos.toggleMute(); return json(response, 200, {ok: true}); }
       if (!transport || !zone) return json(response, 409, {error: 'Roon is not connected'});
       if (url.pathname === '/api/control' && ['previous', 'playpause', 'next'].includes(data.action)) transport.control(zone, data.action);
       else if (url.pathname === '/api/queue/play') {

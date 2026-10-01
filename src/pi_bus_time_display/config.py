@@ -25,6 +25,9 @@ class Config:
     roon_show_controls: bool = True
     roon_show_clock: bool = True
     roon_show_queue: bool = True
+    bluos_enabled: bool = False
+    bluos_player_address: str = ""
+    bluos_visible_inputs: tuple[str, ...] = ()
     sleep_show_clock: bool = False
     auto_switch_to_roon: bool = True
     roon_idle_return_seconds: int = 300
@@ -58,6 +61,8 @@ def load_config(path: Path) -> Config:
         data["services"] = tuple(str(item) for item in data["services"])
     if "home_assistant_entities" in data:
         data["home_assistant_entities"] = tuple(str(item) for item in data["home_assistant_entities"])
+    if "bluos_visible_inputs" in data:
+        data["bluos_visible_inputs"] = tuple(str(item) for item in data["bluos_visible_inputs"])
     config = Config(**data)
     if not (5 <= config.poll_seconds <= 300):
         raise ValueError("poll_seconds must be between 5 and 300")
@@ -71,4 +76,6 @@ def load_config(path: Path) -> Config:
         raise ValueError("daytime_inactivity_seconds must be between 0 and 7200")
     if len(config.home_assistant_entities) > 8:
         raise ValueError("A maximum of eight Home Assistant entities can be shown")
+    if config.bluos_player_address and any(char.isspace() for char in config.bluos_player_address):
+        raise ValueError("BluOS player address cannot contain spaces")
     return config

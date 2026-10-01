@@ -131,6 +131,14 @@ h1 {
 .details-tracks li > span:last-child { display: grid; }
 .details-tracks strong { color: var(--ink); font-size: 14px; }.details-tracks small { color: var(--muted); }
 #now-view { padding-top: max(64px, 3vw); }
+.input-picker { position: fixed; z-index: 5; top: 48px; left: 50%; width: min(720px, calc(100% - 120px)); transform: translateX(-50%); display: flex; justify-content: center; gap: 5px; overflow-x: auto; scrollbar-width: none; }
+.input-picker::-webkit-scrollbar { display: none; }
+.input-picker button { flex: 0 0 auto; border: 0; border-radius: 8px; padding: 6px 10px; color: var(--muted); background: rgba(17,24,22,.82); font: inherit; font-size: 10px; font-weight: 750; }
+.input-picker button.active { color: #082018; background: var(--mint); }
+.source-view { position: fixed; inset: 92px 24px 102px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+.source-view h1 { white-space: normal; }
+.source-view #source-subtitle { margin: 0 0 52px; color: var(--muted); font-size: clamp(17px,2.2vw,28px); }
+.source-view .volume { width: min(720px, 86vw); }
 
 @media (max-height: 560px) and (orientation: landscape) {
   h1 {
@@ -182,6 +190,8 @@ h1 {
   .timeline > div { text-align: left; }
   .settings-cog { top: max(9px, env(safe-area-inset-top)); left: 10px; }
   .music-subnav { top: max(7px, env(safe-area-inset-top)); }
+  .input-picker { top: calc(max(7px, env(safe-area-inset-top)) + 42px); width: calc(100% - 20px); justify-content: flex-start; }
+  .source-view { inset: 102px 20px 74px; }
   .queue-view { inset: 54px 0 62px; }
   .queue-list { width: calc(100% - 20px); padding-top: 3px; }
   .queue-row { min-height: 70px; grid-template-columns: 52px minmax(0,1fr) auto; gap: 10px; padding: 7px 9px; }

@@ -45,6 +45,10 @@ The installer generates a unique admin password and prints it once. You can retr
 
 The controller shows album artwork rather than artist photography, track and artist text, elapsed/remaining progress, previous/play-pause/next controls, mute and volume. Long titles use a restrained two-line treatment rather than scrolling, and transport controls use consistent SVG artwork. If the selected output exposes no adjustable volume, it shows **Fixed volume** instead. Roon Server and the Pi must be on the same network.
 
+### Connect an NAD / BluOS amplifier
+
+Under web **Settings → Roon**, enable BluOS control and discover the player or enter its local hostname/IP address. Save once, then use **Load amplifier inputs** to choose exactly which live inputs appear in Pi Home. An empty initial selection shows every input; the checklist can hide unused sources. Pi Home listens to BluOS status changes using the player's long-polling API rather than repeatedly polling it. When a physical input is active, the Roon screen becomes a simple source, volume and mute controller; selecting Roon resumes the existing Roon zone and restores its full metadata, queue and transport interface.
+
 ## Updates
 
 After the initial installation, update the appliance with one command:
@@ -53,7 +57,7 @@ After the initial installation, update the appliance with one command:
 sudo pi-bus-update
 ```
 
-The updater follows the supported `main` branch, preserves any local checkout differences in a recoverable Git stash, reinstalls the application, reapplies saved display/input orientation, refreshes and verifies its services, then restarts the native touchscreen without rebooting the Pi. Display profile or orientation changes still reboot because they alter the boot/display stack. Updates can be started from the protected web System section or the restricted touchscreen Settings screen. Your settings and secrets remain untouched in `/etc/pi-bus-time-display/`. Both interfaces show live installation stages while an update is running. Releases use semantic versions, shown in Settings and recorded in [CHANGELOG.md](CHANGELOG.md). The current release is **v0.7.19**.
+The updater follows the supported `main` branch, preserves any local checkout differences in a recoverable Git stash, reinstalls the application, reapplies saved display/input orientation, refreshes and verifies its services, then restarts the native touchscreen without rebooting the Pi. Display profile or orientation changes still reboot because they alter the boot/display stack. Updates can be started from the protected web System section or the restricted touchscreen Settings screen. Your settings and secrets remain untouched in `/etc/pi-bus-time-display/`. Both interfaces show live installation stages while an update is running. Releases use semantic versions, shown in Settings and recorded in [CHANGELOG.md](CHANGELOG.md). The current release is **v0.8.0**.
 
 Display brightness is shared between touchscreen Settings and web Settings → System. It is applied through Linux's hardware backlight interface, persisted across reboots and limited to 10–100% so the panel cannot accidentally become unusable. The System page also reports the real `netdata.service` state when Netdata is installed and can enable/start or disable/stop that single service through Pi Home's existing fixed-action privileged broker; no general sudo access is granted. The same page can turn the Raspberry Pi ACT/PWR status lights on or off; they default to off, persist across reboots, and are reapplied by a one-shot boot service rather than a resident process.
 
@@ -93,6 +97,7 @@ Edit `/etc/pi-bus-time-display/config.toml`:
 - `morning_start` and `morning_end`: touchscreen bus-display window
 - `sleep_start` and `sleep_end`: automatic black-screen window
 - `roon_zone_name`: exact preferred Roon zone; blank follows the playing zone
+- `bluos_enabled`, `bluos_player_address` and `bluos_visible_inputs`: optional NAD/BluOS source and amplifier controls
 - `sleep_when_roon_idle`: sleep outside the bus window unless the selected Roon zone is playing
 - `auto_switch_to_roon`: let active playback temporarily take over Automatic mode
 - `roon_idle_return_seconds`: delay before returning to buses after playback stops

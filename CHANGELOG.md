@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.8.0 — 1 October 2026
+
+- Added lightweight NAD/BluOS amplifier discovery and configuration.
+- Subscribed to the selected player using BluOS long polling, without a background polling loop.
+- Added real amplifier input selection on both the touchscreen and web interface.
+- Made the Roon screen pivot to a simplified external-input display with native amplifier volume control.
+- Kept Roon metadata, queue and transport authoritative whenever Roon is the active source.
+
 ## 0.7.19 — 1 October 2026
 
 - Fixed touchscreen sleep at the native backlight layer: sleep now writes brightness `0` while leaving panel power and the touch controller active, and wake restores the saved brightness.

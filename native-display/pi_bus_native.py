@@ -40,6 +40,7 @@ button { border: 0; box-shadow: none; background-image: none; outline: none; }
 .nav button.active { border-bottom-color: #6ed9ae; background: transparent; color: #dfe4e1; }.artwork { border-radius: 12px; }.roon-title { font-size: 35px; font-weight: 620; }.roon-artist { color: #b6c0bc; font-size: 18px; }
 .artwork-button { padding: 0; border-radius: 12px; background: transparent; }.detail-takeover { padding: 18px; background: rgba(6, 10, 9, .96); }.detail-panel { padding: 0; }.detail-artwork { border-radius: 12px; }.detail-title { font-size: 31px; font-weight: 650; }.detail-artist { color: #b6c0bc; font-size: 20px; }.detail-subtitle { color: #84908c; font-size: 13px; }.detail-back { min-width: 72px; min-height: 38px; border-radius: 8px; background: #18211f; color: #dfe4e1; font-weight: 750; }.detail-tracks { padding-top: 5px; }.detail-track { min-height: 30px; padding: 3px 6px; border-top: 1px solid #26312e; }.detail-track-no { color: #78837f; font-size: 11px; }.detail-track-title { color: #f4f0e6; font-size: 13px; }
 .roon-subnav { margin-top: 0; }.roon-subnav button { min-height: 29px; padding: 4px 13px 2px; border-radius: 0; border-top: 3px solid transparent; background: transparent; color: #68736f; font-size: 10px; font-weight: 750; letter-spacing: 1px; }.roon-subnav button.active { border-top-color: #5bcbd6; color: #f4f0e6; }
+.input-picker { min-width: 220px; min-height: 30px; border-radius: 7px; background: #121b19; color: #dfe4e1; font-size: 11px; }
 .queue-scroll { background: transparent; }.queue-scroll scrollbar { opacity: 0; min-width: 0; min-height: 0; }.queue-list { padding: 5px 8px 8px; }.queue-row { min-height: 66px; padding: 5px 9px; border-radius: 8px; background: transparent; color: #f4f0e6; }.queue-row:hover, .queue-row:active { background: #18211f; }.queue-row.current { background: #121e1c; border-left: 3px solid #5bcbd6; }.queue-row.previous { opacity: .5; }.queue-art { min-width: 56px; min-height: 56px; border-radius: 5px; background: #18211f; }.queue-title { color: #f4f0e6; font-size: 16px; font-weight: 650; }.queue-meta { color: #84908c; font-size: 12px; }.queue-duration { color: #84908c; font-size: 12px; font-variant-numeric: tabular-nums; }.queue-empty { color: #78837f; font-size: 15px; padding: 60px 0; }
 .transport button { min-width: 50px; min-height: 50px; border-radius: 25px; padding: 0; background: #18211f; color: #e4e7e4; }.transport .play { min-width: 68px; min-height: 68px; border-radius: 34px; background: #285f4d; }
 .progress trough, .volume trough { min-height: 7px; border: 0; box-shadow: none; border-radius: 4px; background: #303a37; }.progress highlight, .volume highlight { border: 0; box-shadow: none; background: #6ed9ae; }.time { color: #87928e; font-size: 12px; }
@@ -123,6 +124,8 @@ class Display(Gtk.Application):
         self.sleep_wake_generation = 0
         self.detail_image_key = None
         self.detail_signature = None
+        self.bluos_input_ids = []
+        self.bluos_inputs_updating = False
 
     def label(self, text="", css=None, x=0):
         widget = Gtk.Label(label=text, xalign=x)
@@ -206,22 +209,26 @@ class Display(Gtk.Application):
         self.now_playing_tab = self.button("NOW PLAYING", lambda *_: self.set_roon_view("now"), ""); self.now_playing_tab.add_css_class("active")
         self.queue_tab = self.button("QUEUE", lambda *_: self.set_roon_view("queue"), ""); subnav.append(self.now_playing_tab); subnav.append(self.queue_tab)
         header_overlay.add_overlay(subnav); page.append(header_overlay)
+        self.bluos_input_model = Gtk.StringList()
+        self.bluos_input_picker = Gtk.DropDown(model=self.bluos_input_model)
+        self.bluos_input_picker.add_css_class("input-picker"); self.bluos_input_picker.set_halign(Gtk.Align.CENTER); self.bluos_input_picker.set_visible(False)
+        self.bluos_input_picker.connect("notify::selected", self.select_bluos_input); page.append(self.bluos_input_picker)
         self.roon_views = Gtk.Stack(transition_type=Gtk.StackTransitionType.NONE, transition_duration=0); self.roon_views.set_vexpand(True)
         self.roon_views.set_hhomogeneous(False); self.roon_views.set_vhomogeneous(False)
         content = Gtk.Box(spacing=26); content.set_vexpand(True); content.set_margin_start(8); content.set_margin_end(8); content.set_margin_top(8); content.set_margin_bottom(8)
         self.artwork = Gtk.Picture(); self.artwork.add_css_class("artwork"); self.artwork.set_size_request(280, 280); self.artwork.set_valign(Gtk.Align.CENTER); self.artwork.set_content_fit(Gtk.ContentFit.COVER)
-        artwork_button = Gtk.Button(); artwork_button.add_css_class("artwork-button"); artwork_button.set_child(self.artwork); artwork_button.connect("clicked", lambda *_: self.set_roon_view("details")); content.append(artwork_button)
+        artwork_button = Gtk.Button(); artwork_button.add_css_class("artwork-button"); artwork_button.set_child(self.artwork); artwork_button.connect("clicked", lambda *_: self.set_roon_view("details")); content.append(artwork_button); self.artwork_button = artwork_button
         centre = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=7); centre.set_valign(Gtk.Align.CENTER); centre.set_hexpand(True)
         self.title = self.label("Waiting for Roon…", "roon-title", .5); self.title.set_wrap(True); self.title.set_lines(2); self.title.set_justify(Gtk.Justification.CENTER)
         self.artist = self.label("Enable Pi Home Roon Controller in Roon", "roon-artist", .5); self.artist.set_wrap(True); self.artist.set_justify(Gtk.Justification.CENTER); centre.append(self.title); centre.append(self.artist)
         self.progress = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 0, 1, 1); self.progress.add_css_class("progress"); self.progress.set_draw_value(False); self.progress.set_sensitive(False); self.progress.connect("value-changed", self.change_seek); centre.append(self.progress)
-        times = Gtk.Box(); self.elapsed = self.label("0:00", "time"); self.remaining = self.label("−0:00", "time", 1); self.remaining.set_hexpand(True); times.append(self.elapsed); times.append(self.remaining); centre.append(times)
+        times = Gtk.Box(); self.elapsed = self.label("0:00", "time"); self.remaining = self.label("−0:00", "time", 1); self.remaining.set_hexpand(True); times.append(self.elapsed); times.append(self.remaining); centre.append(times); self.roon_times = times
         self.controls = Gtk.Box(spacing=14); self.controls.set_halign(Gtk.Align.CENTER); self.controls.add_css_class("transport")
         self.controls.set_margin_top(6); self.controls.set_margin_bottom(16)
         self.prev = self.icon_button("media-skip-backward-symbolic", lambda *_: self.control("previous")); self.play = self.icon_button("media-playback-start-symbolic", lambda *_: self.control("playpause"), "play"); self.next = self.icon_button("media-skip-forward-symbolic", lambda *_: self.control("next"))
         self.prev.set_size_request(50, 50); self.prev.set_valign(Gtk.Align.CENTER); self.play.set_size_request(68, 68); self.play.set_valign(Gtk.Align.CENTER); self.next.set_size_request(50, 50); self.next.set_valign(Gtk.Align.CENTER)
         self.controls.append(self.prev); self.controls.append(self.play); self.controls.append(self.next); centre.append(self.controls)
-        volume_row = Gtk.Box(spacing=10); volume_row.append(self.label("VOL", "eyebrow")); self.volume = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 0, 100, 1); self.volume.add_css_class("volume"); self.volume.set_hexpand(True); self.volume.set_draw_value(False); self.volume.connect("value-changed", self.change_volume); volume_row.append(self.volume); self.volume_value = self.label("—", "time", 1); volume_row.append(self.volume_value); centre.append(volume_row)
+        volume_row = Gtk.Box(spacing=10); self.mute = self.button("MUTE", self.toggle_audio_mute, "utility"); self.mute.set_size_request(62, 38); volume_row.append(self.mute); self.volume = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 0, 100, 1); self.volume.add_css_class("volume"); self.volume.set_hexpand(True); self.volume.set_draw_value(False); self.volume.connect("value-changed", self.change_volume); volume_row.append(self.volume); self.volume_value = self.label("—", "time", 1); volume_row.append(self.volume_value); centre.append(volume_row)
         content.append(centre); self.roon_views.add_named(content, "now")
         self.queue_list = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2); self.queue_list.add_css_class("queue-list")
         queue_scroll = Gtk.ScrolledWindow(); queue_scroll.add_css_class("queue-scroll"); queue_scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC); queue_scroll.set_kinetic_scrolling(True); queue_scroll.set_overlay_scrolling(True); queue_scroll.set_propagate_natural_height(False); queue_scroll.set_propagate_natural_width(False); queue_scroll.set_min_content_height(1); queue_scroll.set_size_request(-1, 1); queue_scroll.set_vexpand(True); queue_scroll.set_hexpand(True); queue_scroll.set_child(self.queue_list); self.queue_scroll = queue_scroll
@@ -461,6 +468,18 @@ class Display(Gtk.Application):
 
     def render_roon(self, data):
         self.state = data; self.render_queue((data or {}).get("queue") or {}); self.render_details((data or {}).get("details") or {}); zone = (data or {}).get("zone")
+        amplifier = (data or {}).get("amplifier") or {}; active_input = amplifier.get("active_input")
+        self.render_bluos_inputs(amplifier, bool(zone))
+        external = bool(amplifier.get("connected") and active_input)
+        self.artwork_button.set_visible(not external); self.controls.set_visible(not external and self.settings_data.get("roon_show_controls", True)); self.progress.set_visible(not external); self.roon_times.set_visible(not external); self.roon_subnav.set_sensitive(not external)
+        if external:
+            player = amplifier.get("player") or {}; volume = amplifier.get("volume") or {}; value = volume.get("value")
+            self.zone.set_text(player.get("name") or player.get("model") or "BLUOS")
+            self.title.set_text(active_input.get("name") or "External input")
+            self.artist.set_text(" · ".join(filter(None, (player.get("model"), (amplifier.get("playback") or {}).get("format")))) or "NAD amplifier")
+            self.volume_updating = True; self.volume.set_sensitive(value is not None); self.volume.set_value(float(value or 0)); self.volume_value.set_text(str(round(value)) if value is not None else "FIXED"); self.mute.set_sensitive(value is not None); self.mute.set_label("UNMUTE" if volume.get("muted") else "MUTE"); self.volume_updating = False
+            if self.roon_views.get_visible_child_name() == "queue": self.set_roon_view("now")
+            return
         if not zone:
             self.zone.set_text(self.settings_data.get("roon_zone_name") or "ROON")
             if data is None:
@@ -478,7 +497,26 @@ class Display(Gtk.Application):
         self.zone.set_text(zone.get("name") or "ROON"); self.title.set_text(lines.get("line1") or "Nothing playing"); self.artist.set_text(" · ".join(filter(None, (lines.get("line2"), lines.get("line3")))) or "Roon")
         self.play.set_child(Gtk.Image.new_from_icon_name("media-playback-pause-symbolic" if zone.get("state") == "playing" else "media-playback-start-symbolic")); self.prev.set_sensitive(bool(zone.get("can_previous"))); self.next.set_sensitive(bool(zone.get("can_next"))); self.play.set_sensitive(bool(zone.get("can_play") or zone.get("can_pause")))
         elapsed = int(zone.get("seek_position") or 0); length = int(playing.get("length") or 0); self.seek_updating = True; self.progress.set_range(0, max(1, length)); self.progress.set_value(min(elapsed, length) if length else 0); self.progress.set_sensitive(bool(zone.get("can_seek") and length)); self.seek_updating = False; self.elapsed.set_text(self.format_time(elapsed)); self.remaining.set_text("−" + self.format_time(max(0, length - elapsed)))
-        output = zone.get("output") or {}; volume = output.get("volume") or {}; value = volume.get("value"); self.volume_updating = True; self.volume.set_sensitive(value is not None); self.volume.set_value(float(value or 0)); self.volume_value.set_text(str(value) if value is not None else "FIXED"); self.volume_updating = False
+        output = zone.get("output") or {}; volume = output.get("volume") or {}; value = volume.get("value"); self.volume_updating = True; self.volume.set_sensitive(value is not None); self.volume.set_value(float(value or 0)); self.volume_value.set_text(str(value) if value is not None else "FIXED"); self.mute.set_sensitive(value is not None); self.mute.set_label("UNMUTE" if volume.get("is_muted") else "MUTE"); self.volume_updating = False
+
+    def render_bluos_inputs(self, amplifier, have_roon):
+        inputs = ([{"id": "roon", "name": "Roon"}] if have_roon else []) + list(amplifier.get("inputs") or [])
+        signature = [(str(item.get("id")), item.get("name") or "Input") for item in inputs]
+        if signature != getattr(self, "bluos_input_signature", None):
+            self.bluos_input_signature = signature; self.bluos_inputs_updating = True
+            while self.bluos_input_model.get_n_items(): self.bluos_input_model.remove(0)
+            self.bluos_input_ids = []
+            for input_id, name in signature: self.bluos_input_ids.append(input_id); self.bluos_input_model.append(name)
+            self.bluos_inputs_updating = False
+        self.bluos_input_picker.set_visible(bool(amplifier.get("enabled")))
+        active_id = str((amplifier.get("active_input") or {}).get("id") or ("roon" if have_roon else ""))
+        if active_id in self.bluos_input_ids:
+            self.bluos_inputs_updating = True; self.bluos_input_picker.set_selected(self.bluos_input_ids.index(active_id)); self.bluos_inputs_updating = False
+
+    def select_bluos_input(self, dropdown, _property):
+        if self.bluos_inputs_updating: return
+        selected = dropdown.get_selected()
+        if selected < len(self.bluos_input_ids): threading.Thread(target=post_json, args=(ROON + "/api/bluos/input", {"input_id": self.bluos_input_ids[selected]}), daemon=True).start()
 
     def set_roon_view(self, name):
         self.detail_takeover.set_visible(name == "details")
@@ -645,8 +683,18 @@ class Display(Gtk.Application):
     def format_time(self, seconds): return f"{seconds // 60}:{seconds % 60:02d}"
     def change_volume(self, scale):
         if self.volume_updating or not self.state: return
+        amplifier = self.state.get("amplifier") or {}
+        if amplifier.get("connected"):
+            threading.Thread(target=post_json, args=(ROON + "/api/bluos/volume", {"value": round(scale.get_value())}), daemon=True).start(); return
         output = (self.state.get("zone") or {}).get("output") or {}; output_id = output.get("id")
         if output_id: threading.Thread(target=post_json, args=(ROON + "/api/volume", {"output_id": output_id, "value": round(scale.get_value())}), daemon=True).start()
+
+    def toggle_audio_mute(self, *_):
+        if not self.state: return
+        amplifier = self.state.get("amplifier") or {}
+        if amplifier.get("connected"): threading.Thread(target=post_json, args=(ROON + "/api/bluos/mute", {}), daemon=True).start(); return
+        output = (self.state.get("zone") or {}).get("output") or {}; output_id = output.get("id")
+        if output_id: threading.Thread(target=post_json, args=(ROON + "/api/mute", {"output_id": output_id}), daemon=True).start()
 
     def change_seek(self, scale):
         if self.seek_updating or not self.state or not (self.state.get("zone") or {}).get("can_seek"):
