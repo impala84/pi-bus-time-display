@@ -26,6 +26,13 @@ class SystemActionQueueTests(unittest.TestCase):
         report.assert_any_call("Reboot requested. Pi Home is restarting…")
         run.assert_called_once_with(["systemctl", "reboot"])
 
+    def test_failed_update_gets_a_dedicated_terminal_status(self):
+        helper = load_helper()
+        with patch.object(helper, "run", side_effect=RuntimeError("download failed")), patch.object(helper, "report"), patch.object(helper, "report_update") as report_update:
+            with self.assertRaisesRegex(RuntimeError, "download failed"):
+                helper.execute({"action": "update"})
+        self.assertEqual(report_update.call_args_list[-1].args[0], "Failed: download failed")
+
     def test_drains_requests_in_order(self):
         helper = load_helper()
         with tempfile.TemporaryDirectory() as directory:

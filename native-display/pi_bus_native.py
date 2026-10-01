@@ -341,7 +341,7 @@ class Display(Gtk.Application):
         if not self.settings_data or now - self.last_config_fetch >= 60:
             config = get_json(BUS + "/api/admin/config") or {}; self.last_config_fetch = now
         if self.settings_open and (not self.system_data or self.update_in_progress or now - self.last_system_fetch >= 15):
-            system = get_json(BUS + "/api/admin/system") or {}; self.last_system_fetch = now
+            system = get_json(BUS + "/api/admin/system?diagnostics=1") or {}; self.last_system_fetch = now
         zone = (roon or {}).get("zone") or {}; key = (zone.get("now_playing") or {}).get("image_key")
         details = (roon or {}).get("details") or {}; detail_key = details.get("artist_image_key") or details.get("album_image_key") or details.get("image_key")
         target = target_response.get("target") if isinstance(target_response, dict) else None

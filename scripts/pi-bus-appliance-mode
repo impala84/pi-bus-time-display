@@ -44,6 +44,7 @@ configure_input() {
   local profile=${2:-original}
   local matrix
   case ${transform} in
+    # libinput calibration matrices use clockwise rotation labels.
     90) matrix='0 -1 1 1 0 0' ;;
     180) matrix='-1 0 1 0 -1 1' ;;
     270) matrix='0 1 0 -1 0 1' ;;
@@ -51,13 +52,9 @@ configure_input() {
   esac
   {
     echo 'ACTION=="remove", GOTO="pi_bus_input_end"'
-    if [[ ${profile} == touch2-* ]]; then
-      # Cage does not consistently map this panel's raw portrait coordinates
-      # through the output transform, so apply both its output and calibration.
-      echo "ENV{ID_INPUT_TOUCHSCREEN}==\"1\", ENV{WL_OUTPUT}=\"DSI-1\", ENV{LIBINPUT_CALIBRATION_MATRIX}=\"${matrix}\""
-    else
-      echo "ENV{ID_INPUT_TOUCHSCREEN}==\"1\", ENV{LIBINPUT_CALIBRATION_MATRIX}=\"${matrix}\""
-    fi
+    # Apply rotation in one place. WL_OUTPUT mapping can cause the compositor
+    # to transform the same coordinates a second time on Touch Display 2.
+    echo "ENV{ID_INPUT_TOUCHSCREEN}==\"1\", ENV{LIBINPUT_CALIBRATION_MATRIX}=\"${matrix}\""
     echo 'LABEL="pi_bus_input_end"'
   } >"${input_rules}.tmp"
   install -m 0644 "${input_rules}.tmp" "${input_rules}"

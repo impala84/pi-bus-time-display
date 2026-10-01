@@ -11,6 +11,7 @@ STATE = Path("/var/lib/pi-bus-time-display")
 REQUEST = STATE / "system-action-request.json"
 QUEUE = STATE / "system-action-queue"
 STATUS = STATE / "system-action-status"
+UPDATE_STATUS = STATE / "update-status"
 LEDS_ENABLED = STATE / "leds-enabled"
 
 
@@ -19,6 +20,13 @@ def report(message: str) -> None:
     temporary.write_text(message + "\n", encoding="utf-8")
     os.chmod(temporary, 0o644)
     temporary.replace(STATUS)
+
+
+def report_update(message: str) -> None:
+    temporary = UPDATE_STATUS.with_suffix(".tmp")
+    temporary.write_text(message + "\n", encoding="utf-8")
+    os.chmod(temporary, 0o644)
+    temporary.replace(UPDATE_STATUS)
 
 
 def run(command: list[str]) -> None:
@@ -120,7 +128,12 @@ def execute(data: dict) -> None:
     action = data.get("action")
     report("Update · Starting…" if action == "update" else "Working…")
     if action == "update":
-        run(["/usr/local/sbin/pi-bus-update"])
+        report_update("Update · Starting…")
+        try:
+            run(["/usr/local/sbin/pi-bus-update"])
+        except Exception as error:
+            report_update(f"Failed: {error}")
+            raise
         report("Update installed. Pi Home services restarted.")
     elif action == "reboot":
         report("Reboot requested. Pi Home is restarting…")

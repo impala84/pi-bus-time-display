@@ -459,7 +459,7 @@ def pi_led_state(state_dir: Path) -> str:
     return "enabled" if enabled else "disabled"
 
 
-def system_snapshot(state_dir: Path) -> dict:
+def system_snapshot(state_dir: Path, include_diagnostics: bool = False) -> dict:
     roon_service = "unknown"
     for name in ("roonbridge.service", "RoonBridge.service"):
         status = command_output(["systemctl", "is-active", name])
@@ -468,7 +468,7 @@ def system_snapshot(state_dir: Path) -> dict:
             break
     active_wifi = active_wifi_ssid()
     try:
-        update_status = (state_dir / "system-action-status").read_text(encoding="utf-8").strip()
+        update_status = (state_dir / "update-status").read_text(encoding="utf-8").strip()
     except OSError:
         update_status = "Ready"
     try:
@@ -489,7 +489,7 @@ def system_snapshot(state_dir: Path) -> dict:
             roon_controller = "Waiting for authorisation"
     except (OSError, ValueError, json.JSONDecodeError):
         roon_controller = "Unavailable"
-    return {
+    snapshot = {
         "hostname": socket.gethostname(),
         "wifi_ssid": active_wifi,
         "roon_bridge": roon_service,
@@ -500,8 +500,10 @@ def system_snapshot(state_dir: Path) -> dict:
         "display_rotation": display_rotation,
         "display_profile": display_profile,
         "app_version": __version__,
-        "diagnostics": diagnostics_snapshot(),
     }
+    if include_diagnostics:
+        snapshot["diagnostics"] = diagnostics_snapshot()
+    return snapshot
 
 
 def write_control_request(state_dir: Path, request: dict) -> None:
@@ -618,13 +620,18 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                 }).encode()
                 self.send_json(200, body)
                 return
-            if self.path == "/api/admin/system":
+            if self.path in {"/api/admin/system", "/api/admin/system?diagnostics=1"}:
                 if not self.authorised():
                     return
-                system = system_snapshot(mode_path.parent)
+                system = system_snapshot(mode_path.parent, include_diagnostics=self.path.endswith("diagnostics=1"))
                 system["display_brightness"] = state.display_brightness
                 body = json.dumps(system).encode()
                 self.send_json(200, body)
+                return
+            if self.path == "/api/admin/diagnostics":
+                if not self.authorised():
+                    return
+                self.send_json(200, json.dumps(diagnostics_snapshot()).encode())
                 return
             if self.path == "/api/status":
                 body = json.dumps(state.snapshot()).encode()
@@ -835,39 +842,45 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                     self.send_json(200, json.dumps({"ok": True, "display_mode": mode}).encode())
                     return
                 current = state.config
-                requested_home_entities = tuple(item.strip() for item in str(data.get("home_assistant_entities", "")).split(",") if item.strip())
+                def values(name, fallback):
+                    value = data.get(name, fallback)
+                    if isinstance(value, (list, tuple)):
+                        return tuple(str(item).strip() for item in value if str(item).strip())
+                    return tuple(item.strip() for item in str(value).split(",") if item.strip())
+
+                requested_home_entities = values("home_assistant_entities", current.home_assistant_entities)
                 if len(requested_home_entities) > 8:
                     raise ValueError("Choose no more than eight Home Assistant entities")
                 unsupported = [item for item in requested_home_entities if item.split(".", 1)[0] not in {"fan", "light", "switch", "input_boolean"}]
                 if unsupported:
                     raise ValueError("Unsupported Home Assistant entity: " + unsupported[0])
-                home_url = str(data.get("home_assistant_url", "")).strip()
+                home_url = str(data.get("home_assistant_url", current.home_assistant_url)).strip()
                 if home_url and not home_url.startswith(("http://", "https://")):
                     raise ValueError("Home Assistant address must start with http:// or https://")
                 candidate = Config(
-                    bus_stop_code=str(data["bus_stop_code"]).strip(),
-                    bus_stop_name=str(data["bus_stop_name"]).strip(),
-                    services=tuple(item.strip() for item in str(data["services"]).split(",") if item.strip()),
-                    walking_minutes=int(data["walking_minutes"]), poll_seconds=int(data["poll_seconds"]),
+                    bus_stop_code=str(data.get("bus_stop_code", current.bus_stop_code)).strip(),
+                    bus_stop_name=str(data.get("bus_stop_name", current.bus_stop_name)).strip(),
+                    services=values("services", current.services),
+                    walking_minutes=int(data.get("walking_minutes", current.walking_minutes)), poll_seconds=int(data.get("poll_seconds", current.poll_seconds)),
                     stale_after_seconds=current.stale_after_seconds,
-                    morning_start=str(data["morning_start"]), morning_end=str(data["morning_end"]),
-                    sleep_start=str(data["sleep_start"]), sleep_end=str(data["sleep_end"]),
+                    morning_start=str(data.get("morning_start", current.morning_start)), morning_end=str(data.get("morning_end", current.morning_end)),
+                    sleep_start=str(data.get("sleep_start", current.sleep_start)), sleep_end=str(data.get("sleep_end", current.sleep_end)),
                     timezone=current.timezone, roon_display_url=current.roon_display_url,
-                    roon_zone_name=str(data.get("roon_zone_name", "")).strip(),
-                    sleep_when_roon_idle=bool(data.get("sleep_when_roon_idle", False)),
-                    roon_show_controls=bool(data.get("roon_show_controls", True)),
-                    roon_show_clock=bool(data.get("roon_show_clock", True)),
-                    roon_show_queue=bool(data.get("roon_show_queue", True)),
-                    bluos_enabled=bool(data.get("bluos_enabled", False)),
-                    bluos_player_address=str(data.get("bluos_player_address", "")).strip(),
-                    bluos_visible_inputs=tuple(item.strip() for item in str(data.get("bluos_visible_inputs", "")).split(",") if item.strip()),
-                    bluos_input_names=tuple(item.strip() for item in str(data.get("bluos_input_names", "")).split(",") if item.strip()),
-                    sleep_show_clock=bool(data.get("sleep_show_clock", False)),
-                    auto_switch_to_roon=bool(data.get("auto_switch_to_roon", True)),
-                    roon_idle_return_seconds=int(data.get("roon_idle_return_seconds", 300)),
-                    outside_hours_wake_seconds=int(data.get("outside_hours_wake_seconds", 600)),
-                    daytime_inactivity_seconds=int(data.get("daytime_inactivity_seconds", 900)),
-                    home_assistant_enabled=bool(data.get("home_assistant_enabled", False)),
+                    roon_zone_name=str(data.get("roon_zone_name", current.roon_zone_name)).strip(),
+                    sleep_when_roon_idle=bool(data.get("sleep_when_roon_idle", current.sleep_when_roon_idle)),
+                    roon_show_controls=bool(data.get("roon_show_controls", current.roon_show_controls)),
+                    roon_show_clock=bool(data.get("roon_show_clock", current.roon_show_clock)),
+                    roon_show_queue=bool(data.get("roon_show_queue", current.roon_show_queue)),
+                    bluos_enabled=bool(data.get("bluos_enabled", current.bluos_enabled)),
+                    bluos_player_address=str(data.get("bluos_player_address", current.bluos_player_address)).strip(),
+                    bluos_visible_inputs=values("bluos_visible_inputs", current.bluos_visible_inputs),
+                    bluos_input_names=values("bluos_input_names", current.bluos_input_names),
+                    sleep_show_clock=bool(data.get("sleep_show_clock", current.sleep_show_clock)),
+                    auto_switch_to_roon=bool(data.get("auto_switch_to_roon", current.auto_switch_to_roon)),
+                    roon_idle_return_seconds=int(data.get("roon_idle_return_seconds", current.roon_idle_return_seconds)),
+                    outside_hours_wake_seconds=int(data.get("outside_hours_wake_seconds", current.outside_hours_wake_seconds)),
+                    daytime_inactivity_seconds=int(data.get("daytime_inactivity_seconds", current.daytime_inactivity_seconds)),
+                    home_assistant_enabled=bool(data.get("home_assistant_enabled", current.home_assistant_enabled)),
                     home_assistant_url=home_url,
                     home_assistant_entities=requested_home_entities,
                     end_action="display", simulate=current.simulate,

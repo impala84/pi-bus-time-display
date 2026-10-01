@@ -6,10 +6,16 @@ from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
 from pi_bus_time_display.config import Config
-from pi_bus_time_display.server import State, active_wifi_ssid, automatic_display_target, clear_sleep_mode_on_start, display_target, home_assistant_set_state, home_assistant_set_value, read_display_mode, service_state, within_sleep_window, write_control_request
+from pi_bus_time_display.server import State, active_wifi_ssid, automatic_display_target, clear_sleep_mode_on_start, display_target, home_assistant_set_state, home_assistant_set_value, read_display_mode, service_state, system_snapshot, within_sleep_window, write_control_request
 
 
 class DisplayModeTests(unittest.TestCase):
+    def test_system_summary_skips_diagnostics_unless_requested(self):
+        with tempfile.TemporaryDirectory() as directory, patch("pi_bus_time_display.server.command_output", return_value=""), patch("pi_bus_time_display.server.diagnostics_snapshot", return_value={"checked": True}) as diagnostics:
+            self.assertNotIn("diagnostics", system_snapshot(Path(directory)))
+            self.assertEqual(system_snapshot(Path(directory), include_diagnostics=True)["diagnostics"], {"checked": True})
+            diagnostics.assert_called_once_with()
+
     def test_missing_mode_defaults_to_auto(self):
         with tempfile.TemporaryDirectory() as directory:
             self.assertEqual(read_display_mode(Path(directory) / "display-mode"), "auto")

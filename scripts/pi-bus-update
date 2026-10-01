@@ -2,7 +2,7 @@
 set -euo pipefail
 
 app_dir=/opt/pi-bus-time-display
-status_file=/var/lib/pi-bus-time-display/system-action-status
+status_file=/var/lib/pi-bus-time-display/update-status
 
 progress() {
   local message=$1
@@ -113,3 +113,6 @@ if systemctl is-enabled --quiet pi-bus-native.service; then
 fi
 
 progress "Complete — all Pi Home services are responding."
+printf '%s\n' "Update installed. Pi Home services restarted." >"${status_file}.tmp"
+chmod 0644 "${status_file}.tmp"
+mv -f "${status_file}.tmp" "${status_file}"

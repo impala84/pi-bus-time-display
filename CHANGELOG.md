@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.9.0 — 1 October 2026
+
+- Reorganised web settings into Overview, Display, Automation, Services and System, with a compact responsive hierarchy on desktop and mobile.
+- Added isolated section saves, persistent unsaved-change state, a fixed save bar and visible toast feedback so one page cannot overwrite unrelated settings.
+- Moved common screen controls to Overview, display hardware to Display, behavioural rules to Automation and all maintenance actions into one System location.
+- Added conditional Home Assistant and BluOS options, collapsible advanced groups and human-readable minute inputs for timeouts.
+- Separated software-update progress from unrelated system actions and stopped routine web refreshes from collecting expensive diagnostics.
+- Fixed Touch Display 2 landscape input calibration by applying the documented libinput rotation once, without a second compositor output mapping.
+
 ## 0.8.6 — 1 October 2026
 
 - Added a confirmed **Reboot Pi** control to the web System settings.
