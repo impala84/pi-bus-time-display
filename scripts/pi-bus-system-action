@@ -153,7 +153,7 @@ def execute(data: dict) -> None:
     elif action == "set_display":
         profile = str(data.get("profile", "original"))
         transform = str(data.get("transform", "normal"))
-        if profile not in {"original", "touch2-5-7", "touch2-10"} or transform not in {"normal", "90", "180", "270"}:
+        if profile not in {"original", "touch2-5", "touch2-7", "touch2-5-7", "touch2-10"} or transform not in {"normal", "90", "180", "270"}:
             raise ValueError("Invalid display configuration")
         run(["/usr/local/sbin/pi-bus-appliance-mode", "display", profile, transform])
         report("Display settings updated.")

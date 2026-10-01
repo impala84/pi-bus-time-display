@@ -460,6 +460,13 @@ def pi_led_state(state_dir: Path) -> str:
     return "enabled" if enabled else "disabled"
 
 
+def current_boot_id() -> str:
+    try:
+        return Path("/proc/sys/kernel/random/boot_id").read_text(encoding="ascii").strip()
+    except OSError:
+        return ""
+
+
 def system_snapshot(state_dir: Path, include_diagnostics: bool = False) -> dict:
     roon_service = "unknown"
     for name in ("roonbridge.service", "RoonBridge.service"):
@@ -481,6 +488,11 @@ def system_snapshot(state_dir: Path, include_diagnostics: bool = False) -> dict:
     except OSError:
         display_profile = "original"
     try:
+        changed_boot_id = (state_dir / "reboot-required-boot-id").read_text(encoding="ascii").strip()
+        reboot_required = bool(changed_boot_id and changed_boot_id == current_boot_id())
+    except OSError:
+        reboot_required = False
+    try:
         with urllib.request.urlopen("http://127.0.0.1:8766/api/state", timeout=.5) as response:
             controller = json.load(response)
         if controller.get("connected"):
@@ -500,6 +512,7 @@ def system_snapshot(state_dir: Path, include_diagnostics: bool = False) -> dict:
         "update_status": update_status,
         "display_rotation": display_rotation,
         "display_profile": display_profile,
+        "reboot_required": reboot_required,
         "app_version": __version__,
     }
     if include_diagnostics:
@@ -827,7 +840,7 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                     if action == "set_display":
                         profile = str(data.get("profile", ""))
                         transform = str(data.get("transform", ""))
-                        if profile not in {"original", "touch2-5-7", "touch2-10"}:
+                        if profile not in {"original", "touch2-5", "touch2-7", "touch2-5-7", "touch2-10"}:
                             raise ValueError("Unknown display profile")
                         if transform not in {"normal", "90", "180", "270"}:
                             raise ValueError("Unknown display orientation")

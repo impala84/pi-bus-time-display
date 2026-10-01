@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.9.2 — 2 October 2026
+
+- Replaced ineffective generic Touch Display 2 input matrices with Raspberry Pi's supported Device Tree `swapxy`/axis-inversion calibration for non-desktop rotation.
+- Split the 5-inch and 7-inch Touch Display 2 profiles so each uses its correct hardware overlay, while migrating the legacy combined profile to 7-inch.
+- Added a persistent web action bar that follows the user across settings tabs, saves every dirty section together, shows centred status messages and keeps Reboot immediately available.
+- Made display calibration explicitly report that a reboot is required and retain that prompt only for the current boot.
+- Gave touchscreen Settings more vertical and horizontal breathing room.
+- Matched the BluOS player refresh button to its field height, widened it and prevented its label from wrapping.
+
 ## 0.9.1 — 2 October 2026
 
 - Corrected Touch Display 2 landscape input by using the inverse Wayland quarter-turn once, fixing the remaining 180° touch offset without changing picture orientation.

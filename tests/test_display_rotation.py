@@ -14,6 +14,14 @@ class DisplayRotationTests(unittest.TestCase):
     def test_touch_rotation_is_not_applied_twice(self):
         script = (ROOT / "scripts" / "pi-bus-appliance-mode").read_text(encoding="utf-8")
         self.assertNotIn('ENV{WL_OUTPUT}', script)
+        self.assertIn("[[ ${profile} == touch2-* ]] && matrix='1 0 0 0 1 0'", script)
+
+    def test_touch_display_2_uses_supported_device_tree_rotation(self):
+        script = (ROOT / "scripts" / "pi-bus-appliance-mode").read_text(encoding="utf-8")
+        self.assertIn("90) flags=',swapxy,invx'", script)
+        self.assertIn("180) flags=',invx,invy'", script)
+        self.assertIn("270) flags=',swapxy,invy'", script)
+        self.assertIn("vc4-kms-dsi-ili9881-7inch", script)
 
     def test_wayland_uses_inverse_quarter_turn(self):
         script = (ROOT / "scripts" / "pi-bus-cage-launch").read_text(encoding="utf-8")

@@ -22,6 +22,12 @@ class DisplayModeTests(unittest.TestCase):
             self.assertEqual(system_snapshot(Path(directory), include_diagnostics=True)["diagnostics"], {"checked": True})
             diagnostics.assert_called_once_with()
 
+    def test_system_summary_reports_same_boot_reboot_requirement(self):
+        with tempfile.TemporaryDirectory() as directory, patch("pi_bus_time_display.server.command_output", return_value=""), patch("pi_bus_time_display.server.current_boot_id", return_value="test-boot"):
+            state_dir = Path(directory)
+            (state_dir / "reboot-required-boot-id").write_text("test-boot\n", encoding="ascii")
+            self.assertTrue(system_snapshot(state_dir)["reboot_required"])
+
     def test_missing_mode_defaults_to_auto(self):
         with tempfile.TemporaryDirectory() as directory:
             self.assertEqual(read_display_mode(Path(directory) / "display-mode"), "auto")

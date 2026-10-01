@@ -7,6 +7,7 @@ service=/etc/systemd/system/pi-bus-native.service
 transform_file=/etc/pi-bus-time-display/display-transform
 profile_file=/etc/pi-bus-time-display/display-profile
 input_rules=/etc/udev/rules.d/99-pi-bus-kiosk-input.rules
+reboot_marker=/var/lib/pi-bus-time-display/reboot-required-boot-id
 
 install_service() {
   local display_user=$1
@@ -51,6 +52,9 @@ configure_input() {
     270) matrix='0 -1 1 1 0 0' ;;
     *) matrix='1 0 0 0 1 0' ;;
   esac
+  # Touch Display 2 rotation is configured in its Device Tree overlay below.
+  # Leaving a second libinput matrix in place would rotate the coordinates twice.
+  [[ ${profile} == touch2-* ]] && matrix='1 0 0 0 1 0'
   {
     echo 'ACTION=="remove", GOTO="pi_bus_input_end"'
     # Apply rotation in one place. WL_OUTPUT mapping can cause the compositor
@@ -62,6 +66,46 @@ configure_input() {
   rm -f "${input_rules}.tmp"
   udevadm control --reload-rules
   udevadm trigger --subsystem-match=input
+}
+
+configure_touch2_overlay() {
+  local profile=$1
+  local transform=$2
+  [[ ${profile} == touch2-* ]] || return 0
+  local boot_config=/boot/firmware/config.txt
+  [[ -f ${boot_config} ]] || boot_config=/boot/config.txt
+  [[ -f ${boot_config} ]] || { echo "Could not find Raspberry Pi boot configuration."; exit 1; }
+  local overlay
+  case ${profile} in
+    touch2-5) overlay=vc4-kms-dsi-ili9881-5inch ;;
+    touch2-10) overlay=vc4-kms-dsi-ili79600-10-1inch ;;
+    *) overlay=vc4-kms-dsi-ili9881-7inch ;;
+  esac
+  local flags=''
+  case ${transform} in
+    90) flags=',swapxy,invx' ;;
+    180) flags=',invx,invy' ;;
+    270) flags=',swapxy,invy' ;;
+  esac
+  [[ -f ${boot_config}.pi-bus-touch-backup ]] || cp "${boot_config}" "${boot_config}.pi-bus-touch-backup"
+  awk '
+    /^# BEGIN PI HOME TOUCH DISPLAY$/ { managed=1; next }
+    /^# END PI HOME TOUCH DISPLAY$/ { managed=0; next }
+    managed { next }
+    /^[[:space:]]*display_auto_detect=1[[:space:]]*$/ { print "display_auto_detect=0"; next }
+    /^[[:space:]]*dtoverlay=vc4-kms-dsi-(ili9881-(5|7)inch|ili79600-10-1inch)/ { next }
+    { print }
+  ' "${boot_config}" >"${boot_config}.tmp"
+  {
+    printf '\n# BEGIN PI HOME TOUCH DISPLAY\n'
+    printf '[all]\n'
+    printf 'dtoverlay=%s%s\n' "${overlay}" "${flags}"
+    printf '# END PI HOME TOUCH DISPLAY\n'
+  } >>"${boot_config}.tmp"
+  install -m 0755 -d "$(dirname "${reboot_marker}")"
+  cat /proc/sys/kernel/random/boot_id >"${reboot_marker}"
+  install -m 0644 "${boot_config}.tmp" "${boot_config}"
+  rm -f "${boot_config}.tmp"
 }
 
 if [[ ${EUID} -ne 0 ]]; then
@@ -87,6 +131,7 @@ case ${1:-} in
     [[ -f ${profile_file} ]] || printf 'original\n' >"${profile_file}"
     set_boot_rotation "$(<"${transform_file}")" "$(<"${profile_file}")"
     configure_input "$(<"${transform_file}")" "$(<"${profile_file}")"
+    configure_touch2_overlay "$(<"${profile_file}")" "$(<"${transform_file}")"
     install_service "${display_user}"
     systemctl enable pi-bus-native.service
     systemctl disable display-manager.service >/dev/null 2>&1 || true
@@ -109,6 +154,7 @@ case ${1:-} in
     [[ -f ${profile_file} ]] || printf 'original\n' >"${profile_file}"
     set_boot_rotation "${transform}" "$(<"${profile_file}")"
     configure_input "${transform}" "$(<"${profile_file}")"
+    configure_touch2_overlay "$(<"${profile_file}")" "${transform}"
     display_user=$(<"${user_file}")
     install_service "${display_user}"
     [[ ${PI_HOME_NO_RESTART:-0} == 1 ]] || systemctl restart pi-bus-native.service
@@ -117,7 +163,7 @@ case ${1:-} in
   display)
     profile=${2:-}
     transform=${3:-}
-    if [[ ! ${profile} =~ ^(original|touch2-5-7|touch2-10)$ ]]; then
+    if [[ ! ${profile} =~ ^(original|touch2-5|touch2-7|touch2-5-7|touch2-10)$ ]]; then
       echo "Unknown display profile."
       exit 2
     fi
@@ -129,6 +175,7 @@ case ${1:-} in
     printf '%s\n' "${transform}" >"${transform_file}"
     set_boot_rotation "${transform}" "${profile}"
     configure_input "${transform}" "${profile}"
+    configure_touch2_overlay "${profile}" "${transform}"
     if [[ ${PI_HOME_NO_RESTART:-0} != 1 ]] && systemctl is-enabled --quiet pi-bus-native.service; then
       systemctl restart pi-bus-native.service
     fi
