@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.8.6 — 1 October 2026
+
+- Added a confirmed **Reboot Pi** control to the web System settings.
+- Routed reboot through Pi Home's existing fixed-action privileged broker without exposing arbitrary commands or broader sudo access.
+
 ## 0.8.5 — 1 October 2026
 
 - Fixed Touch Display 2 touch coordinates after landscape rotation by applying the matching libinput calibration as well as binding touch to the DSI output.

@@ -804,7 +804,7 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                     return
                 if self.path == "/api/admin/system-action":
                     action = str(data.get("action", ""))
-                    allowed = {"update", "roon_start", "roon_stop", "roon_restart", "netdata_enable", "netdata_disable", "leds_enable", "leds_disable", "set_hostname", "set_wifi", "set_rotation", "set_display"}
+                    allowed = {"update", "reboot", "roon_start", "roon_stop", "roon_restart", "netdata_enable", "netdata_disable", "leds_enable", "leds_disable", "set_hostname", "set_wifi", "set_rotation", "set_display"}
                     if action not in allowed:
                         raise ValueError("Unknown system action")
                     request = {"action": action}

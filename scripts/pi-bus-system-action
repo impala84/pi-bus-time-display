@@ -122,6 +122,9 @@ def execute(data: dict) -> None:
     if action == "update":
         run(["/usr/local/sbin/pi-bus-update"])
         report("Update installed. Pi Home services restarted.")
+    elif action == "reboot":
+        report("Reboot requested. Pi Home is restarting…")
+        run(["systemctl", "reboot"])
     elif action in {"display_on", "display_off"}:
         display_power(action == "display_on", int(data.get("brightness", 100)))
         report("Display awake." if action == "display_on" else "Display asleep.")

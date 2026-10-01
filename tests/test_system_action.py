@@ -19,6 +19,13 @@ def load_helper():
 
 
 class SystemActionQueueTests(unittest.TestCase):
+    def test_reboot_uses_only_the_fixed_systemd_action(self):
+        helper = load_helper()
+        with patch.object(helper, "run") as run, patch.object(helper, "report") as report:
+            helper.execute({"action": "reboot"})
+        report.assert_any_call("Reboot requested. Pi Home is restarting…")
+        run.assert_called_once_with(["systemctl", "reboot"])
+
     def test_drains_requests_in_order(self):
         helper = load_helper()
         with tempfile.TemporaryDirectory() as directory:
