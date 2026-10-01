@@ -11,6 +11,7 @@ sleep_end = "06:00"
 timezone = "Asia/Singapore"
 roon_display_url = ""
 roon_zone_name = ""
+roon_display_name = "Roon"
 sleep_when_roon_idle = false
 roon_show_controls = true
 roon_show_clock = true

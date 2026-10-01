@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.1 — 2 October 2026
+
+- Corrected Touch Display 2 landscape input by using the inverse Wayland quarter-turn once, fixing the remaining 180° touch offset without changing picture orientation.
+- Added a dedicated 1280×720 touchscreen layout with larger Settings controls, Roon selectors and touch targets while reserving room for both fixed navigation rows.
+- Enlarged and vertically centred bus service numbers and arrival groups on the high-resolution landscape display.
+- Added a configurable name for the Roon section in the touchscreen bottom navigation.
+
 ## 0.9.0 — 1 October 2026
 
 - Reorganised web settings into Overview, Display, Automation, Services and System, with a compact responsive hierarchy on desktop and mobile.

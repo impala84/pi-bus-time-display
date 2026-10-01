@@ -5,11 +5,17 @@ from pathlib import Path
 from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
-from pi_bus_time_display.config import Config
-from pi_bus_time_display.server import State, active_wifi_ssid, automatic_display_target, clear_sleep_mode_on_start, display_target, home_assistant_set_state, home_assistant_set_value, read_display_mode, service_state, system_snapshot, within_sleep_window, write_control_request
+from pi_bus_time_display.config import Config, load_config
+from pi_bus_time_display.server import State, active_wifi_ssid, automatic_display_target, clear_sleep_mode_on_start, display_target, home_assistant_set_state, home_assistant_set_value, read_display_mode, service_state, system_snapshot, within_sleep_window, write_config, write_control_request
 
 
 class DisplayModeTests(unittest.TestCase):
+    def test_custom_roon_display_name_persists(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "config.toml"
+            write_config(path, Config(roon_display_name="Hi-Fi"))
+            self.assertEqual(load_config(path).roon_display_name, "Hi-Fi")
+
     def test_system_summary_skips_diagnostics_unless_requested(self):
         with tempfile.TemporaryDirectory() as directory, patch("pi_bus_time_display.server.command_output", return_value=""), patch("pi_bus_time_display.server.diagnostics_snapshot", return_value={"checked": True}) as diagnostics:
             self.assertNotIn("diagnostics", system_snapshot(Path(directory)))

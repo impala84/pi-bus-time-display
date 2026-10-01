@@ -206,6 +206,7 @@ def write_config(path: Path, config: Config) -> None:
         f"timezone = {json.dumps(config.timezone)}",
         f"roon_display_url = {json.dumps(config.roon_display_url)}",
         f"roon_zone_name = {json.dumps(config.roon_zone_name)}",
+        f"roon_display_name = {json.dumps(config.roon_display_name)}",
         f"sleep_when_roon_idle = {str(config.sleep_when_roon_idle).lower()}",
         f"roon_show_controls = {str(config.roon_show_controls).lower()}",
         f"roon_show_clock = {str(config.roon_show_clock).lower()}",
@@ -595,6 +596,7 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                     "morning_end": config.morning_end, "sleep_start": config.sleep_start,
                     "sleep_end": config.sleep_end, "roon_display_url": config.roon_display_url,
                     "roon_zone_name": config.roon_zone_name,
+                    "roon_display_name": config.roon_display_name,
                     "sleep_when_roon_idle": config.sleep_when_roon_idle,
                     "roon_show_controls": config.roon_show_controls,
                     "roon_show_clock": config.roon_show_clock,
@@ -867,6 +869,7 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                     sleep_start=str(data.get("sleep_start", current.sleep_start)), sleep_end=str(data.get("sleep_end", current.sleep_end)),
                     timezone=current.timezone, roon_display_url=current.roon_display_url,
                     roon_zone_name=str(data.get("roon_zone_name", current.roon_zone_name)).strip(),
+                    roon_display_name=str(data.get("roon_display_name", current.roon_display_name)).strip() or "Roon",
                     sleep_when_roon_idle=bool(data.get("sleep_when_roon_idle", current.sleep_when_roon_idle)),
                     roon_show_controls=bool(data.get("roon_show_controls", current.roon_show_controls)),
                     roon_show_clock=bool(data.get("roon_show_clock", current.roon_show_clock)),
@@ -887,6 +890,8 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                 )
                 if not candidate.bus_stop_code.isdigit() or len(candidate.bus_stop_code) != 5:
                     raise ValueError("Bus stop code must be five digits")
+                if len(candidate.roon_display_name) > 16:
+                    raise ValueError("Roon display name must be 16 characters or fewer")
                 if candidate.walking_minutes < 0 or candidate.walking_minutes > 60:
                     raise ValueError("Walking time must be between 0 and 60 minutes")
                 if not (5 <= candidate.poll_seconds <= 300):

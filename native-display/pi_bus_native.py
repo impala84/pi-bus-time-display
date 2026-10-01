@@ -55,6 +55,7 @@ button { border: 0; box-shadow: none; background-image: none; outline: none; }
 .stop-row { margin-bottom: 4px; }.home-grid { padding: 9px 0; }.home-tile { min-height: 120px; border-radius: 12px; padding: 10px 11px 8px; background: #131c1a; border: 1px solid #293633; color: #aab4b0; }.home-tile.on { background: #173229; border-color: #35785f; color: #f4f0e6; }.home-device-button { min-height: 92px; padding: 0; background: transparent; color: #9aaba5; }.home-tile.on .home-device-button { color: #6ed9ae; }.home-icon { opacity: .72; }.home-name { font-size: 15px; font-weight: 700; }.home-state { color: #7f8b87; font-size: 11px; }.home-level { min-width: 28px; min-height: 94px; }.home-level trough { min-width: 7px; border-radius: 4px; background: #303a37; }.home-level highlight { background: #6ed9ae; border-radius: 4px; }.home-level slider { min-width: 20px; min-height: 20px; border-radius: 10px; background: #f4f0e6; }
 .high-resolution .page { padding: 21px 30px 15px; }.high-resolution .stop, .high-resolution .stop-code { font-size: 38px; }.high-resolution .clock { font-size: 47px; }.high-resolution .eyebrow { font-size: 17px; }.high-resolution .service { border-radius: 20px; padding: 8px 24px; }.high-resolution .service-no, .high-resolution .arrival { font-size: 123px; }.high-resolution .service.compact .service-no, .high-resolution .service.compact .arrival { font-size: 89px; }.high-resolution .service.dense .service-no, .high-resolution .service.dense .arrival { font-size: 68px; }.high-resolution .arrival-sub { font-size: 15px; }.high-resolution .muted { font-size: 16px; }.high-resolution .artwork { min-width: 420px; min-height: 420px; }.high-resolution .roon-title { font-size: 52px; }.high-resolution .roon-artist { font-size: 27px; }.high-resolution .nav button { min-height: 60px; font-size: 21px; }
 .high-resolution .roon-subnav button { min-height: 44px; font-size: 15px; }.high-resolution .transport button { min-width: 75px; min-height: 75px; border-radius: 38px; }.high-resolution .transport .play { min-width: 96px; min-height: 96px; border-radius: 48px; }.high-resolution .queue-row { min-height: 99px; }.high-resolution .queue-art { min-width: 84px; min-height: 84px; }.high-resolution .queue-title { font-size: 24px; }.high-resolution .queue-meta, .high-resolution .queue-duration { font-size: 18px; }.high-resolution .detail-title { font-size: 47px; }.high-resolution .detail-artist { font-size: 30px; }.high-resolution .detail-track-title { font-size: 20px; }
+.touch-landscape .page { padding: 18px 28px 14px; }.touch-landscape .service-no, .touch-landscape .arrival { font-size: 138px; }.touch-landscape .service-no { min-width: 205px; }.touch-landscape .arrival-sub { font-size: 17px; }.touch-landscape .stop, .touch-landscape .stop-code { font-size: 42px; }.touch-landscape .clock { font-size: 50px; }.touch-landscape .nav button { min-height: 58px; font-size: 22px; }.touch-landscape .roon-subnav button { min-height: 54px; padding: 8px 18px 5px; font-size: 18px; }.touch-landscape .artwork { min-width: 360px; min-height: 360px; }.touch-landscape .roon-title { font-size: 46px; }.touch-landscape .roon-artist { font-size: 25px; }.touch-landscape .transport button { min-width: 70px; min-height: 70px; border-radius: 35px; }.touch-landscape .transport .play { min-width: 88px; min-height: 88px; border-radius: 44px; }.touch-landscape .settings-title { font-size: 43px; }.touch-landscape .settings-card { padding: 20px 24px; }.touch-landscape .settings-card .muted, .touch-landscape .settings-diagnostic { font-size: 17px; }.touch-landscape .settings-select { min-height: 64px; font-size: 19px; }.touch-landscape .setting-line { min-height: 68px; padding: 0 16px; }.touch-landscape .setting-line label, .touch-landscape .setting-line checkbutton { font-size: 19px; }.touch-landscape .setting-line check { min-width: 30px; min-height: 30px; }.touch-landscape .settings-action { min-height: 70px; font-size: 20px; }.touch-landscape .settings-controls { padding: 8px 0; }.touch-landscape .utility { min-width: 118px; min-height: 52px; font-size: 16px; }
 """
 
 
@@ -105,6 +106,7 @@ class Display(Gtk.Application):
         self.touch_controls = {}
         self.home_signature = None
         self.home_nav_buttons = []
+        self.roon_nav_buttons = []
         self.home_value_timeouts = {}
         self.brightness_updating = False
         self.brightness_timeout = None
@@ -178,6 +180,7 @@ class Display(Gtk.Application):
             geometry = monitor.get_geometry()
             self.detail_artwork.set_size_request(max(320, min(geometry.width, geometry.height) - 60), max(320, min(geometry.width, geometry.height) - 60))
             if max(geometry.width, geometry.height) >= 1200: self.window.add_css_class("high-resolution")
+            if geometry.width >= 1200 and geometry.width > geometry.height: self.window.add_css_class("touch-landscape")
         return False
 
     def header(self, centre, clock):
@@ -190,7 +193,7 @@ class Display(Gtk.Application):
 
     def navigation(self, active):
         row = Gtk.Box(spacing=8); row.add_css_class("nav")
-        now = self.button("Roon", lambda *_: self.set_mode("roon"), "")
+        now = self.button("Roon", lambda *_: self.set_mode("roon"), ""); self.roon_nav_buttons.append(now)
         bus = self.button("Bus Times", lambda *_: self.set_mode("bus"), "")
         home = self.button("Home", lambda *_: self.set_mode("home"), ""); self.home_nav_buttons.append(home)
         {"roon": now, "bus": bus, "home": home}.get(active, bus).add_css_class("active")
@@ -360,6 +363,7 @@ class Display(Gtk.Application):
     def apply(self, target, status, roon, config, system, device, image_key, image):
         if config is not None:
             self.settings_data = config
+            for button in self.roon_nav_buttons: button.set_label(config.get("roon_display_name") or "Roon")
             self.controls.set_visible(config.get("roon_show_controls", True)); self.roon_clock.set_visible(config.get("roon_show_clock", True))
             self.roon_subnav.set_visible(True); self.queue_tab.set_visible(config.get("roon_show_queue", True))
             if not config.get("roon_show_queue", True) and self.roon_views.get_visible_child_name() == "queue": self.set_roon_view("now")
@@ -509,10 +513,10 @@ class Display(Gtk.Application):
             row = Gtk.Box(spacing=12); row.add_css_class("service"); row.add_css_class(colours[index]); row.set_vexpand(True)
             if len(visible) == 3: row.add_css_class("compact")
             elif len(visible) >= 4: row.add_css_class("dense")
-            number = self.label(str(service.get("service", "")), "service-no"); number.set_size_request((150 if len(visible) > 2 else 188) if self.window.has_css_class("high-resolution") else (100 if len(visible) > 2 else 125), -1); number.set_valign(Gtk.Align.START); row.append(number)
+            number = self.label(str(service.get("service", "")), "service-no"); number.set_size_request((150 if len(visible) > 2 else 188) if self.window.has_css_class("high-resolution") else (100 if len(visible) > 2 else 125), -1); number.set_valign(Gtk.Align.CENTER); row.append(number)
             arrivals = Gtk.Box(spacing=8); arrivals.set_hexpand(True)
             for arrival in service.get("arrivals", [])[:3]:
-                col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL); col.set_valign(Gtk.Align.START); minutes = arrival.get("minutes"); col.append(self.label("Due" if minutes == 0 else str(minutes), "arrival", .5)); col.append(self.label("MIN · LIVE" if arrival.get("monitored") else "MIN · AFTER", "arrival-sub", .5)); col.set_hexpand(True); arrivals.append(col)
+                col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL); col.set_valign(Gtk.Align.CENTER); minutes = arrival.get("minutes"); col.append(self.label("Due" if minutes == 0 else str(minutes), "arrival", .5)); col.append(self.label("MIN · LIVE" if arrival.get("monitored") else "MIN · AFTER", "arrival-sub", .5)); col.set_hexpand(True); arrivals.append(col)
             row.append(arrivals); self.services.append(row)
         self.bus_status.set_text("Live from LTA DataMall" if data.get("status") == "ok" and not data.get("stale") else "Offline / last known arrivals")
         updated = data.get("updated_at"); self.updated.set_text("Updated " + updated[11:19] if updated else "")
