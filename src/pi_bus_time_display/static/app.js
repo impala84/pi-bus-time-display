@@ -2,6 +2,7 @@ const byId = id => document.getElementById(id);
 const mins = n => n === 0 ? 'Due' : `${n}<small>min</small>`;
 function tick(){const value=new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Singapore',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date());byId('clock').textContent=value;byId('rest-clock').textContent=value}
 function render(data){
+  byId('roon-link').textContent=data.roon_display_name||'Roon';
   byId('app').hidden=!data.window_active;byId('resting').hidden=data.window_active;
   byId('stop').textContent=`${data.stop_name} · ${data.stop_code}`;
   byId('services').innerHTML=data.services.length?data.services.map(s=>`<article class="service"><span class="service-no">${s.service}</span><div class="arrivals">${s.arrivals.length?s.arrivals.map((a,i)=>`<div class="arrival ${i===0?'first':''}">${mins(a.minutes)}<small>${i===0?(a.monitored?'LIVE':'SCHEDULED'):'AFTER'}</small></div>`).join(''):'<span class="empty">No estimate</span>'}</div></article>`).join(''):'<p class="empty">No services are currently reporting.</p>';

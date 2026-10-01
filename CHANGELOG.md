@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.9.6 — 2 October 2026
+
+- Made the NAD/BluOS volume step controls truly circular by preventing GTK from stretching them with the volume row, and enlarged the volume readout with a lighter weight.
+- Restricted Settings and Sleep header actions to their visible labels instead of broad invisible regions across the top row.
+- Moved the Roon source indicator closer to the top edge and enlarged Home panel names and status text again.
+- Simplified Touchscreen Settings into a flatter layout without the redundant tinted outer card, while restoring deliberate outer margins above and below it.
+- Applied the configured Roon navigation name consistently across every web view and the web Settings screen.
+- Stopped the example “Display settings applied” message from being reconstructed indefinitely from an old reboot marker.
+
 ## 0.9.5 — 2 October 2026
 
 - Added separate editable names for the Roon Now Playing and Queue selectors, shared by the touchscreen and web player.

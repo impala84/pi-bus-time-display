@@ -63,11 +63,12 @@ button { border: 0; box-shadow: none; background-image: none; outline: none; }
 .touch-landscape .service { border-width: 2px; padding-top: 11px; padding-bottom: 11px; }
 .touch-landscape .home-tile { border-width: 2px; }
 .touch-landscape .bus-page { padding-top: 10px; }.touch-landscape .bus-footer .muted { color: #68736f; }.touch-landscape .service-no { opacity: .82; }
-.touch-landscape .home-name { font-size: 20px; }.touch-landscape .home-state { font-size: 15px; }
+.touch-landscape .home-name { font-size: 24px; }.touch-landscape .home-state { font-size: 17px; }
+.touch-landscape .roon-page { padding-top: 8px; }
 .touch-landscape .roon-subnav button { min-height: 42px; padding: 2px 14px 4px; }
-.touch-landscape .source-volume { font-size: 190px; }.touch-landscape .source-step { min-width: 112px; min-height: 112px; border-radius: 56px; font-size: 58px; }.touch-landscape .source-mute { min-width: 160px; min-height: 62px; font-size: 20px; }
-.touch-landscape .settings-page { padding-top: 10px; padding-bottom: 8px; }.touch-landscape .settings-page button { padding: 8px 20px; }
-.touch-landscape .settings-page .settings-card { padding: 16px 24px; }
+.touch-landscape .source-volume { font-size: 220px; font-weight: 450; }.touch-landscape .source-step { min-width: 112px; min-height: 112px; border-radius: 56px; font-size: 58px; }.touch-landscape .source-mute { min-width: 160px; min-height: 62px; font-size: 20px; }
+.touch-landscape .settings-page { padding-top: 18px; padding-bottom: 18px; }.touch-landscape .settings-page button { padding: 8px 20px; }
+.touch-landscape .settings-page .settings-card { padding: 8px 10px; border: 0; background: transparent; }
 .touch-landscape .settings-page .setting-line { min-height: 72px; padding: 5px 18px; }
 .touch-landscape .settings-page .brightness-setting { padding-top: 6px; padding-bottom: 6px; }
 .touch-landscape .settings-page .settings-select { min-height: 62px; padding: 5px 18px; }
@@ -203,7 +204,8 @@ class Display(Gtk.Application):
     def header(self, centre, clock):
         row = Gtk.Box(spacing=10)
         centre.set_xalign(0)
-        title = Gtk.Button(); title.add_css_class("header-hotspot"); title.add_css_class("header-title"); title.set_child(centre); title.set_hexpand(True); title.connect("clicked", self.open_settings); row.append(title)
+        title = Gtk.Button(); title.add_css_class("header-hotspot"); title.add_css_class("header-title"); title.set_child(centre); title.connect("clicked", self.open_settings); row.append(title)
+        spacer = Gtk.Box(); spacer.set_hexpand(True); row.append(spacer)
         clock.set_xalign(1)
         clock_button = Gtk.Button(); clock_button.add_css_class("header-hotspot"); clock_button.add_css_class("header-clock"); clock_button.set_child(clock); clock_button.connect("clicked", self.sleep); row.append(clock_button)
         return row
@@ -231,7 +233,7 @@ class Display(Gtk.Application):
         page.append(self.navigation("bus")); return page
 
     def build_roon(self):
-        page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8); page.add_css_class("page")
+        page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8); page.add_css_class("page"); page.add_css_class("roon-page")
         self.zone = self.label("ROON NOW PLAYING", "eyebrow"); self.roon_clock = self.label("--:--", "clock", 1)
         header_overlay = Gtk.Overlay(); header_overlay.set_child(self.header(self.zone, self.roon_clock))
         subnav = Gtk.Box(spacing=12); subnav.add_css_class("roon-subnav"); subnav.set_halign(Gtk.Align.CENTER); subnav.set_valign(Gtk.Align.START); self.roon_subnav = subnav
@@ -258,7 +260,9 @@ class Display(Gtk.Application):
         source = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12); source.add_css_class("source-view"); source.set_halign(Gtk.Align.CENTER); source.set_valign(Gtk.Align.CENTER); source.set_hexpand(True); source.set_vexpand(True)
         self.source_title = self.label("EXTERNAL INPUT", "source-title", .5); source.append(self.source_title)
         source_volume = Gtk.Box(spacing=28); source_volume.set_halign(Gtk.Align.CENTER); source_volume.set_valign(Gtk.Align.CENTER)
-        source_volume.append(self.button("−", lambda *_: self.step_bluos_volume(-2), "source-step")); self.source_volume = self.label("—", "source-volume", .5); self.source_volume.set_size_request(190, -1); source_volume.append(self.source_volume); source_volume.append(self.button("+", lambda *_: self.step_bluos_volume(2), "source-step")); source.append(source_volume)
+        source_down = self.button("−", lambda *_: self.step_bluos_volume(-2), "source-step"); source_down.set_size_request(112, 112); source_down.set_halign(Gtk.Align.CENTER); source_down.set_valign(Gtk.Align.CENTER); source_volume.append(source_down)
+        self.source_volume = self.label("—", "source-volume", .5); self.source_volume.set_size_request(230, -1); source_volume.append(self.source_volume)
+        source_up = self.button("+", lambda *_: self.step_bluos_volume(2), "source-step"); source_up.set_size_request(112, 112); source_up.set_halign(Gtk.Align.CENTER); source_up.set_valign(Gtk.Align.CENTER); source_volume.append(source_up); source.append(source_volume)
         self.source_mute = self.button("MUTE", self.toggle_audio_mute, "source-mute"); self.source_mute.set_halign(Gtk.Align.CENTER); source.append(self.source_mute); self.roon_views.add_named(source, "source")
         self.queue_list = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2); self.queue_list.add_css_class("queue-list")
         queue_scroll = Gtk.ScrolledWindow(); queue_scroll.add_css_class("queue-scroll"); queue_scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC); queue_scroll.set_kinetic_scrolling(True); queue_scroll.set_overlay_scrolling(True); queue_scroll.set_propagate_natural_height(False); queue_scroll.set_propagate_natural_width(False); queue_scroll.set_min_content_height(1); queue_scroll.set_size_request(-1, 1); queue_scroll.set_vexpand(True); queue_scroll.set_hexpand(True); queue_scroll.set_child(self.queue_list); self.queue_scroll = queue_scroll

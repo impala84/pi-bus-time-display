@@ -56,6 +56,7 @@ class State:
             "stop_code": self.config.bus_stop_code, "walking_minutes": self.config.walking_minutes,
             "window_active": within_window(self.config, now),
             "roon_display_url": self.config.roon_display_url,
+            "roon_display_name": self.config.roon_display_name,
             "stale": bool(self.last_success and (now - self.last_success).total_seconds() > self.config.stale_after_seconds),
         })
         if self.config.services:
@@ -657,7 +658,7 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                 self.send_json(200, body)
                 return
             if self.path == "/api/home/status":
-                self.send_json(200, json.dumps(state.home_data).encode())
+                self.send_json(200, json.dumps({**state.home_data, "roon_display_name": state.config.roon_display_name}).encode())
                 return
             if self.path == "/api/device/controls":
                 if self.client_address[0] not in {"127.0.0.1", "::1"}:

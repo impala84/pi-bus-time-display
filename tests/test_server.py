@@ -73,10 +73,11 @@ class DisplayModeTests(unittest.TestCase):
             self.assertEqual(display_target(Config(), path), "/home")
 
     def test_touchscreen_can_hide_a_configured_service(self):
-        state = State(Config(services=("40", "42")))
+        state = State(Config(services=("40", "42"), roon_display_name="Nowplay"))
         state.data = {"status": "ok", "services": [{"service": "40"}, {"service": "42"}]}
         state.enabled_services.discard("42")
         self.assertEqual([item["service"] for item in state.snapshot()["services"]], ["40"])
+        self.assertEqual(state.snapshot()["roon_display_name"], "Nowplay")
 
     def test_touchscreen_bus_visibility_persists(self):
         with tempfile.TemporaryDirectory() as directory:
