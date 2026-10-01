@@ -250,6 +250,16 @@ def read_display_mode(path: Path) -> str:
         return "auto"
 
 
+def clear_sleep_mode_on_start(path: Path) -> None:
+    """Never carry an explicit black-screen override across a service restart."""
+    if read_display_mode(path) != "sleep":
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(".tmp")
+    temporary.write_text("auto\n", encoding="utf-8")
+    temporary.replace(path)
+
+
 def roon_status() -> dict | None:
     try:
         with urllib.request.urlopen("http://127.0.0.1:8766/api/state", timeout=0.35) as response:
@@ -944,6 +954,7 @@ def main() -> None:
     config = load_config(args.config)
     if args.simulate:
         config = Config(**{**config.__dict__, "simulate": True})
+    clear_sleep_mode_on_start(args.state_dir / "display-mode")
     state = State(config, args.state_dir)
     stop = threading.Event()
     threading.Thread(target=poll, args=(state, stop), daemon=True).start()

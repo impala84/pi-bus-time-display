@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.18 — 1 October 2026
+
+- Prevented a manually selected Sleep override from surviving a Pi Home service restart or Raspberry Pi reboot and immediately blacking the touchscreen again.
+- Startup now safely returns only an explicit Sleep override to Automatic; visible manual selections such as Roon, Bus Times and Home remain unchanged.
+
 ## 0.7.17 — 1 October 2026
 
 - Added automatic recovery for a display pipeline left disabled by an earlier release, allowing this update to restore an already-dark panel without a reboot.

@@ -6,7 +6,7 @@ from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
 from pi_bus_time_display.config import Config
-from pi_bus_time_display.server import State, active_wifi_ssid, automatic_display_target, display_target, home_assistant_set_state, home_assistant_set_value, read_display_mode, service_state, within_sleep_window, write_control_request
+from pi_bus_time_display.server import State, active_wifi_ssid, automatic_display_target, clear_sleep_mode_on_start, display_target, home_assistant_set_state, home_assistant_set_value, read_display_mode, service_state, within_sleep_window, write_control_request
 
 
 class DisplayModeTests(unittest.TestCase):
@@ -25,6 +25,20 @@ class DisplayModeTests(unittest.TestCase):
             path = Path(directory) / "display-mode"
             path.write_text("sleep\n", encoding="utf-8")
             self.assertEqual(read_display_mode(path), "sleep")
+
+    def test_manual_sleep_is_cleared_when_service_starts(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "display-mode"
+            path.write_text("sleep\n", encoding="utf-8")
+            clear_sleep_mode_on_start(path)
+            self.assertEqual(read_display_mode(path), "auto")
+
+    def test_visible_manual_mode_survives_service_start(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "display-mode"
+            path.write_text("home\n", encoding="utf-8")
+            clear_sleep_mode_on_start(path)
+            self.assertEqual(read_display_mode(path), "home")
 
     def test_home_mode_targets_native_home_panel(self):
         with tempfile.TemporaryDirectory() as directory:
