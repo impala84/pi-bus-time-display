@@ -4,6 +4,7 @@ let lastTick = Date.now();
 let musicView = 'now';
 let queueSignature = '';
 let inputSignature = '';
+let lastActiveInput = '';
 const proxied = location.pathname.startsWith('/roon');
 const api = path => `${proxied ? '/roon' : ''}${path}`;
 const mainOrigin = proxied ? location.origin : `${location.protocol}//${location.hostname}:8765`;
@@ -27,14 +28,21 @@ function render(next) {
   lastTick = Date.now();
   const zone = next.zone;
   const amplifier = next.amplifier || {};
+  const activeInput = String(amplifier.active_input?.id || '');
+  if (activeInput !== lastActiveInput) {
+    if (activeInput) musicView = 'source';
+    else if (lastActiveInput && musicView === 'source') musicView = 'now';
+    lastActiveInput = activeInput;
+  }
   renderAmplifier(amplifier, zone);
   const external = Boolean(amplifier.connected && amplifier.active_input);
-  $('source-view').hidden = !external;
-  $('now-view').hidden = external || musicView !== 'now';
-  $('queue-view').hidden = external || musicView !== 'queue';
-  $('details-view').hidden = external || musicView !== 'details';
-  $('now-tab').disabled = false; $('queue-tab').disabled = external;
-  if (external) return;
+  const externalView = external && musicView === 'source';
+  $('source-view').hidden = !externalView;
+  $('now-view').hidden = musicView !== 'now';
+  $('queue-view').hidden = musicView !== 'queue';
+  $('details-view').hidden = musicView !== 'details';
+  $('now-tab').disabled = $('queue-tab').disabled = false;
+  if (externalView) return;
   renderQueue(next.queue || {});
   renderDetails(next.details || {});
   if (!zone) {
@@ -60,10 +68,10 @@ function render(next) {
     $('placeholder').hidden = false;
   }
 
-  $('play').innerHTML = zone.state === 'playing' ? pauseIcon : playIcon;
-  $('play').disabled = !(zone.can_play || zone.can_pause);
-  $('previous').disabled = !zone.can_previous;
-  $('next').disabled = !zone.can_next;
+  $('play').innerHTML = external ? playIcon : (zone.state === 'playing' ? pauseIcon : playIcon);
+  $('play').disabled = external ? !zone.can_play && !zone.can_pause : !(zone.can_play || zone.can_pause);
+  $('previous').disabled = external || !zone.can_previous;
+  $('next').disabled = external || !zone.can_next;
   const length = playing.length || 1;
   $('seek').max = length;
   $('seek').value = zone.seek_position || 0;
@@ -89,10 +97,10 @@ function renderAmplifier(amplifier, zone) {
   if (signature !== inputSignature) {
     inputSignature = signature;
     const picker = $('music-nav'); picker.querySelectorAll('.source-input').forEach(button => button.remove());
-    inputs.forEach(input => picker.insertBefore(inputButton(input, String(input.id) === String(amplifier.active_input?.id)), $('now-tab')));
+    inputs.forEach(input => picker.insertBefore(inputButton(input, musicView === 'source' && String(input.id) === String(amplifier.active_input?.id)), $('now-tab')));
   }
   const active = amplifier.active_input;
-  $('now-tab').classList.toggle('active', !active && musicView === 'now'); $('queue-tab').classList.toggle('active', !active && musicView === 'queue');
+  $('now-tab').classList.toggle('active', musicView === 'now'); $('queue-tab').classList.toggle('active', musicView === 'queue');
   $('source-title').textContent = active?.name || 'External input';
   $('source-subtitle').textContent = [amplifier.player?.name || amplifier.player?.model, amplifier.playback?.format].filter(Boolean).join(' · ') || amplifier.status || 'BluOS amplifier';
   const volume = amplifier.volume;
@@ -102,7 +110,7 @@ function renderAmplifier(amplifier, zone) {
 
 function inputButton(input, active) {
   const button = document.createElement('button'); button.textContent = input.name; button.className = `source-input${active ? ' active' : ''}`;
-  button.onclick = () => post('/api/bluos/input', {input_id: input.id}); return button;
+  button.dataset.inputId = input.id; button.onclick = () => { setMusicView('source'); post('/api/bluos/input', {input_id: input.id}); }; return button;
 }
 
 function queueRow(item) {
@@ -145,8 +153,10 @@ function setMusicView(view) {
   musicView = view;
   const queue = view === 'queue';
   const details = view === 'details';
-  $('now-view').hidden = queue || details; $('queue-view').hidden = !queue; $('details-view').hidden = !details;
-  const external = Boolean(state?.amplifier?.active_input); $('now-tab').classList.toggle('active', !external && view === 'now'); $('queue-tab').classList.toggle('active', !external && queue);
+  const source = view === 'source';
+  $('now-view').hidden = queue || details || source; $('queue-view').hidden = !queue; $('details-view').hidden = !details; $('source-view').hidden = !source;
+  $('now-tab').classList.toggle('active', view === 'now'); $('queue-tab').classList.toggle('active', queue);
+  document.querySelectorAll('.source-input').forEach(button => button.classList.toggle('active', source && String(button.dataset.inputId) === String(state?.amplifier?.active_input?.id)));
   if (queue) requestAnimationFrame(scrollQueueToCurrent);
 }
 
@@ -185,7 +195,7 @@ setInterval(() => {
 }, 1000);
 
 $('previous').onclick = () => post('/api/control', {action: 'previous'});
-$('play').onclick = () => post('/api/control', {action: 'playpause'});
+$('play').onclick = () => post('/api/control', {action: state?.amplifier?.active_input ? 'resume' : 'playpause'});
 $('next').onclick = () => post('/api/control', {action: 'next'});
 $('seek').onchange = event => post('/api/seek', {seconds: Number(event.target.value)});
 $('volume').onchange = event => state.amplifier?.connected ? post('/api/bluos/volume', {value: Number(event.target.value)}) : post('/api/volume', {output_id: state.zone.output.id, value: Number(event.target.value)});
@@ -193,7 +203,7 @@ $('mute').onclick = () => state.amplifier?.connected ? post('/api/bluos/mute', {
 $('amp-down').onclick = () => post('/api/bluos/volume', {value: Number(state?.amplifier?.volume?.value || 0) - 2});
 $('amp-up').onclick = () => post('/api/bluos/volume', {value: Number(state?.amplifier?.volume?.value || 0) + 2});
 $('amp-mute').onclick = () => post('/api/bluos/mute', {});
-$('now-tab').onclick = () => { if (state?.amplifier?.active_input) post('/api/bluos/input', {input_id: 'roon'}); setMusicView('now'); };
+$('now-tab').onclick = () => setMusicView('now');
 $('queue-tab').onclick = () => setMusicView('queue');
 $('details-open').onclick = () => setMusicView('details');
 $('details-close').onclick = () => setMusicView('now');

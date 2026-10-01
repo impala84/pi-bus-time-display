@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8.2 — 1 October 2026
+
+- Separated Roon views from BluOS inputs: Now Playing and Queue never change the amplifier source.
+- Made Play explicitly reclaim Roon only when a physical input is active.
+- Kept physical-input buttons responsible only for selecting their corresponding BluOS source.
+- Added a dedicated full-screen GTK wake gesture plus a blocking Linux touchscreen event listener, removing reliance on GTK window events for manual wake.
+
 ## 0.8.1 — 1 October 2026
 
 - Replaced the BluOS source dropdown with enabled inputs beside Now Playing and Queue.

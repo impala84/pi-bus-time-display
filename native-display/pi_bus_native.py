@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import json
+import os
+import select
+import struct
 import threading
 import time
 import urllib.request
@@ -121,6 +124,8 @@ class Display(Gtk.Application):
         self.last_interaction = time.monotonic()
         self.inactivity_sleeping = False
         self.sleep_entered_at = 0.0
+        self.requested_audio_view = "now"
+        self.last_active_input = ""
         self.detail_image_key = None
         self.detail_signature = None
         self.bluos_source_buttons = {}
@@ -162,6 +167,7 @@ class Display(Gtk.Application):
         self.stack.add_named(self.build_bus(), "bus"); self.stack.add_named(self.build_roon(), "roon"); self.stack.add_named(self.build_home(), "home"); self.stack.add_named(self.build_settings(), "settings"); self.stack.add_named(self.build_sleep(), "sleep")
         self.window.set_child(self.stack); self.window.present()
         threading.Thread(target=self.thumbnail_worker, daemon=True).start()
+        threading.Thread(target=self.touchscreen_wake_worker, daemon=True).start()
         GLib.idle_add(self.adapt_display)
         GLib.timeout_add_seconds(1, self.tick); GLib.timeout_add_seconds(2, self.start_poll); self.tick(); self.start_poll()
 
@@ -273,7 +279,52 @@ class Display(Gtk.Application):
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4); box.add_css_class("sleep"); box.set_halign(Gtk.Align.FILL); box.set_valign(Gtk.Align.FILL); box.set_hexpand(True); box.set_vexpand(True)
         centre = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4); centre.set_halign(Gtk.Align.CENTER); centre.set_valign(Gtk.Align.CENTER); centre.set_hexpand(True); centre.set_vexpand(True)
         self.sleep_clock = self.label("--:--", "sleep-clock", .5); centre.append(self.sleep_clock); self.sleep_hint = self.label("TAP ANYWHERE TO WAKE", "eyebrow", .5); centre.append(self.sleep_hint); box.append(centre)
+        wake_gesture = Gtk.GestureClick(); wake_gesture.set_button(0); wake_gesture.connect("pressed", self.sleep_gesture_pressed); box.add_controller(wake_gesture)
         return box
+
+    def sleep_gesture_pressed(self, _gesture, _count, _x, _y):
+        if time.monotonic() - self.sleep_entered_at >= .45: self.wake("sleep gesture")
+
+    def touchscreen_devices(self):
+        devices = []
+        for event_path in sorted(Path("/sys/class/input").glob("event*")):
+            try: name = (event_path / "device/name").read_text(encoding="utf-8").strip().lower()
+            except OSError: continue
+            if any(token in name for token in ("touchscreen", "touch display", "raspberrypi-ts", "dsi touch", "ft5406", "edt-ft", "goodix")):
+                device = Path("/dev/input") / event_path.name
+                if device.exists(): devices.append((device, name))
+        return devices
+
+    def touchscreen_wake_worker(self):
+        event_struct = struct.Struct("llHHI")
+        while True:
+            handles = []
+            try:
+                for device, name in self.touchscreen_devices():
+                    try:
+                        handle = os.open(device, os.O_RDONLY | os.O_NONBLOCK); handles.append((handle, name))
+                    except OSError: continue
+                if not handles:
+                    time.sleep(5); continue
+                print("Pi Home low-level wake listening on " + ", ".join(name for _, name in handles), flush=True)
+                while True:
+                    readable, _, _ = select.select([handle for handle, _ in handles], [], [], 30)
+                    for handle in readable:
+                        try: packet = os.read(handle, event_struct.size * 32)
+                        except OSError: continue
+                        for offset in range(0, len(packet) - event_struct.size + 1, event_struct.size):
+                            _sec, _usec, event_type, code, value = event_struct.unpack_from(packet, offset)
+                            if event_type == 1 and code == 330 and value == 1:
+                                GLib.idle_add(self.low_level_touch_wake)
+            finally:
+                for handle, _name in handles:
+                    try: os.close(handle)
+                    except OSError: pass
+            time.sleep(1)
+
+    def low_level_touch_wake(self):
+        if self.inactivity_sleeping or (self.stack.get_visible_child_name() == "sleep" and time.monotonic() - self.sleep_entered_at >= .45): self.wake("Linux touchscreen event")
+        return False
 
     def tick(self):
         now = datetime.now(TZ).strftime("%H:%M"); self.bus_clock.set_text(now); self.roon_clock.set_text(now); self.home_clock.set_text(now); self.sleep_clock.set_text(now); return True
@@ -468,15 +519,21 @@ class Display(Gtk.Application):
     def render_roon(self, data):
         self.state = data; self.render_queue((data or {}).get("queue") or {}); self.render_details((data or {}).get("details") or {}); zone = (data or {}).get("zone")
         amplifier = (data or {}).get("amplifier") or {}; active_input = amplifier.get("active_input")
+        active_id = str((active_input or {}).get("id") or "")
+        if active_id != self.last_active_input:
+            if active_id: self.requested_audio_view = "source"
+            elif self.last_active_input and self.requested_audio_view == "source": self.requested_audio_view = "now"
+            self.last_active_input = active_id
         self.render_bluos_inputs(amplifier, bool(zone))
         external = bool(amplifier.get("connected") and active_input)
-        self.artwork_button.set_visible(not external); self.controls.set_visible(not external and self.settings_data.get("roon_show_controls", True)); self.progress.set_visible(not external); self.roon_times.set_visible(not external); self.roon_subnav.set_sensitive(True); self.queue_tab.set_sensitive(not external)
-        if external:
+        external_view = external and self.requested_audio_view == "source"
+        self.artwork_button.set_visible(not external_view); self.controls.set_visible(not external_view and self.settings_data.get("roon_show_controls", True)); self.progress.set_visible(not external_view); self.roon_times.set_visible(not external_view); self.roon_subnav.set_sensitive(True); self.queue_tab.set_sensitive(True)
+        if external_view:
             player = amplifier.get("player") or {}; volume = amplifier.get("volume") or {}; value = volume.get("value")
             self.zone.set_text(player.get("name") or player.get("model") or "BLUOS"); self.source_title.set_text((active_input.get("name") or "External input").upper()); self.source_volume.set_text(str(round(value)) if value is not None else "—"); self.source_mute.set_sensitive(value is not None); self.source_mute.set_label("UNMUTE" if volume.get("muted") else "MUTE")
             self.set_roon_view("source")
             return
-        if self.roon_views.get_visible_child_name() == "source": self.set_roon_view("now")
+        if self.roon_views.get_visible_child_name() == "source": self.set_roon_view(self.requested_audio_view if self.requested_audio_view != "source" else "now")
         if not zone:
             self.zone.set_text(self.settings_data.get("roon_zone_name") or "ROON")
             if data is None:
@@ -492,7 +549,7 @@ class Display(Gtk.Application):
         else:
             self.image_misses = 0
         self.zone.set_text(zone.get("name") or "ROON"); self.title.set_text(lines.get("line1") or "Nothing playing"); self.artist.set_text(" · ".join(filter(None, (lines.get("line2"), lines.get("line3")))) or "Roon")
-        self.play.set_child(Gtk.Image.new_from_icon_name("media-playback-pause-symbolic" if zone.get("state") == "playing" else "media-playback-start-symbolic")); self.prev.set_sensitive(bool(zone.get("can_previous"))); self.next.set_sensitive(bool(zone.get("can_next"))); self.play.set_sensitive(bool(zone.get("can_play") or zone.get("can_pause")))
+        self.play.set_child(Gtk.Image.new_from_icon_name("media-playback-start-symbolic" if external else ("media-playback-pause-symbolic" if zone.get("state") == "playing" else "media-playback-start-symbolic"))); self.prev.set_sensitive(not external and bool(zone.get("can_previous"))); self.next.set_sensitive(not external and bool(zone.get("can_next"))); self.play.set_sensitive(bool(zone.get("can_play") or zone.get("can_pause")))
         elapsed = int(zone.get("seek_position") or 0); length = int(playing.get("length") or 0); self.seek_updating = True; self.progress.set_range(0, max(1, length)); self.progress.set_value(min(elapsed, length) if length else 0); self.progress.set_sensitive(bool(zone.get("can_seek") and length)); self.seek_updating = False; self.elapsed.set_text(self.format_time(elapsed)); self.remaining.set_text("−" + self.format_time(max(0, length - elapsed)))
         output = zone.get("output") or {}; volume = output.get("volume") or {}; value = volume.get("value"); self.volume_updating = True; self.volume.set_sensitive(value is not None); self.volume.set_value(float(value or 0)); self.volume_value.set_text(str(value) if value is not None else "FIXED"); self.mute.set_sensitive(value is not None); self.mute.set_label("UNMUTE" if volume.get("is_muted") else "MUTE"); self.volume_updating = False
 
@@ -508,10 +565,11 @@ class Display(Gtk.Application):
             self.roon_subnav.append(self.now_playing_tab); self.roon_subnav.append(self.queue_tab)
         active_id = str((amplifier.get("active_input") or {}).get("id") or "")
         for input_id, button in self.bluos_source_buttons.items():
-            if input_id == active_id: button.add_css_class("active")
+            if self.requested_audio_view == "source" and input_id == active_id: button.add_css_class("active")
             else: button.remove_css_class("active")
 
     def select_bluos_input(self, input_id):
+        self.requested_audio_view = "source"; self.set_roon_view("source")
         threading.Thread(target=post_json, args=(ROON + "/api/bluos/input", {"input_id": input_id}), daemon=True).start()
 
     def step_bluos_volume(self, amount):
@@ -519,6 +577,7 @@ class Display(Gtk.Application):
         if value is not None: threading.Thread(target=post_json, args=(ROON + "/api/bluos/volume", {"value": round(float(value) + amount)}), daemon=True).start()
 
     def set_roon_view(self, name):
+        if name in {"now", "queue", "source"}: self.requested_audio_view = name
         self.detail_takeover.set_visible(name == "details")
         if name != "details": self.roon_views.set_visible_child_name(name)
         self.now_playing_tab.remove_css_class("active"); self.queue_tab.remove_css_class("active")
@@ -527,7 +586,6 @@ class Display(Gtk.Application):
         if name == "queue": GLib.idle_add(self.scroll_queue_to_current)
 
     def show_roon_now(self, *_):
-        if ((self.state or {}).get("amplifier") or {}).get("active_input"): self.select_bluos_input("roon")
         self.set_roon_view("now")
 
     def render_details(self, details):
@@ -650,7 +708,9 @@ class Display(Gtk.Application):
         source = _[0] if _ else "input"
         self.sleep_entered_at = 0.0; self.last_interaction = now; self.inactivity_sleeping = False; print(f"Pi Home waking after fresh touchscreen {source}", flush=True); self.set_screen_power(True, force=True); self.stack.set_visible_child_name(self.last_mode or "bus")
         threading.Thread(target=post_json, args=(BUS + "/api/device/wake", {"view": self.last_mode or "bus"}), daemon=True).start()
-    def control(self, action): threading.Thread(target=post_json, args=(ROON + "/api/control", {"action": action}), daemon=True).start()
+    def control(self, action):
+        if action == "playpause" and (((self.state or {}).get("amplifier") or {}).get("active_input")): action = "resume"
+        threading.Thread(target=post_json, args=(ROON + "/api/control", {"action": action}), daemon=True).start()
     def toggle_bridge(self, button):
         threading.Thread(target=post_json, args=(BUS + "/api/device/roon-bridge", {"enabled": button.get_active()}), daemon=True).start()
     def toggle_service(self, button, service):

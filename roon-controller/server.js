@@ -193,7 +193,7 @@ function cachedImage(key, size, callback) {
 const roon = new RoonApi({
   extension_id: 'com.impala84.pi-bus-time-display',
   display_name: 'Pi Home Roon Controller',
-  display_version: '0.8.1',
+  display_version: '0.8.2',
   publisher: 'Pi Home',
   email: 'noreply@example.invalid',
   website: 'https://github.com/impala84/pi-home',
@@ -267,16 +267,13 @@ http.createServer(async (request, response) => {
     if (request.method === 'POST' && url.pathname.startsWith('/api/')) {
       const data = await body(request); const zone = selectedZone();
       if (url.pathname === '/api/bluos/input') {
-        if (data.input_id === 'roon') {
-          if (!transport || !zone) return json(response, 409, {error: 'Roon is not connected'});
-          resumeRoon(zone); return json(response, 200, {ok: true});
-        }
         await bluos.selectInput(data.input_id); return json(response, 200, {ok: true});
       }
       if (url.pathname === '/api/bluos/volume') { await bluos.setVolume(data.value); return json(response, 200, {ok: true}); }
       if (url.pathname === '/api/bluos/mute') { await bluos.toggleMute(); return json(response, 200, {ok: true}); }
       if (!transport || !zone) return json(response, 409, {error: 'Roon is not connected'});
-      if (url.pathname === '/api/control' && ['previous', 'playpause', 'next'].includes(data.action)) transport.control(zone, data.action);
+      if (url.pathname === '/api/control' && data.action === 'resume') resumeRoon(zone);
+      else if (url.pathname === '/api/control' && ['previous', 'playpause', 'next'].includes(data.action)) transport.control(zone, data.action);
       else if (url.pathname === '/api/queue/play') {
         const item = [...queueHistory, ...queueItems].find(candidate => String(candidate.queue_item_id) === String(data.queue_item_id));
         if (!item) return json(response, 409, {error: 'That queue item is no longer available'});
