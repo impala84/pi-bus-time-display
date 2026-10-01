@@ -9,6 +9,7 @@ from pathlib import Path
 
 STATE = Path("/var/lib/pi-bus-time-display")
 REQUEST = STATE / "system-action-request.json"
+QUEUE = STATE / "system-action-queue"
 STATUS = STATE / "system-action-status"
 LEDS_ENABLED = STATE / "leds-enabled"
 
@@ -115,11 +116,7 @@ def apply_led_preference() -> None:
     set_pi_leds(enabled)
 
 
-def main() -> None:
-    if not REQUEST.exists():
-        return
-    data = json.loads(REQUEST.read_text(encoding="utf-8"))
-    REQUEST.unlink(missing_ok=True)
+def execute(data: dict) -> None:
     action = data.get("action")
     report("Update · Starting…" if action == "update" else "Working…")
     if action == "update":
@@ -184,6 +181,32 @@ def main() -> None:
         report(f"Connected to {ssid}.")
     else:
         raise ValueError("Unknown system action")
+
+
+def pending_requests() -> list[Path]:
+    """Return legacy and queued requests in a stable order."""
+    requests = [REQUEST] if REQUEST.exists() else []
+    if QUEUE.exists():
+        requests.extend(sorted(QUEUE.glob("*.json")))
+    return requests
+
+
+def main() -> None:
+    # Keep draining until the queue is empty. Requests arriving just after the
+    # final scan also update system-action-trigger, causing systemd to start a
+    # fresh one-shot once this invocation exits.
+    while requests := pending_requests():
+        for request in requests:
+            try:
+                data = json.loads(request.read_text(encoding="utf-8"))
+                execute(data)
+            except Exception as error:
+                # One malformed or failed action must not strand later wake,
+                # brightness or service requests in the queue.
+                report(f"Failed: {error}")
+                print(f"System action failed: {error}", file=sys.stderr, flush=True)
+            finally:
+                request.unlink(missing_ok=True)
 
 
 if __name__ == "__main__":

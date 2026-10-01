@@ -505,12 +505,27 @@ def system_snapshot(state_dir: Path) -> dict:
 
 
 def write_control_request(state_dir: Path, request: dict) -> None:
+    """Atomically enqueue a privileged action and wake the systemd path unit.
+
+    A single shared request file loses actions when two HTTP worker threads
+    write before the privileged one-shot has consumed the first request.  Use
+    one immutable file per action so ordering is preserved across bursts such
+    as display-off immediately followed by display-on.
+    """
     state_dir.mkdir(parents=True, exist_ok=True)
-    temporary = state_dir / "system-action-request.tmp"
-    target = state_dir / "system-action-request.json"
+    queue_dir = state_dir / "system-action-queue"
+    queue_dir.mkdir(mode=0o700, exist_ok=True)
+    request_id = f"{time.time_ns():020d}-{os.getpid()}-{threading.get_ident()}-{secrets.token_hex(4)}"
+    temporary = queue_dir / f".{request_id}.tmp"
+    target = queue_dir / f"{request_id}.json"
     temporary.write_text(json.dumps(request), encoding="utf-8")
     os.chmod(temporary, 0o600)
     temporary.replace(target)
+    trigger_temporary = state_dir / f".system-action-trigger-{request_id}.tmp"
+    trigger = state_dir / "system-action-trigger"
+    trigger_temporary.write_text(request_id + "\n", encoding="ascii")
+    os.chmod(trigger_temporary, 0o600)
+    trigger_temporary.replace(trigger)
 
 
 def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Path):

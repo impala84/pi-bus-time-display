@@ -102,7 +102,11 @@ class BluOSClient {
   async connect(generation) {
     try {
       const [syncXml, inputXml, volumeXml, statusXml] = await Promise.all([
-        this.request('/SyncStatus'), this.request('/RadioBrowse?service=Capture'), this.request('/Volume'), this.request('/Status')
+        this.request('/SyncStatus'),
+        // Some firmware does not expose Capture browsing even though status
+        // and volume control are healthy.
+        this.request('/RadioBrowse?service=Capture').catch(() => ''),
+        this.request('/Volume'), this.request('/Status')
       ]);
       if (generation !== this.generation) return;
       const inputs = parseInputs(inputXml); const playback = parseStatus(statusXml);

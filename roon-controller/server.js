@@ -31,32 +31,42 @@ const listeners = new Set();
 const imageCache = new Map();
 const QUEUE_LIMIT = 100;
 const IMAGE_CACHE_LIMIT = 64;
+let runtimeConfig = null;
+let runtimeConfigExpires = 0;
 
-function configuredZoneName() {
-  if (process.env.ROON_ZONE_NAME) return process.env.ROON_ZONE_NAME;
+function configuredRuntime() {
+  const now = Date.now();
+  if (runtimeConfig && now < runtimeConfigExpires) return runtimeConfig;
+  const defaults = {zoneName: process.env.ROON_ZONE_NAME || '', queueEnabled: true, bluos: {enabled: false, address: '', visibleInputs: [], inputNames: []}};
   try {
     const text = fs.readFileSync(process.env.CONFIG_PATH || '/etc/pi-bus-time-display/config.toml', 'utf8');
-    return JSON.parse(text.match(/^roon_zone_name\s*=\s*("(?:[^"\\]|\\.)*")/m)?.[1] || '""');
-  } catch (_) { return ''; }
+    const stringValue = name => JSON.parse(text.match(new RegExp(`^${name}\\s*=\\s*("(?:[^"\\\\]|\\\\.)*")`, 'm'))?.[1] || '""');
+    const arrayValue = name => JSON.parse(text.match(new RegExp(`^${name}\\s*=\\s*(\\[[^\\n]*\\])`, 'm'))?.[1] || '[]');
+    runtimeConfig = {
+      zoneName: process.env.ROON_ZONE_NAME || stringValue('roon_zone_name'),
+      queueEnabled: text.match(/^roon_show_queue\s*=\s*(true|false)/m)?.[1] !== 'false',
+      bluos: {
+        enabled: text.match(/^bluos_enabled\s*=\s*(true|false)/m)?.[1] === 'true',
+        address: stringValue('bluos_player_address'),
+        visibleInputs: arrayValue('bluos_visible_inputs'),
+        inputNames: arrayValue('bluos_input_names')
+      }
+    };
+  } catch (_) { runtimeConfig = defaults; }
+  runtimeConfigExpires = now + 1000;
+  return runtimeConfig;
+}
+
+function configuredZoneName() {
+  return configuredRuntime().zoneName;
 }
 
 function configuredQueueEnabled() {
-  try {
-    const text = fs.readFileSync(process.env.CONFIG_PATH || '/etc/pi-bus-time-display/config.toml', 'utf8');
-    const match = text.match(/^roon_show_queue\s*=\s*(true|false)/m);
-    return !match || match[1] === 'true';
-  } catch (_) { return true; }
+  return configuredRuntime().queueEnabled;
 }
 
 function configuredBluOS() {
-  try {
-    const text = fs.readFileSync(process.env.CONFIG_PATH || '/etc/pi-bus-time-display/config.toml', 'utf8');
-    const enabled = text.match(/^bluos_enabled\s*=\s*(true|false)/m)?.[1] === 'true';
-    const address = JSON.parse(text.match(/^bluos_player_address\s*=\s*("(?:[^"\\]|\\.)*")/m)?.[1] || '""');
-    const visibleInputs = JSON.parse(text.match(/^bluos_visible_inputs\s*=\s*(\[[^\n]*\])/m)?.[1] || '[]');
-    const inputNames = JSON.parse(text.match(/^bluos_input_names\s*=\s*(\[[^\n]*\])/m)?.[1] || '[]');
-    return {enabled, address, visibleInputs, inputNames};
-  } catch (_) { return {enabled: false, address: '', visibleInputs: [], inputNames: []}; }
+  return configuredRuntime().bluos;
 }
 
 function publicAmplifierState() {
@@ -193,7 +203,7 @@ function cachedImage(key, size, callback) {
 const roon = new RoonApi({
   extension_id: 'com.impala84.pi-bus-time-display',
   display_name: 'Pi Home Roon Controller',
-  display_version: '0.8.2',
+  display_version: '0.8.3',
   publisher: 'Pi Home',
   email: 'noreply@example.invalid',
   website: 'https://github.com/impala84/pi-home',

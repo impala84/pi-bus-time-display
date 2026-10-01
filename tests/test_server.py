@@ -113,12 +113,27 @@ class DisplayModeTests(unittest.TestCase):
             self.assertEqual(display_target(config, path, {"zone": {"state": "paused"}}, evening), "/sleep.html")
             self.assertEqual(display_target(config, path, {"zone": {"state": "playing"}}, evening), "http://127.0.0.1:8766/")
 
-    def test_touchscreen_update_request_is_atomic_json(self):
+    def test_touchscreen_update_request_is_atomically_queued(self):
         with tempfile.TemporaryDirectory() as directory:
             state_dir = Path(directory)
             write_control_request(state_dir, {"action": "update"})
-            self.assertEqual((state_dir / "system-action-request.json").read_text(encoding="utf-8"), '{"action": "update"}')
-            self.assertFalse((state_dir / "system-action-request.tmp").exists())
+            requests = list((state_dir / "system-action-queue").glob("*.json"))
+            self.assertEqual(len(requests), 1)
+            self.assertEqual(requests[0].read_text(encoding="utf-8"), '{"action": "update"}')
+            self.assertTrue((state_dir / "system-action-trigger").read_text(encoding="ascii").strip())
+            self.assertFalse(list((state_dir / "system-action-queue").glob("*.tmp")))
+
+    def test_quick_privileged_actions_do_not_overwrite_each_other(self):
+        with tempfile.TemporaryDirectory() as directory:
+            state_dir = Path(directory)
+            write_control_request(state_dir, {"action": "display_off"})
+            write_control_request(state_dir, {"action": "display_on", "brightness": 63})
+            requests = sorted((state_dir / "system-action-queue").glob("*.json"))
+            self.assertEqual(len(requests), 2)
+            self.assertEqual(
+                [path.read_text(encoding="utf-8") for path in requests],
+                ['{"action": "display_off"}', '{"action": "display_on", "brightness": 63}'],
+            )
 
     def test_playback_temporarily_takes_over_automatic_bus_display(self):
         with tempfile.TemporaryDirectory() as directory:

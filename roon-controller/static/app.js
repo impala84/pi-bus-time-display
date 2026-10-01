@@ -35,6 +35,10 @@ function render(next) {
     lastActiveInput = activeInput;
   }
   renderAmplifier(amplifier, zone);
+  // Keep bounded secondary views current while an external input is visible,
+  // so opening Queue or Details never waits for a later SSE update.
+  renderQueue(next.queue || {});
+  renderDetails(next.details || {});
   const external = Boolean(amplifier.connected && amplifier.active_input);
   const externalView = external && musicView === 'source';
   $('source-view').hidden = !externalView;
@@ -43,8 +47,6 @@ function render(next) {
   $('details-view').hidden = musicView !== 'details';
   $('now-tab').disabled = $('queue-tab').disabled = false;
   if (externalView) return;
-  renderQueue(next.queue || {});
-  renderDetails(next.details || {});
   if (!zone) {
     $('title').textContent = next.connected ? 'Choose a Roon zone' : 'Waiting for Roon';
     $('artist').textContent = next.connected ? 'Start playback in a zone' : 'Enable Pi Home Roon Controller in Roon → Settings → Extensions';

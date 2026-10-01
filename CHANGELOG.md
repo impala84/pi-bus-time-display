@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.8.3 — 1 October 2026
+
+- Replaced the lossy single-file privileged action handoff with an ordered atomic queue, preventing rapid sleep/wake, brightness or service requests from overwriting one another.
+- Made the privileged broker continue draining later actions after an individual request fails and retained legacy request compatibility during updates.
+- Kept the web Queue and album/artist detail views current while an external BluOS input is displayed.
+- Reduced synchronous controller configuration reads to at most one per second without adding polling or a background process.
+- Kept BluOS status and volume available when a player does not support Capture input browsing.
+- Added a concise runtime architecture map and a prioritised V8 stabilization audit for subsequent reliability work.
+
 ## 0.8.2 — 1 October 2026
 
 - Separated Roon views from BluOS inputs: Now Playing and Queue never change the amplifier source.

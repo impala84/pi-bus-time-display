@@ -2,7 +2,7 @@
 Description=Watch for Pi Bus system requests
 
 [Path]
-PathChanged=/var/lib/pi-bus-time-display/system-action-request.json
+PathChanged=/var/lib/pi-bus-time-display/system-action-trigger
 Unit=pi-bus-system-action.service
 
 [Install]

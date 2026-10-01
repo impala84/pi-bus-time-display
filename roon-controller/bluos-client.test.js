@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {normaliseAddress, parseInputs, parsePlayer, parseStatus, parseVolume} = require('./bluos-client');
+const {BluOSClient, normaliseAddress, parseInputs, parsePlayer, parseStatus, parseVolume} = require('./bluos-client');
 
 test('normalises a player hostname onto the BluOS port', () => {
   assert.equal(normaliseAddress('nad-m33.local'), 'http://nad-m33.local:11000');
@@ -23,4 +23,20 @@ test('keeps only selectable capture inputs', () => {
 
 test('parses compact RadioBrowse input items', () => {
   assert.deepEqual(parseInputs('<browse><item id="input2" inputType="analog" text="Record player" url="capture:analog-1"/></browse>'), [{id: 'input2', name: 'Record player', input_type: 'analog', url: 'capture:analog-1'}]);
+});
+
+test('connects for playback and volume when input browsing is unavailable', async () => {
+  const client = new BluOSClient(() => ({enabled: true, address: 'nad.local'}), () => {});
+  client.base = 'http://nad.local:11000';
+  client.request = async path => {
+    if (path === '/RadioBrowse?service=Capture') throw new Error('unsupported');
+    if (path === '/SyncStatus') return '<SyncStatus id="abc" name="Living Room" modelName="NAD M33" brand="NAD"/>';
+    if (path === '/Volume') return '<volume db="-35" mute="0">22</volume>';
+    return '<status etag="17"><state>stream</state><title1>Roon</title1></status>';
+  };
+  client.poll = () => {};
+  await client.connect(0);
+  assert.equal(client.publicState().connected, true);
+  assert.deepEqual(client.publicState().inputs, []);
+  assert.equal(client.publicState().volume.value, 22);
 });
