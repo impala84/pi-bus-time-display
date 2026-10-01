@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.7 — 2 October 2026
+
+- Clarified the Roon naming fields as bottom navigation, top navigation play screen and top navigation queue names.
+- Corrected the Home touchscreen header to “Pi Home” and aligned it vertically with Bus Times.
+- Moved the album/artist Back control beneath the information column and made it smaller on both touchscreen and web.
+
 ## 0.9.6 — 2 October 2026
 
 - Made the NAD/BluOS volume step controls truly circular by preventing GTK from stretching them with the volume row, and enlarged the volume readout with a lighter weight.
