@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.10.7 — 2 October 2026
+
+- Return the web update control to normal page flow so it cannot obscure settings content.
+- Place View display directly beneath the update control in the masthead.
+
 ## 0.10.6 — 2 October 2026
 
 - Align the fixed web update control with the centred settings wrapper instead of the browser window edge.
