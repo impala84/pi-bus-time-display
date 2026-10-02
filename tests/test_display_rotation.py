@@ -90,6 +90,7 @@ class DisplayRotationTests(unittest.TestCase):
         script = (ROOT / "src" / "pi_bus_time_display" / "static" / "admin.js").read_text(encoding="utf-8")
         self.assertIn('class="global-update"', html)
         self.assertIn(".global-update{position:fixed", css)
+        self.assertIn("calc((100vw - 820px)/2 + 20px)", css)
         self.assertIn("setTimeout(()=>location.reload(),1200)", script)
         self.assertIn("const updateButtons=[...document.querySelectorAll", script)
 

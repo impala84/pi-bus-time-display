@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.10.6 — 2 October 2026
+
+- Align the fixed web update control with the centred settings wrapper instead of the browser window edge.
+
 ## 0.10.5 — 2 October 2026
 
 - Added an always-visible Check for updates control at the top-right of web settings.
