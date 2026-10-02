@@ -36,6 +36,9 @@ class DisplayRotationTests(unittest.TestCase):
         self.assertIn("GLib.idle_add(self.low_level_touch_wake, contact_at)", display)
         self.assertIn("contact_at <= self.sleep_entered_at", display)
         self.assertIn("self.inactivity_sleeping = True\n            self.prepare_sleep_wake()", display)
+        self.assertIn("if self.manual_sleep_pending:", display)
+        self.assertIn('target = "/sleep.html"', display)
+        self.assertIn("for attempt in range(3):", display)
 
     def test_wayland_uses_inverse_quarter_turn(self):
         script = (ROOT / "scripts" / "pi-bus-cage-launch").read_text(encoding="utf-8")

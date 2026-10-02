@@ -146,6 +146,8 @@ class Display(Gtk.Application):
         self.last_interaction = time.monotonic()
         self.inactivity_sleeping = False
         self.sleep_entered_at = 0.0
+        self.manual_sleep_pending = False
+        self.manual_sleep_started_at = 0.0
         self.requested_audio_view = "now"
         self.last_active_input = ""
         self.detail_image_key = None
@@ -464,6 +466,18 @@ class Display(Gtk.Application):
         self.render_roon(roon)
         if not self.views_prewarmed:
             self.views_prewarmed = True; GLib.idle_add(self.prewarm_views)
+        if self.manual_sleep_pending:
+            if target == "/sleep.html":
+                self.manual_sleep_pending = False
+                print("Pi Home manual sleep confirmed by controller", flush=True)
+            elif time.monotonic() - self.manual_sleep_started_at < 6:
+                # The local panel changes immediately, but the mode request is
+                # asynchronous. Do not let a poll of the previous mode turn
+                # the backlight on while the controller catches up.
+                target = "/sleep.html"
+            else:
+                self.manual_sleep_pending = False
+                print("Pi Home manual sleep confirmation timed out", flush=True)
         scheduled_wake = bool(
             target is not None
             and target != "/sleep.html"
@@ -784,11 +798,34 @@ class Display(Gtk.Application):
         # could leave manual sleep permanently unable to accept a wake touch.
         self.sleep_entered_at = time.monotonic()
 
-    def sleep(self, *_): self.inactivity_sleeping = False; self.settings_open = False; self.prepare_sleep_wake(); self.stack.set_visible_child_name("sleep"); self.set_screen_power(bool(self.settings_data.get("sleep_show_clock", False))); threading.Thread(target=post_json, args=(BUS + "/api/admin/display-mode", {"mode": "sleep"}), daemon=True).start()
+    def sleep(self, *_):
+        self.inactivity_sleeping = False; self.settings_open = False
+        self.manual_sleep_pending = True; self.manual_sleep_started_at = time.monotonic()
+        self.prepare_sleep_wake(); self.stack.set_visible_child_name("sleep")
+        self.set_screen_power(bool(self.settings_data.get("sleep_show_clock", False)))
+        print("Pi Home manual sleep requested", flush=True)
+        threading.Thread(target=self.request_manual_sleep, daemon=True).start()
+
+    def request_manual_sleep(self):
+        for attempt in range(3):
+            if post_json(BUS + "/api/admin/display-mode", {"mode": "sleep"}):
+                GLib.idle_add(self.start_poll)
+                return
+            if attempt < 2: time.sleep(.35)
+        GLib.idle_add(self.manual_sleep_failed)
+
+    def manual_sleep_failed(self):
+        if self.manual_sleep_pending:
+            self.manual_sleep_pending = False
+            print("Pi Home manual sleep request failed after three attempts", flush=True)
+            self.set_screen_power(True, force=True)
+            self.stack.set_visible_child_name(self.last_mode or "bus")
+        return False
+
     def wake(self, *_):
         now = time.monotonic()
         source = _[0] if _ else "input"
-        self.sleep_entered_at = 0.0; self.last_interaction = now; self.inactivity_sleeping = False; print(f"Pi Home waking after fresh touchscreen {source}", flush=True); self.set_screen_power(True, force=True); self.stack.set_visible_child_name(self.last_mode or "bus")
+        self.manual_sleep_pending = False; self.sleep_entered_at = 0.0; self.last_interaction = now; self.inactivity_sleeping = False; print(f"Pi Home waking after fresh touchscreen {source}", flush=True); self.set_screen_power(True, force=True); self.stack.set_visible_child_name(self.last_mode or "bus")
         threading.Thread(target=post_json, args=(BUS + "/api/device/wake", {"view": self.last_mode or "bus"}), daemon=True).start()
     def control(self, action):
         if action == "playpause" and (((self.state or {}).get("amplifier") or {}).get("active_input")): action = "resume"

@@ -280,6 +280,18 @@ def read_display_mode(path: Path) -> str:
         return "auto"
 
 
+def set_display_mode(state: State, path: Path, mode: str) -> None:
+    if mode not in {"auto", "bus", "roon", "home", "sleep"}:
+        raise ValueError("Display mode must be auto, bus, roon, home or sleep")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(mode + "\n", encoding="utf-8")
+    if mode == "sleep":
+        # An earlier tap-to-wake grants a temporary awake period. An explicit
+        # Sleep command must supersede it, otherwise the next target poll
+        # immediately wakes the panel again.
+        state.awake_until = 0.0
+
+
 def clear_sleep_mode_on_start(path: Path) -> None:
     """Never carry an explicit black-screen override across a service restart."""
     if read_display_mode(path) != "sleep":
@@ -895,10 +907,7 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                     return
                 if self.path == "/api/admin/display-mode":
                     mode = str(data.get("mode", ""))
-                    if mode not in {"auto", "bus", "roon", "home", "sleep"}:
-                        raise ValueError("Display mode must be auto, bus, roon, home or sleep")
-                    mode_path.parent.mkdir(parents=True, exist_ok=True)
-                    mode_path.write_text(mode + "\n", encoding="utf-8")
+                    set_display_mode(state, mode_path, mode)
                     if events:
                         events.emit("display.mode.changed", mode=mode)
                     self.send_json(200, json.dumps({"ok": True, "display_mode": mode}).encode())

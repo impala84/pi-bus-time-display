@@ -6,7 +6,7 @@ from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
 from pi_bus_time_display.config import Config, load_config
-from pi_bus_time_display.server import State, active_wifi_ssid, automatic_display_target, clear_sleep_mode_on_start, display_target, home_assistant_set_state, home_assistant_set_value, read_display_mode, service_state, system_snapshot, within_sleep_window, write_config, write_control_request
+from pi_bus_time_display.server import State, active_wifi_ssid, automatic_display_target, clear_sleep_mode_on_start, display_target, home_assistant_set_state, home_assistant_set_value, read_display_mode, service_state, set_display_mode, system_snapshot, within_sleep_window, write_config, write_control_request
 
 
 class DisplayModeTests(unittest.TestCase):
@@ -232,6 +232,17 @@ class DisplayModeTests(unittest.TestCase):
             overnight = datetime(2026, 9, 29, 1, 0, tzinfo=ZoneInfo("Asia/Singapore"))
             with patch("pi_bus_time_display.server.time.monotonic", return_value=1200):
                 self.assertEqual(automatic_display_target(state, mode, None, overnight), "/")
+
+    def test_explicit_sleep_cancels_a_temporary_wake(self):
+        with tempfile.TemporaryDirectory() as directory:
+            mode = Path(directory) / "display-mode"
+            state = State(Config(sleep_start="22:00", sleep_end="07:00"))
+            state.awake_until = 1600
+            set_display_mode(state, mode, "sleep")
+            self.assertEqual(state.awake_until, 0.0)
+            overnight = datetime(2026, 9, 29, 1, 0, tzinfo=ZoneInfo("Asia/Singapore"))
+            with patch("pi_bus_time_display.server.time.monotonic", return_value=1200):
+                self.assertEqual(automatic_display_target(state, mode, None, overnight), "/sleep.html")
 
     def test_wifi_reports_ssid_not_netplan_profile_name(self):
         with patch("pi_bus_time_display.server.command_output", side_effect=["netplan-wlan0-Boogaloo:802-11-wireless", "Boogaloo"]):

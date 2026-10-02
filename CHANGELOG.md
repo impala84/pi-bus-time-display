@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.10.8 — 2 October 2026
+
+- Make an explicit manual Sleep cancel any earlier temporary tap-to-wake allowance.
+- Hold the local sleep screen while the controller confirms the new mode, preventing a stale poll from switching the backlight on again.
+- Retry a failed manual sleep request and log each transition for targeted diagnostics.
+
 ## 0.10.7 — 2 October 2026
 
 - Return the web update control to normal page flow so it cannot obscure settings content.
