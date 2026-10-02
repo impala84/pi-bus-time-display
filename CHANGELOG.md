@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.10.5 — 2 October 2026
+
+- Added an always-visible Check for updates control at the top-right of web settings.
+- Unified both web update controls so they share disabled/progress state and cannot queue overlapping installations.
+- Reloaded web settings automatically after the updated Pi Home services come back, making the newly installed version immediately visible.
+
 ## 0.10.4 — 2 October 2026
 
 - Fixed manual Sleep immediately waking again when the low-level copy of the Sleep-button touch reached GTK after the panel had gone dark.

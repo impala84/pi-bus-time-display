@@ -84,6 +84,15 @@ class DisplayRotationTests(unittest.TestCase):
         self.assertIn("prefers-reduced-motion: reduce", css)
         self.assertNotIn("setInterval(() => refreshScrollingText", app)
 
+    def test_web_update_control_is_fixed_and_reloads_after_install(self):
+        html = (ROOT / "src" / "pi_bus_time_display" / "static" / "admin.html").read_text(encoding="utf-8")
+        css = (ROOT / "src" / "pi_bus_time_display" / "static" / "admin.css").read_text(encoding="utf-8")
+        script = (ROOT / "src" / "pi_bus_time_display" / "static" / "admin.js").read_text(encoding="utf-8")
+        self.assertIn('class="global-update"', html)
+        self.assertIn(".global-update{position:fixed", css)
+        self.assertIn("setTimeout(()=>location.reload(),1200)", script)
+        self.assertIn("const updateButtons=[...document.querySelectorAll", script)
+
     def test_appliance_boot_is_quiet_and_splash_free(self):
         script = (ROOT / "scripts" / "pi-bus-appliance-mode").read_text(encoding="utf-8")
         self.assertIn("disable_splash=1", script)

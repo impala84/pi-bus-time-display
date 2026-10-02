@@ -6,10 +6,11 @@
   <meta name="theme-color" content="#0b1110">
   <title>Pi Home · Settings</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/admin.css?v=103">
+  <link rel="stylesheet" href="/admin.css?v=105">
 </head>
 <body><main>
-  <header class="masthead"><div><p>PI HOME <span id="version"></span></p><h1>Settings</h1></div><a href="/">View display</a></header>
+  <button class="global-update" type="button" data-action="update">Check for updates</button>
+  <header class="masthead"><div><p>PI HOME <span id="version"></span></p><h1>Settings</h1><a href="/">View display</a></div></header>
   <nav class="primary-tabs" aria-label="Settings sections" role="tablist">
     <button role="tab" aria-selected="true" aria-controls="panel-overview" data-tab="overview">Overview</button>
     <button role="tab" aria-selected="false" aria-controls="panel-display" data-tab="display">Display</button>
@@ -64,4 +65,4 @@
     <div class="save-bar" id="save-bar" hidden><button class="banner-reboot" type="button" data-action="reboot" data-confirm="Reboot the Raspberry Pi now?">Reboot</button><span id="save-state">Unsaved changes</span><button id="save-settings" type="submit">Save changes</button></div>
   </form>
   <div id="toast" role="status" aria-live="polite"></div>
-</main><script src="/admin.js?v=103"></script></body></html>
+</main><script src="/admin.js?v=105"></script></body></html>
