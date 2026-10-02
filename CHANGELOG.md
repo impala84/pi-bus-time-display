@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.10.0 — 2 October 2026
+
+- Removed the redundant Back button from album details; tapping the large artwork now returns to Now Playing.
+- Added an automatic, cached album-enrichment pass when the playing album changes, with no polling or touchscreen-thread work.
+- Added confidently matched MusicBrainz release date, genre, album type, country, label, format, edition count and track count.
+- Added a concise album write-up from a MusicBrainz-linked Wikipedia article, falling back to the artist's own Bandcamp album notes, with the source shown in the interface.
+- Kept enrichment failure-safe: unmatched albums retain the Roon artwork, titles and track list without guessed metadata.
+
 ## 0.9.9 — 2 October 2026
 
 - Fixed the main touchscreen Now Playing artwork at a genuinely smaller centred size instead of relying on a minimum-size rule that GTK could expand.

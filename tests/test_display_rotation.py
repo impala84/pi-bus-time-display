@@ -53,6 +53,8 @@ class DisplayRotationTests(unittest.TestCase):
         self.assertIn('detail_artwork_button.connect("clicked", lambda *_: self.set_roon_view("now"))', display)
         self.assertIn('id="details-artwork-close"', web_html)
         self.assertIn("$('details-artwork-close').onclick = () => setMusicView('now')", web_js)
+        self.assertNotIn('id="details-close"', web_html)
+        self.assertNotIn('"detail-back"', display)
 
     def test_touchscreen_settings_title_and_checkbox_spacing(self):
         display = (ROOT / "native-display" / "pi_bus_native.py").read_text(encoding="utf-8")

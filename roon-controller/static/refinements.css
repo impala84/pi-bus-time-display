@@ -120,7 +120,6 @@ h1 {
 .details-view::-webkit-scrollbar { display: none; }
 .details-copy { align-self: stretch; display: flex; flex-direction: column; }
 .details-metadata { margin: auto 0; }
-.details-back { align-self: start; min-width: 116px; min-height: 60px; margin-top: auto; border: 0; border-radius: 10px; padding: 14px 24px; color: var(--ink); background: var(--panel); font-size: 20px; font-weight: 800; letter-spacing: .1em; }
 .details-panel { width: min(1120px, calc(100% - 40px)); min-height: calc(100% - 20px); margin: -30px auto 0; padding: 34px 0 28px; display: grid; grid-template-columns: minmax(260px, 42%) 1fr; gap: clamp(28px,5vw,70px); align-items: center; }
 .details-art { aspect-ratio: 1; display: grid; place-items: center; overflow: hidden; border: 0; border-radius: 14px; padding: 0; background: var(--panel); }
 .details-art img { width: 100%; height: 100%; object-fit: cover; }
@@ -129,6 +128,13 @@ h1 {
 .details-copy h2 { margin: 8px 0 4px; font-size: clamp(32px,5vw,62px); line-height: 1.04; }
 #details-artist { margin: 0; color: var(--ink); font-size: clamp(19px,2.3vw,28px); }
 #details-subtitle { min-height: 1.4em; margin: 8px 0 20px; color: var(--muted); }
+.details-writeup { max-width: 62ch; margin: 0 0 6px; color: #d3d9d6; font-size: 15px; line-height: 1.45; }
+.details-writeup:empty,.details-source:empty { display: none; }
+.details-source { margin: 0 0 15px; color: #68736f; font-size: 9px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+.details-facts { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px 24px; margin: 0 0 18px; }
+.details-facts div { min-width: 0; }
+.details-facts dt { color: #68736f; font-size: 10px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+.details-facts dd { margin: 2px 0 0; color: var(--ink); font-size: 15px; }
 .details-tracks { max-height: 34vh; margin: 0; padding: 0; overflow-y: auto; list-style: none; scrollbar-width: none; }
 .details-tracks::-webkit-scrollbar { display: none; }
 .details-tracks li { display: grid; grid-template-columns: 28px 1fr; gap: 8px; padding: 7px 0; border-top: 1px solid var(--line); color: var(--muted); }
@@ -199,10 +205,11 @@ h1 {
   .queue-row { min-height: 70px; grid-template-columns: 52px minmax(0,1fr) auto; gap: 10px; padding: 7px 9px; }
   .queue-art { width: 50px; height: 50px; }
   .details-view { inset: 54px 0 62px; }
-  .details-back { margin-top: 14px; }
   .details-panel { width: calc(100% - 32px); margin-top: -30px; padding-top: 46px; grid-template-columns: 1fr; gap: 20px; align-items: start; }
   .details-art { width: min(72vw, 330px); margin: 0 auto; }
   .details-copy { text-align: center; }
+  .details-writeup { margin-right: auto; margin-left: auto; }
+  .details-facts { text-align: left; }
   .details-tracks { max-height: none; text-align: left; }
   .web-nav { left: 0; right: 0; bottom: 0; padding: 0 18px max(8px, env(safe-area-inset-bottom)); border: 0; border-radius: 0; }
   .web-nav a { padding: 12px 8px 10px; }

@@ -41,7 +41,7 @@ button { border: 0; box-shadow: none; background-image: none; outline: none; }
 .arrival-sub { color: #7f8b87; font-size: 10px; font-weight: 650; }.muted { color: #78837f; font-size: 11px; font-weight: 400; }
 .nav { padding-top: 3px; }.nav button { min-height: 40px; border: 0; border-bottom: 5px solid transparent; border-radius: 0; background: transparent; color: #7f8b87; font-size: 14px; font-weight: 700; }
 .nav button.active { border-bottom-color: #6ed9ae; background: transparent; color: #dfe4e1; }.artwork { border-radius: 12px; }.roon-title { font-size: 35px; font-weight: 620; }.roon-artist { color: #b6c0bc; font-size: 18px; }
-.artwork-button { padding: 0; border-radius: 12px; background: transparent; }.detail-takeover { padding: 18px; background: rgba(6, 10, 9, .96); }.detail-panel { padding: 0; }.detail-artwork-button { padding: 0; border-radius: 12px; background: transparent; }.detail-artwork { border-radius: 12px; }.detail-title { font-size: 31px; font-weight: 650; }.detail-artist { color: #b6c0bc; font-size: 20px; }.detail-subtitle { color: #84908c; font-size: 13px; }.detail-back { min-width: 116px; min-height: 60px; padding: 8px 20px; border-radius: 10px; background: #18211f; color: #dfe4e1; font-size: 20px; font-weight: 750; }.detail-tracks { padding-top: 5px; }.detail-track { min-height: 30px; padding: 3px 6px; border-top: 1px solid #26312e; }.detail-track-no { color: #78837f; font-size: 11px; }.detail-track-title { color: #f4f0e6; font-size: 13px; }
+.artwork-button { padding: 0; border-radius: 12px; background: transparent; }.detail-takeover { padding: 18px; background: rgba(6, 10, 9, .96); }.detail-panel { padding: 0; }.detail-artwork-button { padding: 0; border-radius: 12px; background: transparent; }.detail-artwork { border-radius: 12px; }.detail-title { font-size: 31px; font-weight: 650; }.detail-artist { color: #b6c0bc; font-size: 20px; }.detail-subtitle { color: #84908c; font-size: 13px; }.detail-writeup { color: #d3d9d6; font-size: 15px; line-height: 1.35; }.detail-source { color: #68736f; font-size: 10px; font-weight: 700; }.detail-facts { padding: 8px 0 10px; }.detail-fact { color: #a8b3af; font-size: 14px; font-weight: 600; }.detail-tracks { padding-top: 5px; }.detail-track { min-height: 30px; padding: 3px 6px; border-top: 1px solid #26312e; }.detail-track-no { color: #78837f; font-size: 11px; }.detail-track-title { color: #f4f0e6; font-size: 13px; }
 .roon-subnav { margin-top: 0; }.roon-subnav button { min-height: 29px; padding: 4px 13px 2px; border-radius: 0; border-top: 3px solid transparent; background: transparent; color: #68736f; font-size: 10px; font-weight: 750; letter-spacing: 1px; }.roon-subnav button.active { border-top-color: #5bcbd6; color: #f4f0e6; }
 .source-view { padding: 8px; }.source-title { font-size: 25px; font-weight: 700; }.source-volume { font-size: 104px; font-weight: 620; font-variant-numeric: tabular-nums; }.source-step { min-width: 92px; min-height: 92px; border-radius: 46px; background: #18211f; color: #f4f0e6; font-size: 45px; }.source-mute { min-width: 92px; min-height: 38px; border-radius: 8px; background: #18211f; color: #dfe4e1; font-size: 11px; font-weight: 750; }
 .queue-scroll { background: transparent; }.queue-scroll scrollbar { opacity: 0; min-width: 0; min-height: 0; }.queue-list { padding: 5px 8px 8px; }.queue-row { min-height: 66px; padding: 5px 9px; border-radius: 8px; background: transparent; color: #f4f0e6; }.queue-row:hover, .queue-row:active { background: #18211f; }.queue-row.current { background: #121e1c; border-left: 3px solid #5bcbd6; }.queue-row.previous { opacity: .5; }.queue-art { min-width: 56px; min-height: 56px; border-radius: 5px; background: #18211f; }.queue-title { color: #f4f0e6; font-size: 16px; font-weight: 650; }.queue-meta { color: #84908c; font-size: 12px; }.queue-duration { color: #84908c; font-size: 12px; font-variant-numeric: tabular-nums; }.queue-empty { color: #78837f; font-size: 15px; padding: 60px 0; }
@@ -285,10 +285,12 @@ class Display(Gtk.Application):
         self.detail_title = self.label("Nothing playing", "detail-title"); self.detail_title.set_wrap(True); self.detail_title.set_lines(2); self.detail_title.set_ellipsize(Pango.EllipsizeMode.END); detail_content.append(self.detail_title)
         self.detail_artist = self.label("", "detail-artist"); self.detail_artist.set_wrap(True); detail_content.append(self.detail_artist)
         self.detail_subtitle = self.label("", "detail-subtitle"); self.detail_subtitle.set_wrap(True); detail_content.append(self.detail_subtitle)
+        self.detail_writeup = self.label("", "detail-writeup"); self.detail_writeup.set_wrap(True); self.detail_writeup.set_lines(5); self.detail_writeup.set_ellipsize(Pango.EllipsizeMode.END); detail_content.append(self.detail_writeup)
+        self.detail_source = self.label("", "detail-source"); detail_content.append(self.detail_source)
+        self.detail_facts = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4); self.detail_facts.add_css_class("detail-facts"); detail_content.append(self.detail_facts)
         self.detail_tracks = Gtk.Box(orientation=Gtk.Orientation.VERTICAL); self.detail_tracks.add_css_class("detail-tracks")
         detail_scroll = Gtk.ScrolledWindow(); detail_scroll.add_css_class("queue-scroll"); detail_scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC); detail_scroll.set_kinetic_scrolling(True); detail_scroll.set_overlay_scrolling(True); detail_scroll.set_propagate_natural_height(True); detail_scroll.set_max_content_height(210); detail_scroll.set_child(self.detail_tracks); detail_content.append(detail_scroll)
         detail_copy.append(detail_content)
-        detail_back = self.button("BACK", lambda *_: self.set_roon_view("now"), "detail-back"); detail_back.set_halign(Gtk.Align.START); detail_copy.append(detail_back)
         detail_panel.append(detail_copy); page.append(self.roon_views); page.append(self.navigation("roon"))
         takeover = Gtk.Box(); takeover.add_css_class("detail-takeover"); takeover.set_hexpand(True); takeover.set_vexpand(True)
         takeover.append(detail_panel); takeover.set_visible(False); self.detail_takeover = takeover
@@ -645,6 +647,23 @@ class Display(Gtk.Application):
         self.detail_title.set_text(details.get("album") or details.get("track") or "Nothing playing")
         self.detail_artist.set_text(details.get("artist") or "")
         self.detail_subtitle.set_text("Loading available Roon information…" if details.get("status") == "loading" else (details.get("subtitle") or ""))
+        metadata = details.get("metadata") or {}
+        writeup = metadata.get("writeup") or ""; self.detail_writeup.set_text(writeup); self.detail_writeup.set_visible(bool(writeup))
+        source = metadata.get("writeup_source") or ""; self.detail_source.set_text(f"SOURCE  {source.upper()}" if source else ""); self.detail_source.set_visible(bool(source))
+        while child := self.detail_facts.get_first_child(): self.detail_facts.remove(child)
+        facts = []
+        if metadata.get("release_date") or metadata.get("year"): facts.append(f"RELEASED  {metadata.get('release_date') or metadata.get('year')}")
+        if metadata.get("genres"): facts.append(f"GENRE  {' · '.join(metadata['genres'])}")
+        if metadata.get("type"): facts.append(f"TYPE  {metadata['type']}")
+        if metadata.get("label"): facts.append(f"LABEL  {metadata['label']}")
+        if metadata.get("format"): facts.append(f"FORMAT  {metadata['format']}")
+        summary = []
+        if metadata.get("track_count"): summary.append(f"{metadata['track_count']} TRACKS")
+        if metadata.get("country"): summary.append(str(metadata["country"]))
+        if metadata.get("edition_count", 0) > 1: summary.append(f"{metadata['edition_count']} EDITIONS")
+        if summary: facts.append("  ·  ".join(summary))
+        for fact in facts:
+            label = self.label(fact, "detail-fact"); label.set_wrap(True); self.detail_facts.append(label)
         while child := self.detail_tracks.get_first_child(): self.detail_tracks.remove(child)
         for index, track in enumerate((details.get("tracks") or [])[:30], 1):
             row = Gtk.Box(spacing=8); row.add_css_class("detail-track"); row.append(self.label(str(index), "detail-track-no")); title = self.label(track.get("title") or "Untitled track", "detail-track-title"); title.set_ellipsize(Pango.EllipsizeMode.END); title.set_hexpand(True); row.append(title); self.detail_tracks.append(row)

@@ -1,5 +1,10 @@
 'use strict';
 
+const https = require('https');
+
+let musicBrainzTail = Promise.resolve();
+let lastMusicBrainzRequest = 0;
+
 function playingMetadata(zone) {
   const playing = zone?.now_playing || {};
   const lines = playing.three_line || playing.two_line || playing.one_line || {};
@@ -11,6 +16,162 @@ function playingMetadata(zone) {
 }
 
 const clean = value => String(value || '').trim().toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ');
+
+const delay = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
+
+function musicBrainzJson(path) {
+  const run = async () => {
+    const wait = Math.max(0, 1100 - (Date.now() - lastMusicBrainzRequest));
+    if (wait) await delay(wait);
+    lastMusicBrainzRequest = Date.now();
+    return new Promise((resolve, reject) => {
+      const request = https.get({
+        hostname: 'musicbrainz.org', path, timeout: 3500,
+        headers: {'Accept': 'application/json', 'User-Agent': 'PiHome/0.10.0 (https://github.com/impala84/pi-home)'}
+      }, response => {
+        let body = '';
+        response.setEncoding('utf8');
+        response.on('data', chunk => { body += chunk; if (body.length > 1024 * 1024) request.destroy(new Error('MusicBrainz response too large')); });
+        response.on('end', () => {
+          if (response.statusCode < 200 || response.statusCode >= 300) return reject(new Error(`MusicBrainz HTTP ${response.statusCode}`));
+          try { resolve(JSON.parse(body)); } catch (error) { reject(error); }
+        });
+      });
+      request.on('timeout', () => request.destroy(new Error('MusicBrainz timeout')));
+      request.on('error', reject);
+    });
+  };
+  const queued = musicBrainzTail.then(run, run);
+  musicBrainzTail = queued.catch(() => {});
+  return queued;
+}
+
+function externalText(url) {
+  const target = new URL(url);
+  const allowed = target.hostname === 'wikipedia.org' || target.hostname.endsWith('.wikipedia.org') || target.hostname === 'bandcamp.com' || target.hostname.endsWith('.bandcamp.com');
+  if (!allowed || target.protocol !== 'https:') return Promise.reject(new Error('Unsupported metadata source'));
+  return new Promise((resolve, reject) => {
+    const request = https.get(target, {timeout: 3500, headers: {'Accept': 'text/html,application/json', 'User-Agent': 'PiHome/0.10.0 (https://github.com/impala84/pi-home)'}}, response => {
+      let body = '';
+      response.setEncoding('utf8');
+      response.on('data', chunk => { body += chunk; if (body.length > 2 * 1024 * 1024) request.destroy(new Error('Metadata response too large')); });
+      response.on('end', () => response.statusCode >= 200 && response.statusCode < 300 ? resolve(body) : reject(new Error(`Metadata HTTP ${response.statusCode}`)));
+    });
+    request.on('timeout', () => request.destroy(new Error('Metadata timeout')));
+    request.on('error', reject);
+  });
+}
+
+function decodeHtml(value) {
+  return String(value || '').replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]+>/g, ' ')
+    .replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ')
+    .replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(Number(code))).replace(/\s+/g, ' ').replace(/\s+([.,;:!?])/g, '$1').trim();
+}
+
+function clipWriteup(value, limit = 520) {
+  const text = decodeHtml(value);
+  if (text.length <= limit) return text;
+  const clipped = text.slice(0, limit + 1); const sentence = clipped.lastIndexOf('. ');
+  return `${clipped.slice(0, sentence > limit * .55 ? sentence + 1 : limit).trim()}…`;
+}
+
+function parseBandcampPage(html) {
+  const about = html.match(/<div[^>]*class=["'][^"']*tralbum-about[^"']*["'][^>]*>([\s\S]*?)<\/div>/i)?.[1] || '';
+  const tags = [...html.matchAll(/<a[^>]*class=["'][^"']*tag[^"']*["'][^>]*>([\s\S]*?)<\/a>/gi)]
+    .map(match => decodeHtml(match[1])).filter(Boolean).filter((tag, index, all) => all.indexOf(tag) === index).slice(0, 4);
+  return {writeup: clipWriteup(about), tags};
+}
+
+function relationResources(...entities) {
+  return entities.flatMap(entity => entity?.relations || []).map(relation => relation?.url?.resource).filter(Boolean);
+}
+
+async function loadAlbumWriteup(group, release, fetchText = externalText) {
+  const resources = relationResources(group, release);
+  const wikipedia = resources.find(resource => { try { const host = new URL(resource).hostname; return host === 'wikipedia.org' || host.endsWith('.wikipedia.org'); } catch (_) { return false; } });
+  if (wikipedia) {
+    try {
+      const target = new URL(wikipedia); const marker = '/wiki/'; const index = target.pathname.indexOf(marker);
+      if (index >= 0) {
+        const title = target.pathname.slice(index + marker.length); const summaryUrl = `https://${target.hostname}/api/rest_v1/page/summary/${title}`;
+        const summary = JSON.parse(await fetchText(summaryUrl));
+        if (summary.type !== 'disambiguation' && summary.extract) return {writeup: clipWriteup(summary.extract), source: 'Wikipedia', tags: []};
+      }
+    } catch (_) {}
+  }
+  const bandcamp = resources.find(resource => { try { const host = new URL(resource).hostname; return host === 'bandcamp.com' || host.endsWith('.bandcamp.com'); } catch (_) { return false; } });
+  if (bandcamp) {
+    try {
+      const parsed = parseBandcampPage(await fetchText(bandcamp));
+      if (parsed.writeup || parsed.tags.length) return {...parsed, source: parsed.writeup ? 'Artist notes via Bandcamp' : 'Bandcamp'};
+    } catch (_) {}
+  }
+  return {writeup: '', source: '', tags: []};
+}
+
+function creditedArtist(group) {
+  return (group?.['artist-credit'] || []).map(credit => credit?.name || credit?.artist?.name || '').join('');
+}
+
+function chooseMusicBrainzGroup(groups, album, artist) {
+  const wantedAlbum = clean(album); const wantedArtist = clean(artist);
+  const ranked = (groups || []).map(group => {
+    const title = clean(group.title); const credit = clean(creditedArtist(group));
+    const exactTitle = title === wantedAlbum; const exactArtist = !wantedArtist || credit === wantedArtist;
+    return {group, score: (exactTitle ? 1000 : title.includes(wantedAlbum) || wantedAlbum.includes(title) ? 200 : 0) + (exactArtist ? 500 : credit.includes(wantedArtist) || wantedArtist.includes(credit) ? 100 : 0) + Number(group.score || 0)};
+  }).filter(candidate => candidate.score >= 1400).sort((a, b) => b.score - a.score);
+  return ranked[0]?.group || null;
+}
+
+function preferredMusicBrainzRelease(group) {
+  const releases = group?.releases || [];
+  return releases.filter(release => release.status === 'Official').sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')))[0] || releases[0] || {};
+}
+
+function countryName(code) {
+  if (!code) return '';
+  if (code === 'XW') return 'Worldwide';
+  try { return new Intl.DisplayNames(['en'], {type: 'region'}).of(code) || code; } catch (_) { return code; }
+}
+
+function musicBrainzFacts(group, trackCount = 0, releaseDetails = null) {
+  const releases = group?.releases || [];
+  const preferredRelease = releaseDetails || preferredMusicBrainzRelease(group);
+  const genres = (group?.genres?.length ? group.genres : group?.tags || [])
+    .filter(item => item?.name).sort((a, b) => Number(b.count || 0) - Number(a.count || 0)).slice(0, 3).map(item => item.name);
+  const releaseDate = group?.['first-release-date'] || preferredRelease.date || '';
+  const types = [group?.['primary-type'], ...(group?.['secondary-types'] || [])].filter(Boolean);
+  return {
+    release_date: releaseDate,
+    year: /^\d{4}/.test(releaseDate) ? releaseDate.slice(0, 4) : '',
+    genres,
+    type: types.join(' · '),
+    country: countryName(preferredRelease.country),
+    label: (preferredRelease?.['label-info'] || []).map(item => item?.label?.name).filter(Boolean).filter((name, index, all) => all.indexOf(name) === index).join(' · '),
+    format: (preferredRelease?.media || []).map(item => item?.format).filter(Boolean).filter((format, index, all) => all.indexOf(format) === index).join(' · '),
+    edition_count: releases.length || 0,
+    track_count: Number(trackCount || (preferredRelease?.media || []).reduce((total, medium) => total + Number(medium?.['track-count'] || 0), 0)),
+    source: 'MusicBrainz'
+  };
+}
+
+async function loadMusicBrainzMetadata(album, artist, trackCount = 0, fetchJson = musicBrainzJson) {
+  if (!album || !artist) return musicBrainzFacts(null, trackCount);
+  const query = `releasegroup:"${album.replace(/["\\]/g, ' ')}" AND artist:"${artist.replace(/["\\]/g, ' ')}"`;
+  const search = await fetchJson(`/ws/2/release-group/?query=${encodeURIComponent(query)}&fmt=json&limit=5`);
+  const match = chooseMusicBrainzGroup(search?.['release-groups'], album, artist);
+  if (!match?.id) return musicBrainzFacts(null, trackCount);
+  const group = await fetchJson(`/ws/2/release-group/${encodeURIComponent(match.id)}?inc=genres+releases+url-rels&fmt=json`);
+  const preferred = preferredMusicBrainzRelease(group);
+  let release = null;
+  if (preferred?.id) {
+    try { release = await fetchJson(`/ws/2/release/${encodeURIComponent(preferred.id)}?inc=labels+recordings+url-rels&fmt=json`); } catch (_) {}
+  }
+  const writeup = await loadAlbumWriteup(group, release);
+  const facts = musicBrainzFacts(group, trackCount, release);
+  facts.genres = [...new Set([...facts.genres, ...writeup.tags])].slice(0, 4);
+  return {...facts, writeup: writeup.writeup, writeup_source: writeup.source};
+}
 
 function chooseItem(items, title) {
   const wanted = clean(title);
@@ -48,7 +209,7 @@ async function albumTracks(service, zoneId, item, session) {
     .slice(0, 30).map(candidate => ({title: candidate.title, subtitle: candidate.subtitle || ''}));
 }
 
-async function loadDetails(service, zone) {
+async function loadDetails(service, zone, enrich = loadMusicBrainzMetadata) {
   const metadata = playingMetadata(zone);
   const base = {status: 'ready', ...metadata, album_image_key: metadata.image_key, artist_image_key: null, subtitle: '', tracks: []};
   if (!service || (!metadata.album && !metadata.artist)) return base;
@@ -61,7 +222,9 @@ async function loadDetails(service, zone) {
   base.artist_image_key = artist?.image_key || null;
   base.subtitle = album?.subtitle || artist?.subtitle || '';
   try { base.tracks = await albumTracks(service, zone.zone_id, album, `${stamp}-album`); } catch (_) {}
+  base.metadata = musicBrainzFacts(null, base.tracks.length);
+  try { base.metadata = await enrich(metadata.album, metadata.artist, base.tracks.length); } catch (_) {}
   return base;
 }
 
-module.exports = {playingMetadata, chooseItem, loadDetails};
+module.exports = {playingMetadata, chooseItem, chooseMusicBrainzGroup, musicBrainzFacts, parseBandcampPage, loadAlbumWriteup, loadMusicBrainzMetadata, loadDetails};

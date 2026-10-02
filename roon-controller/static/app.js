@@ -172,6 +172,22 @@ function renderDetails(info) {
   $('details-title').textContent = info.album || fallback.line3 || fallback.line1 || 'Nothing playing';
   $('details-artist').textContent = info.artist || fallback.line2 || '';
   $('details-subtitle').textContent = info.status === 'loading' ? 'Loading available Roon information…' : (info.subtitle || '');
+  const metadata = info.metadata || {}; const facts = $('details-facts'); facts.replaceChildren();
+  $('details-writeup').textContent = metadata.writeup || '';
+  $('details-source').textContent = metadata.writeup_source ? `Source · ${metadata.writeup_source}` : '';
+  const addFact = (name, value) => {
+    if (!value) return;
+    const item = document.createElement('div'); const term = document.createElement('dt'); const description = document.createElement('dd');
+    term.textContent = name; description.textContent = value; item.append(term, description); facts.append(item);
+  };
+  addFact('Released', metadata.release_date || metadata.year);
+  addFact('Genre', (metadata.genres || []).join(' · '));
+  addFact('Type', metadata.type);
+  addFact('Label', metadata.label);
+  addFact('Format', metadata.format);
+  addFact('Tracks', metadata.track_count ? String(metadata.track_count) : '');
+  addFact('Country', metadata.country);
+  addFact('Editions', metadata.edition_count > 1 ? String(metadata.edition_count) : '');
   const key = info.artist_image_key || info.album_image_key || info.image_key;
   if (key) { $('details-art').src = api(`/api/image?key=${encodeURIComponent(key)}&size=700`); $('details-placeholder').hidden = true; }
   else { $('details-art').removeAttribute('src'); $('details-placeholder').hidden = false; }
@@ -213,4 +229,3 @@ $('now-tab').onclick = () => setMusicView('now');
 $('queue-tab').onclick = () => setMusicView('queue');
 $('details-open').onclick = () => setMusicView('details');
 $('details-artwork-close').onclick = () => setMusicView('now');
-$('details-close').onclick = () => setMusicView('now');
