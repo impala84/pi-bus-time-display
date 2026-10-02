@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.11.6 — 2 October 2026
+
+- Restore the Albums library to the artwork-first tile grid.
+- Force an opened album's contents into track rows, including when Roon reports Play Album as an `action_list` rather than a plain action.
+- Replace the undersized A–Z index with a conventional visible scrollbar in both the touchscreen and web browser views.
+
 ## 0.11.5 — 2 October 2026
 
 - Mount the touchscreen search keyboard inside the browser layout so it is visibly allocated whenever Search receives focus.

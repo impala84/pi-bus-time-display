@@ -237,9 +237,9 @@ function browserRow(item) {
   if (item.hint === 'header') {
     const heading = document.createElement('h3'); heading.className = 'browser-section'; heading.textContent = item.title; return heading;
   }
-  const button = document.createElement('button'); button.className = `browser-row${item.hint === 'action' ? ' action' : ''}`; button.disabled = !item.item_key;
-  const artwork = document.createElement('span'); artwork.className = `browser-art${item.hint === 'action' ? ' action-icon' : ''}`;
-  if (item.hint === 'action') artwork.append(browserActionIcon(item.title));
+  const button = document.createElement('button'); button.className = `browser-row${item.action ? ' action' : ''}`; button.disabled = !item.item_key;
+  const artwork = document.createElement('span'); artwork.className = `browser-art${item.action ? ' action-icon' : ''}`;
+  if (item.action) artwork.append(browserActionIcon(item.title));
   else if (item.image_key) { const image = document.createElement('img'); image.loading = 'lazy'; image.alt = ''; image.src = api(`/api/image?key=${encodeURIComponent(item.image_key)}&size=128`); artwork.append(image); }
   const copy = document.createElement('span'); copy.className = 'browser-copy'; const title = document.createElement('strong'); title.textContent = item.title || 'Untitled'; copy.append(title);
   if (item.subtitle) { const subtitle = document.createElement('small'); subtitle.textContent = item.subtitle; copy.append(subtitle); }
@@ -280,9 +280,8 @@ function renderBrowser(data) {
   $('browser-back').disabled = !data.can_back; $('browser-loading-more').hidden = true;
   $('browser-message').hidden = !data.message; $('browser-message').textContent = data.message || ''; $('browser-message').classList.toggle('error', Boolean(data.error));
   const list = $('browser-list'); list.replaceChildren(); list.className = `browser-list layout-${data.layout || 'list'}`;
-  $('browser-az').hidden = !data.az_index; $('browser-view').classList.toggle('has-az', Boolean(data.az_index));
   if (data.status === 'unavailable') { const empty = document.createElement('p'); empty.className = 'queue-empty'; empty.textContent = 'Roon Browse is unavailable.'; list.append(empty); browserRendering = false; return; }
-  (data.items || []).forEach(item => list.append(item.hint === 'action' ? browserRow(item) : (['home', 'menu', 'covers'].includes(data.layout) ? browserCard(item, data.layout, Boolean(data.show_labels)) : browserRow(item))));
+  (data.items || []).forEach(item => list.append(item.action ? browserRow(item) : (['home', 'menu', 'covers'].includes(data.layout) ? browserCard(item, data.layout, Boolean(data.show_labels)) : browserRow(item))));
   if (!(data.items || []).length) { const empty = document.createElement('p'); empty.className = 'queue-empty'; empty.textContent = 'Nothing is available here.'; list.append(empty); }
   browserRendering = false;
   requestAnimationFrame(() => {
@@ -301,7 +300,6 @@ async function browseCommand(action, data = {}) {
   if (browserLoading) return;
   browserLoading = true;
   if (action === 'more') { browserScrollRestore = $('browser-view').scrollTop; $('browser-loading-more').hidden = false; }
-  else if (action === 'jump') browserScrollRestore = 0;
   try {
     const options = action === 'current' ? {method: 'GET', cache: 'no-store'} : {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({session: browserSession, action, ...data})};
     const url = action === 'current' ? api(`/api/browse?session=${encodeURIComponent(browserSession)}`) : api('/api/browse');
@@ -374,6 +372,5 @@ $('browse-tab').onclick = () => setMusicView('browse');
 $('browser-back').onclick = () => browseCommand('back');
 $('browser-search').onsubmit = event => { event.preventDefault(); const query = $('browser-query').value.trim(); if (query) browseCommand('search', {query}); };
 $('browser-view').addEventListener('scroll', maybeLoadMore, {passive: true});
-for (const letter of 'ABCDEFGHIJKLMNOPQRSTUVWXYZ') { const button = document.createElement('button'); button.type = 'button'; button.textContent = letter; button.onclick = () => browseCommand('jump', {letter}); $('browser-az').append(button); }
 $('details-open').onclick = () => setMusicView('details');
 $('details-artwork-close').onclick = () => setMusicView('now');

@@ -52,14 +52,15 @@ test('browser home keeps the four visual destinations in a deliberate order', ()
   assert.equal(browserLayout('browse', 0, {title: 'Explore'}, items).layout, 'home');
 });
 
-test('albums are readable lists while image-heavy artist lists retain labelled covers', () => {
+test('album and artist collections retain artwork grids', () => {
   const items = [{title: 'One', image_key: '1'}, {title: 'Two', image_key: '2'}];
-  assert.deepEqual(browserLayout('browse', 2, {title: 'Albums'}, items), {layout: 'list', show_labels: true});
+  assert.deepEqual(browserLayout('browse', 2, {title: 'Albums'}, items), {layout: 'covers', show_labels: false});
   assert.deepEqual(browserLayout('browse', 2, {title: 'Artists'}, items), {layout: 'covers', show_labels: true});
 });
 
 test('album contents with a play action use track rows and preserve supplied durations', () => {
-  const items = [{title: 'Play Album', hint: 'action'}, {title: 'Track', image_key: 'cover'}];
+  const items = [publicItem({title: 'Play Album', hint: 'action_list'}), {title: 'Track', image_key: 'cover'}];
+  assert.equal(items[0].action, true);
   assert.equal(browserLayout('browse', 3, {title: 'An Album'}, items).layout, 'list');
   assert.equal(publicItem({title: 'Track', duration: 245}).duration, '4:05');
   assert.equal(publicItem({title: 'Track', length: '3:09'}).duration, '3:09');
@@ -88,21 +89,4 @@ test('album artwork fills child track rows when Roon omits redundant image keys'
   assert.equal(items[0].image_key, undefined);
   assert.equal(items[1].image_key, 'album-cover');
   assert.equal(items[2].image_key, 'specific');
-});
-
-test('A-Z jump loads the page containing the requested album initial', async () => {
-  const titles = [...Array(20)].map((_, index) => `Album ${index + 1}`)
-    .concat([...Array(20)].map((_, index) => `Blue ${index + 1}`))
-    .concat([...Array(20)].map((_, index) => `Coltrane ${index + 1}`));
-  const service = {
-    load(options, callback) {
-      const items = titles.slice(options.offset, options.offset + options.count).map((title, index) => ({title, item_key: String(options.offset + index)}));
-      callback(false, {offset: options.offset, list: {level: 2, title: 'Albums', count: titles.length}, items});
-    }
-  };
-  const manager = new BrowseManager(() => service, () => ({zone_id: 'zone'}));
-  manager.sessions.set('pihome-touch', {status: 'ready', hierarchy: 'browse', level: 2, title: 'Albums', count: titles.length, offset: 0, items: [], az_index: true, has_more: true});
-  const result = await manager.run('touch', 'jump', {letter: 'C'});
-  assert.equal(result.items[0].title.startsWith('C'), true);
-  assert.equal(result.offset, 40);
 });

@@ -103,7 +103,8 @@ class DisplayRotationTests(unittest.TestCase):
         self.assertIn('for _ in range(3): threading.Thread(target=self.thumbnail_worker', display)
         self.assertIn('def maybe_load_more_browser(self):', display)
         self.assertIn('def browser_action_icon(self, title):', display)
-        self.assertIn('for letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZ"', display)
+        self.assertIn('browser_scroll.add_css_class("browser-scroll")', display)
+        self.assertIn('browser_scroll.set_overlay_scrolling(False)', display)
         self.assertIn('item.get("duration") or ""', display)
         self.assertNotIn('self.button("LOAD MORE"', display)
 
