@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {BrowseManager, browserLayout, rootItems, safeSession} = require('./browse-state');
+const {BrowseManager, browserLayout, libraryItems, rootItems, safeSession} = require('./browse-state');
 
 function fakeService() {
   const sessions = new Map();
@@ -56,4 +56,17 @@ test('image-heavy album and artist lists use cover layouts with suitable labels'
   const items = [{title: 'One', image_key: '1'}, {title: 'Two', image_key: '2'}];
   assert.deepEqual(browserLayout('browse', 2, {title: 'Albums'}, items), {layout: 'covers', show_labels: false});
   assert.deepEqual(browserLayout('browse', 2, {title: 'Artists'}, items), {layout: 'covers', show_labels: true});
+});
+
+test('library is reduced to four useful destinations', () => {
+  const list = {title: 'Library'};
+  const items = ['Search', 'Artists', 'Albums', 'Tracks', 'Composers', 'Tags'].map(title => ({title, item_key: title}));
+  assert.deepEqual(libraryItems(list, items).map(item => item.title), ['Artists', 'Albums', 'Tracks', 'Composers']);
+  assert.equal(browserLayout('browse', 1, list, libraryItems(list, items)).layout, 'menu');
+});
+
+test('playlist collections and playlist tracks stay in list layouts', () => {
+  const pictured = [{title: 'One', image_key: '1'}, {title: 'Two', image_key: '2'}];
+  assert.equal(browserLayout('browse', 1, {title: 'Playlists'}, pictured).layout, 'list');
+  assert.equal(browserLayout('browse', 2, {title: 'Evening vibes', subtitle: '437 Tracks'}, pictured).layout, 'list');
 });

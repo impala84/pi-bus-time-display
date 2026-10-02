@@ -7,6 +7,8 @@ let inputSignature = '';
 let lastActiveInput = '';
 let browserState = null;
 let browserLoading = false;
+let browserRendering = false;
+let browserScrollRestore = null;
 const browserSession = sessionStorage.getItem('pi-home-roon-browser') || (globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`);
 sessionStorage.setItem('pi-home-roon-browser', browserSession);
 const proxied = location.pathname.startsWith('/roon');
@@ -236,12 +238,24 @@ function browserRow(item) {
     const heading = document.createElement('h3'); heading.className = 'browser-section'; heading.textContent = item.title; return heading;
   }
   const button = document.createElement('button'); button.className = `browser-row${item.hint === 'action' ? ' action' : ''}`; button.disabled = !item.item_key;
-  const artwork = document.createElement('span'); artwork.className = 'browser-art';
-  if (item.image_key) { const image = document.createElement('img'); image.loading = 'lazy'; image.alt = ''; image.src = api(`/api/image?key=${encodeURIComponent(item.image_key)}&size=128`); artwork.append(image); }
+  const artwork = document.createElement('span'); artwork.className = `browser-art${item.hint === 'action' ? ' action-icon' : ''}`;
+  if (item.hint === 'action') artwork.append(browserActionIcon(item.title));
+  else if (item.image_key) { const image = document.createElement('img'); image.loading = 'lazy'; image.alt = ''; image.src = api(`/api/image?key=${encodeURIComponent(item.image_key)}&size=128`); artwork.append(image); }
   const copy = document.createElement('span'); copy.className = 'browser-copy'; const title = document.createElement('strong'); title.textContent = item.title || 'Untitled'; copy.append(title);
   if (item.subtitle) { const subtitle = document.createElement('small'); subtitle.textContent = item.subtitle; copy.append(subtitle); }
-  const arrow = document.createElement('span'); arrow.className = 'browser-arrow'; arrow.textContent = item.hint === 'action' ? 'PLAY' : '›';
+  const arrow = document.createElement('span'); arrow.className = 'browser-arrow'; arrow.textContent = item.hint === 'action' ? '' : '›';
   button.append(artwork, copy, arrow); button.onclick = () => browseCommand('open', {item_key: item.item_key}); return button;
+}
+
+function browserActionIcon(title) {
+  const value = String(title || '').toLowerCase();
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('viewBox', '0 0 24 24'); svg.setAttribute('aria-hidden', 'true');
+  if (/add next/.test(value)) svg.innerHTML = '<path d="M4 6h10M4 12h7M4 18h10M18 9v6M15 12h6"/>';
+  else if (/queue/.test(value)) svg.innerHTML = '<path d="M5 6h14M5 12h14M5 18h9"/><path d="m17 16 3 2-3 2z"/>';
+  else if (/shuffle/.test(value)) svg.innerHTML = '<path d="M4 7h3c5 0 5 10 10 10h3M17 4l3 3-3 3M4 17h3c2 0 3.3-1.5 4.4-3.3M17 14l3 3-3 3"/>';
+  else if (/from here/.test(value)) svg.innerHTML = '<path d="M5 5v14M9 6l10 6-10 6z"/>';
+  else svg.innerHTML = '<path d="m8 5 11 7-11 7z"/>';
+  return svg;
 }
 
 function browserCard(item, layout, showLabels) {
@@ -261,19 +275,31 @@ function browserCard(item, layout, showLabels) {
 }
 
 function renderBrowser(data) {
-  browserState = data; browserLoading = false;
-  $('browser-title').textContent = data.title || 'Browse'; $('browser-subtitle').textContent = data.subtitle || '';
-  $('browser-back').disabled = !data.can_back; $('browser-more').hidden = !data.has_more; $('browser-more').disabled = false;
+  browserRendering = true; browserState = data; browserLoading = false;
+  $('browser-title').textContent = data.title || 'Browse';
+  $('browser-back').disabled = !data.can_back; $('browser-loading-more').hidden = true;
   $('browser-message').hidden = !data.message; $('browser-message').textContent = data.message || ''; $('browser-message').classList.toggle('error', Boolean(data.error));
   const list = $('browser-list'); list.replaceChildren(); list.className = `browser-list layout-${data.layout || 'list'}`;
-  if (data.status === 'unavailable') { const empty = document.createElement('p'); empty.className = 'queue-empty'; empty.textContent = 'Roon Browse is unavailable.'; list.append(empty); return; }
-  (data.items || []).forEach(item => list.append(['home', 'menu', 'covers'].includes(data.layout) ? browserCard(item, data.layout, Boolean(data.show_labels)) : browserRow(item)));
+  if (data.status === 'unavailable') { const empty = document.createElement('p'); empty.className = 'queue-empty'; empty.textContent = 'Roon Browse is unavailable.'; list.append(empty); browserRendering = false; return; }
+  (data.items || []).forEach(item => list.append(item.hint === 'action' ? browserRow(item) : (['home', 'menu', 'covers'].includes(data.layout) ? browserCard(item, data.layout, Boolean(data.show_labels)) : browserRow(item))));
   if (!(data.items || []).length) { const empty = document.createElement('p'); empty.className = 'queue-empty'; empty.textContent = 'Nothing is available here.'; list.append(empty); }
+  browserRendering = false;
+  requestAnimationFrame(() => {
+    if (browserScrollRestore !== null) { $('browser-view').scrollTop = browserScrollRestore; browserScrollRestore = null; }
+    maybeLoadMore();
+  });
+}
+
+function maybeLoadMore() {
+  const view = $('browser-view');
+  if (musicView !== 'browse' || browserRendering || browserLoading || !browserState?.has_more) return;
+  if (view.scrollHeight - view.scrollTop - view.clientHeight < 260) browseCommand('more');
 }
 
 async function browseCommand(action, data = {}) {
   if (browserLoading) return;
-  browserLoading = true; $('browser-more').disabled = true;
+  browserLoading = true;
+  if (action === 'more') { browserScrollRestore = $('browser-view').scrollTop; $('browser-loading-more').hidden = false; }
   try {
     const options = action === 'current' ? {method: 'GET', cache: 'no-store'} : {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({session: browserSession, action, ...data})};
     const url = action === 'current' ? api(`/api/browse?session=${encodeURIComponent(browserSession)}`) : api('/api/browse');
@@ -344,7 +370,7 @@ $('now-tab').onclick = () => setMusicView('now');
 $('queue-tab').onclick = () => setMusicView('queue');
 $('browse-tab').onclick = () => setMusicView('browse');
 $('browser-back').onclick = () => browseCommand('back');
-$('browser-more').onclick = () => browseCommand('more');
 $('browser-search').onsubmit = event => { event.preventDefault(); const query = $('browser-query').value.trim(); if (query) browseCommand('search', {query}); };
+$('browser-view').addEventListener('scroll', maybeLoadMore, {passive: true});
 $('details-open').onclick = () => setMusicView('details');
 $('details-artwork-close').onclick = () => setMusicView('now');

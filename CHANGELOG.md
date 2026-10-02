@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.11.3 — 2 October 2026
+
+- Reduced Library to four useful destinations—Artists, Albums, Tracks and Composers—by removing the redundant Search and Tags cards.
+- Made touchscreen search reliably open its built-in keyboard when either the field or an empty Search action is tapped.
+- Simplified browser headers with a smaller Back control, vertically aligned single-line titles and no duplicate artist subtitle.
+- Kept playlists and their tracks in readable list layouts while preserving artwork grids for albums and artists.
+- Replaced generic blank action artwork and repeated PLAY labels with purpose-specific play, play-from-here, add-next, queue and shuffle icons.
+- Replaced manual Load More controls with automatic incremental loading near the end of the scroll area.
+- Increased touchscreen artwork fetching from one worker to three so visible grids populate promptly without blocking the interface.
+
 ## 0.11.2 — 2 October 2026
 
 - Prevented the touchscreen and web interface from queuing duplicate update jobs, and discard duplicate requests left behind by an older release.
