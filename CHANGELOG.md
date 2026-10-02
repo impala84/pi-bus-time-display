@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.10.4 — 2 October 2026
+
+- Fixed manual Sleep immediately waking again when the low-level copy of the Sleep-button touch reached GTK after the panel had gone dark.
+- Wake handling now compares the original kernel contact time with the moment sleep began, so only a genuinely new touch can wake the display.
+- Applied the same fresh-contact guard when entering daytime inactivity sleep.
+
 ## 0.10.3 — 2 October 2026
 
 - Added overflow-aware Now Playing text movement for long track and artist/album names: pause for ten seconds, scroll at a readable speed, pause at the end, then return.

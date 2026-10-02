@@ -31,6 +31,12 @@ class DisplayRotationTests(unittest.TestCase):
         self.assertIn("value != 0xFFFFFFFF", display)
         self.assertIn("Environment=PYTHONUNBUFFERED=1", service)
 
+    def test_sleep_button_touch_cannot_replay_as_a_wake(self):
+        display = (ROOT / "native-display" / "pi_bus_native.py").read_text(encoding="utf-8")
+        self.assertIn("GLib.idle_add(self.low_level_touch_wake, contact_at)", display)
+        self.assertIn("contact_at <= self.sleep_entered_at", display)
+        self.assertIn("self.inactivity_sleeping = True\n            self.prepare_sleep_wake()", display)
+
     def test_wayland_uses_inverse_quarter_turn(self):
         script = (ROOT / "scripts" / "pi-bus-cage-launch").read_text(encoding="utf-8")
         self.assertIn("90) transform=270", script)

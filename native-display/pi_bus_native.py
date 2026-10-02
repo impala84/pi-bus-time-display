@@ -363,14 +363,26 @@ class Display(Gtk.Application):
                             button_touch = event_type == 1 and code == 330 and value == 1
                             tracking_start = event_type == 3 and code == 57 and value != 0xFFFFFFFF
                             if button_touch or tracking_start:
-                                GLib.idle_add(self.low_level_touch_wake)
+                                event_at = _sec + (_usec / 1_000_000)
+                                now = time.monotonic()
+                                # input_event normally uses CLOCK_MONOTONIC. If
+                                # a driver reports wall time instead, use the
+                                # observation time rather than comparing unlike
+                                # clocks.
+                                contact_at = event_at if abs(event_at - now) < 3600 else now
+                                GLib.idle_add(self.low_level_touch_wake, contact_at)
             finally:
                 for handle, _name in handles:
                     try: os.close(handle)
                     except OSError: pass
             time.sleep(1)
 
-    def low_level_touch_wake(self):
+    def low_level_touch_wake(self, contact_at=None):
+        # The low-level event from the gesture which pressed Sleep may reach
+        # GTK after the screen has already gone dark. It is not a wake gesture.
+        # Compare when contact actually began, not when this idle callback ran.
+        if contact_at is not None and contact_at <= self.sleep_entered_at:
+            return False
         if self.inactivity_sleeping or (self.stack.get_visible_child_name() == "sleep" and time.monotonic() - self.sleep_entered_at >= .45): self.wake("Linux touchscreen event")
         return False
 
@@ -468,6 +480,7 @@ class Display(Gtk.Application):
         inactivity_due = bool(inactivity_seconds and time.monotonic() - self.last_interaction >= inactivity_seconds and target != "/sleep.html")
         if inactivity_due and not self.inactivity_sleeping:
             self.inactivity_sleeping = True
+            self.prepare_sleep_wake()
             print(f"Pi Home sleeping after {inactivity_seconds}s without a touch", flush=True)
         if self.settings_open and target != "/sleep.html" and not self.inactivity_sleeping:
             return False
