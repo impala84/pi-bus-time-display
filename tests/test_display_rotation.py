@@ -90,6 +90,15 @@ class DisplayRotationTests(unittest.TestCase):
         self.assertIn("browser_scroll.set_kinetic_scrolling(True)", display)
         self.assertIn('name="roon_show_browser"', admin)
 
+    def test_touch_roon_browser_is_visual_and_has_its_own_keyboard(self):
+        display = (ROOT / "native-display" / "pi_bus_native.py").read_text(encoding="utf-8")
+        web = (ROOT / "roon-controller" / "static" / "app.js").read_text(encoding="utf-8")
+        self.assertIn("def build_browser_keyboard(self):", display)
+        self.assertIn('self.browser_keyboard.set_visible(True)', display)
+        self.assertIn('columns = 5', display)
+        self.assertIn('browser_cover_card', display)
+        self.assertIn("['home', 'menu', 'covers'].includes", web)
+
     def test_long_now_playing_copy_pauses_and_scrolls_without_polling(self):
         app = (ROOT / "roon-controller" / "static" / "app.js").read_text(encoding="utf-8")
         css = (ROOT / "roon-controller" / "static" / "refinements.css").read_text(encoding="utf-8")

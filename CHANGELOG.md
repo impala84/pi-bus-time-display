@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.11.1 — 2 October 2026
+
+- Reworked the Browse root into four large visual destinations: Library, Playlists, Genres and TIDAL.
+- Added artwork-first grids for image-heavy Roon levels, hiding album captions while retaining useful artist labels.
+- Enlarged browser typography, touch targets, list artwork and navigation controls throughout the touchscreen view.
+- Added a built-in touchscreen QWERTY keyboard for Roon search, including Space, Backspace, Clear, Close and Search actions.
+- Replaced the heavy search-field keyline with a restrained underline and increased fetched artwork resolution for sharp large covers.
+
 ## 0.11.0 — 2 October 2026
 
 - Added a native Roon Browse view to both the touchscreen and web player, including Roon library navigation, search, album artwork and action rows.

@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {BrowseManager, safeSession} = require('./browse-state');
+const {BrowseManager, browserLayout, rootItems, safeSession} = require('./browse-state');
 
 function fakeService() {
   const sessions = new Map();
@@ -44,4 +44,16 @@ test('browser search uses Roon input prompt and keeps sessions separate', async 
   const browseRoot = await manager.run('phone', 'back'); assert.equal(browseRoot.title, 'Browse');
   const touch = await manager.run('touch', 'root'); assert.equal(touch.items[0].title, 'Albums');
   assert.notEqual(safeSession('phone!?'), safeSession('touch'));
+});
+
+test('browser home keeps the four visual destinations in a deliberate order', () => {
+  const items = ['My Live Radio', 'TIDAL', 'Genres', 'Library', 'Playlists'].map(title => ({title, item_key: title}));
+  assert.deepEqual(rootItems(items).map(item => item.title), ['Library', 'Playlists', 'Genres', 'TIDAL']);
+  assert.equal(browserLayout('browse', 0, {title: 'Explore'}, items).layout, 'home');
+});
+
+test('image-heavy album and artist lists use cover layouts with suitable labels', () => {
+  const items = [{title: 'One', image_key: '1'}, {title: 'Two', image_key: '2'}];
+  assert.deepEqual(browserLayout('browse', 2, {title: 'Albums'}, items), {layout: 'covers', show_labels: false});
+  assert.deepEqual(browserLayout('browse', 2, {title: 'Artists'}, items), {layout: 'covers', show_labels: true});
 });

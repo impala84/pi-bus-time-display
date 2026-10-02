@@ -22,6 +22,27 @@ function publicItem(item) {
   };
 }
 
+function browserLayout(hierarchy, level, list, items) {
+  const title = String(list?.title || '');
+  if (hierarchy === 'browse' && Number(level || 0) === 0) return {layout: 'home', show_labels: true};
+  const usable = items.filter(item => item.hint !== 'header');
+  const imageRatio = usable.length ? usable.filter(item => item.image_key).length / usable.length : 0;
+  if (imageRatio >= .45) return {layout: 'covers', show_labels: !/albums?/i.test(title)};
+  if (usable.length > 0 && usable.length <= 10 && !usable.some(item => item.hint === 'action')) return {layout: 'menu', show_labels: true};
+  return {layout: 'list', show_labels: true};
+}
+
+function rootItems(items) {
+  const wanted = ['library', 'playlists', 'genres', 'tidal'];
+  const available = items.filter(item => item.hint !== 'header');
+  const selected = wanted.map(name => available.find(item => String(item.title || '').trim().toLowerCase() === name)).filter(Boolean);
+  for (const item of available) {
+    if (selected.length >= 4) break;
+    if (!selected.includes(item)) selected.push(item);
+  }
+  return selected;
+}
+
 class BrowseManager {
   constructor(service, zone) {
     this.service = service;
@@ -82,12 +103,16 @@ class BrowseManager {
   }
 
   store(session, hierarchy, list, items, message) {
-    const normalised = (items || []).map(publicItem);
+    const level = Number(list?.level || 0);
+    let normalised = (items || []).map(publicItem);
+    if (hierarchy === 'browse' && level === 0) normalised = rootItems(normalised);
+    const presentation = browserLayout(hierarchy, level, list, normalised);
     return this.save(session, {
-      status: 'ready', hierarchy, level: Number(list?.level || 0), title: String(list?.title || (hierarchy === 'search' ? 'Search' : 'Browse')),
+      status: 'ready', hierarchy, level, title: presentation.layout === 'home' ? 'Browse' : String(list?.title || (hierarchy === 'search' ? 'Search' : 'Browse')),
       subtitle: String(list?.subtitle || ''), count: Number(list?.count ?? normalised.length), offset: Number(list?.display_offset || 0),
       items: normalised, can_back: hierarchy !== 'browse' || Number(list?.level || 0) > 0,
-      has_more: normalised.length < Number(list?.count ?? normalised.length), message, error: false
+      has_more: presentation.layout !== 'home' && normalised.length < Number(list?.count ?? normalised.length), message, error: false,
+      ...presentation
     });
   }
 
@@ -102,4 +127,4 @@ class BrowseManager {
   save(session, state) { this.sessions.set(session, state); return state; }
 }
 
-module.exports = {BrowseManager, publicItem, safeSession};
+module.exports = {BrowseManager, browserLayout, publicItem, rootItems, safeSession};

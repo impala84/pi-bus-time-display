@@ -244,14 +244,30 @@ function browserRow(item) {
   button.append(artwork, copy, arrow); button.onclick = () => browseCommand('open', {item_key: item.item_key}); return button;
 }
 
+function browserCard(item, layout, showLabels) {
+  const button = document.createElement('button'); button.className = `browser-card ${layout}`; button.disabled = !item.item_key;
+  if (layout === 'covers') {
+    const artwork = document.createElement('span'); artwork.className = 'browser-card-art';
+    if (item.image_key) { const image = document.createElement('img'); image.loading = 'lazy'; image.alt = ''; image.src = api(`/api/image?key=${encodeURIComponent(item.image_key)}&size=320`); artwork.append(image); }
+    button.append(artwork);
+  } else {
+    const icon = document.createElement('span'); icon.className = 'browser-card-icon'; icon.setAttribute('aria-hidden', 'true'); icon.textContent = /playlist/i.test(item.title) ? '≡' : /genre/i.test(item.title) ? '◉' : /tidal/i.test(item.title) ? '◇' : /artist/i.test(item.title) ? '●' : /album|library/i.test(item.title) ? '▦' : '›'; button.append(icon);
+  }
+  if (layout !== 'covers' || showLabels) {
+    const copy = document.createElement('span'); copy.className = 'browser-card-copy'; const title = document.createElement('strong'); title.textContent = item.title || 'Untitled'; copy.append(title);
+    if (showLabels && item.subtitle) { const subtitle = document.createElement('small'); subtitle.textContent = item.subtitle; copy.append(subtitle); } button.append(copy);
+  }
+  button.setAttribute('aria-label', [item.title, item.subtitle].filter(Boolean).join(', ')); button.onclick = () => browseCommand('open', {item_key: item.item_key}); return button;
+}
+
 function renderBrowser(data) {
   browserState = data; browserLoading = false;
   $('browser-title').textContent = data.title || 'Browse'; $('browser-subtitle').textContent = data.subtitle || '';
   $('browser-back').disabled = !data.can_back; $('browser-more').hidden = !data.has_more; $('browser-more').disabled = false;
   $('browser-message').hidden = !data.message; $('browser-message').textContent = data.message || ''; $('browser-message').classList.toggle('error', Boolean(data.error));
-  const list = $('browser-list'); list.replaceChildren();
+  const list = $('browser-list'); list.replaceChildren(); list.className = `browser-list layout-${data.layout || 'list'}`;
   if (data.status === 'unavailable') { const empty = document.createElement('p'); empty.className = 'queue-empty'; empty.textContent = 'Roon Browse is unavailable.'; list.append(empty); return; }
-  (data.items || []).forEach(item => list.append(browserRow(item)));
+  (data.items || []).forEach(item => list.append(['home', 'menu', 'covers'].includes(data.layout) ? browserCard(item, data.layout, Boolean(data.show_labels)) : browserRow(item)));
   if (!(data.items || []).length) { const empty = document.createElement('p'); empty.className = 'queue-empty'; empty.textContent = 'Nothing is available here.'; list.append(empty); }
 }
 
