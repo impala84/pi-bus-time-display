@@ -212,4 +212,5 @@ $('amp-mute').onclick = () => post('/api/bluos/mute', {});
 $('now-tab').onclick = () => setMusicView('now');
 $('queue-tab').onclick = () => setMusicView('queue');
 $('details-open').onclick = () => setMusicView('details');
+$('details-artwork-close').onclick = () => setMusicView('now');
 $('details-close').onclick = () => setMusicView('now');

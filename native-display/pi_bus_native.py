@@ -41,7 +41,7 @@ button { border: 0; box-shadow: none; background-image: none; outline: none; }
 .arrival-sub { color: #7f8b87; font-size: 10px; font-weight: 650; }.muted { color: #78837f; font-size: 11px; font-weight: 400; }
 .nav { padding-top: 3px; }.nav button { min-height: 40px; border: 0; border-bottom: 5px solid transparent; border-radius: 0; background: transparent; color: #7f8b87; font-size: 14px; font-weight: 700; }
 .nav button.active { border-bottom-color: #6ed9ae; background: transparent; color: #dfe4e1; }.artwork { border-radius: 12px; }.roon-title { font-size: 35px; font-weight: 620; }.roon-artist { color: #b6c0bc; font-size: 18px; }
-.artwork-button { padding: 0; border-radius: 12px; background: transparent; }.detail-takeover { padding: 18px; background: rgba(6, 10, 9, .96); }.detail-panel { padding: 0; }.detail-artwork { border-radius: 12px; }.detail-title { font-size: 31px; font-weight: 650; }.detail-artist { color: #b6c0bc; font-size: 20px; }.detail-subtitle { color: #84908c; font-size: 13px; }.detail-back { min-width: 116px; min-height: 60px; padding: 8px 20px; border-radius: 10px; background: #18211f; color: #dfe4e1; font-size: 20px; font-weight: 750; }.detail-tracks { padding-top: 5px; }.detail-track { min-height: 30px; padding: 3px 6px; border-top: 1px solid #26312e; }.detail-track-no { color: #78837f; font-size: 11px; }.detail-track-title { color: #f4f0e6; font-size: 13px; }
+.artwork-button { padding: 0; border-radius: 12px; background: transparent; }.detail-takeover { padding: 18px; background: rgba(6, 10, 9, .96); }.detail-panel { padding: 0; }.detail-artwork-button { padding: 0; border-radius: 12px; background: transparent; }.detail-artwork { border-radius: 12px; }.detail-title { font-size: 31px; font-weight: 650; }.detail-artist { color: #b6c0bc; font-size: 20px; }.detail-subtitle { color: #84908c; font-size: 13px; }.detail-back { min-width: 116px; min-height: 60px; padding: 8px 20px; border-radius: 10px; background: #18211f; color: #dfe4e1; font-size: 20px; font-weight: 750; }.detail-tracks { padding-top: 5px; }.detail-track { min-height: 30px; padding: 3px 6px; border-top: 1px solid #26312e; }.detail-track-no { color: #78837f; font-size: 11px; }.detail-track-title { color: #f4f0e6; font-size: 13px; }
 .roon-subnav { margin-top: 0; }.roon-subnav button { min-height: 29px; padding: 4px 13px 2px; border-radius: 0; border-top: 3px solid transparent; background: transparent; color: #68736f; font-size: 10px; font-weight: 750; letter-spacing: 1px; }.roon-subnav button.active { border-top-color: #5bcbd6; color: #f4f0e6; }
 .source-view { padding: 8px; }.source-title { font-size: 25px; font-weight: 700; }.source-volume { font-size: 104px; font-weight: 620; font-variant-numeric: tabular-nums; }.source-step { min-width: 92px; min-height: 92px; border-radius: 46px; background: #18211f; color: #f4f0e6; font-size: 45px; }.source-mute { min-width: 92px; min-height: 38px; border-radius: 8px; background: #18211f; color: #dfe4e1; font-size: 11px; font-weight: 750; }
 .queue-scroll { background: transparent; }.queue-scroll scrollbar { opacity: 0; min-width: 0; min-height: 0; }.queue-list { padding: 5px 8px 8px; }.queue-row { min-height: 66px; padding: 5px 9px; border-radius: 8px; background: transparent; color: #f4f0e6; }.queue-row:hover, .queue-row:active { background: #18211f; }.queue-row.current { background: #121e1c; border-left: 3px solid #5bcbd6; }.queue-row.previous { opacity: .5; }.queue-art { min-width: 56px; min-height: 56px; border-radius: 5px; background: #18211f; }.queue-title { color: #f4f0e6; font-size: 16px; font-weight: 650; }.queue-meta { color: #84908c; font-size: 12px; }.queue-duration { color: #84908c; font-size: 12px; font-variant-numeric: tabular-nums; }.queue-empty { color: #78837f; font-size: 15px; padding: 60px 0; }
@@ -50,7 +50,7 @@ button { border: 0; box-shadow: none; background-image: none; outline: none; }
 .sleep { background: #000; }.sleep-clock { font-size: 112px; font-weight: 550; }.settings-title { font-size: 32px; font-weight: 650; }
 .settings-card { background: #131c1a; border: 1px solid #26312e; border-radius: 14px; padding: 16px; }.settings-action { min-height: 54px; border-radius: 12px; background: #285f4d; color: #f4f0e6; font-weight: 750; }
 .settings-select { min-height: 48px; border-radius: 8px; background: #0d1412; color: #f4f0e6; }.settings-row { padding: 7px 0; }.settings-diagnostic { color: #aab4b0; font-size: 12px; }
-.settings-controls { padding: 4px 0; }.settings-column { padding: 0 5px; }.setting-line { min-height: 52px; padding: 0 12px; border-radius: 8px; background: #0d1412; }.setting-line label { font-size: 14px; font-weight: 650; }.setting-line checkbutton { font-size: 14px; font-weight: 650; }.setting-line check { min-width: 22px; min-height: 22px; border-radius: 5px; border: 2px solid #61706b; background: #111a18; }.setting-line check:checked { background: #6ed9ae; border-color: #6ed9ae; color: #082018; }
+.settings-controls { padding: 4px 0; }.settings-column { padding: 0 5px; }.setting-line { min-height: 52px; padding: 0 12px; border-radius: 8px; background: #0d1412; }.setting-line label { font-size: 14px; font-weight: 650; }.setting-line checkbutton { font-size: 14px; font-weight: 650; }.setting-line checkbutton label { margin-left: 12px; }.setting-line check { min-width: 22px; min-height: 22px; border-radius: 5px; border: 2px solid #61706b; background: #111a18; }.setting-line check:checked { background: #6ed9ae; border-color: #6ed9ae; color: #082018; }
 .brightness-setting { padding-top: 7px; padding-bottom: 7px; }
 .stop-row { margin-bottom: 4px; }.home-grid { padding: 9px 0; }.home-tile { min-height: 120px; border-radius: 12px; padding: 10px 11px 8px; background: #131c1a; border: 1px solid #293633; color: #aab4b0; }.home-tile.on { background: #173229; border-color: #35785f; color: #f4f0e6; }.home-device-button { min-height: 92px; padding: 0; background: transparent; color: #9aaba5; }.home-tile.on .home-device-button { color: #6ed9ae; }.home-icon { opacity: .72; }.home-name { font-size: 15px; font-weight: 700; }.home-state { color: #7f8b87; font-size: 11px; }.home-level { min-width: 28px; min-height: 94px; }.home-level trough { min-width: 7px; border-radius: 4px; background: #303a37; }.home-level highlight { background: #6ed9ae; border-radius: 4px; }.home-level slider { min-width: 20px; min-height: 20px; border-radius: 10px; background: #f4f0e6; }
 .high-resolution .page { padding: 21px 30px 15px; }.high-resolution .stop, .high-resolution .stop-code { font-size: 38px; }.high-resolution .clock { font-size: 47px; }.high-resolution .eyebrow { font-size: 17px; }.high-resolution .service { border-radius: 20px; padding: 8px 24px; }.high-resolution .service-no, .high-resolution .arrival { font-size: 123px; }.high-resolution .service.compact .service-no, .high-resolution .service.compact .arrival { font-size: 89px; }.high-resolution .service.dense .service-no, .high-resolution .service.dense .arrival { font-size: 68px; }.high-resolution .arrival-sub { font-size: 15px; }.high-resolution .muted { font-size: 16px; }.high-resolution .artwork { min-width: 420px; min-height: 420px; }.high-resolution .roon-title { font-size: 52px; }.high-resolution .roon-artist { font-size: 27px; }.high-resolution .nav button { min-height: 60px; font-size: 21px; }
@@ -71,7 +71,7 @@ button { border: 0; box-shadow: none; background-image: none; outline: none; }
 .touch-landscape .time { font-size: 20px; }.touch-landscape .volume-number { font-size: 26px; }
 .touch-landscape .settings-page { padding-top: 18px; padding-bottom: 18px; }.touch-landscape .settings-page button { padding: 8px 20px; }
 .touch-landscape .settings-page .settings-card { padding: 8px 10px; border: 0; background: transparent; }
-.touch-landscape .settings-page .setting-line { min-height: 72px; padding: 5px 18px; }
+.touch-landscape .settings-page .setting-line { min-height: 72px; padding: 5px 18px; }.touch-landscape .settings-page .setting-line checkbutton label { margin-left: 16px; }
 .touch-landscape .settings-page .brightness-setting { padding-top: 6px; padding-bottom: 6px; }
 .touch-landscape .settings-page .settings-select { min-height: 62px; padding: 5px 18px; }
 .touch-landscape .settings-page .settings-diagnostic { line-height: 1.25; }
@@ -200,7 +200,13 @@ class Display(Gtk.Application):
             geometry = monitor.get_geometry()
             self.detail_artwork.set_size_request(max(320, min(geometry.width, geometry.height) - 60), max(320, min(geometry.width, geometry.height) - 60))
             if max(geometry.width, geometry.height) >= 1200: self.window.add_css_class("high-resolution")
-            if geometry.width >= 1200 and geometry.width > geometry.height: self.window.add_css_class("touch-landscape")
+            if geometry.width >= 1200 and geometry.width > geometry.height:
+                self.window.add_css_class("touch-landscape")
+                # A CSS min-size still lets GTK stretch this child to its former
+                # allocation. Constrain both the picture and its button so the
+                # landscape artwork is genuinely ten percent smaller.
+                self.artwork.set_size_request(324, 324)
+                self.artwork_button.set_size_request(324, 324)
         return False
 
     def header(self, centre, clock):
@@ -246,7 +252,7 @@ class Display(Gtk.Application):
         self.roon_views.set_hhomogeneous(False); self.roon_views.set_vhomogeneous(False)
         content = Gtk.Box(spacing=26); content.set_vexpand(True); content.set_margin_start(8); content.set_margin_end(8); content.set_margin_top(8); content.set_margin_bottom(8)
         self.artwork = Gtk.Picture(); self.artwork.add_css_class("artwork"); self.artwork.set_size_request(280, 280); self.artwork.set_valign(Gtk.Align.CENTER); self.artwork.set_content_fit(Gtk.ContentFit.COVER)
-        artwork_button = Gtk.Button(); artwork_button.add_css_class("artwork-button"); artwork_button.set_child(self.artwork); artwork_button.connect("clicked", lambda *_: self.set_roon_view("details")); content.append(artwork_button); self.artwork_button = artwork_button
+        artwork_button = Gtk.Button(); artwork_button.add_css_class("artwork-button"); artwork_button.set_halign(Gtk.Align.CENTER); artwork_button.set_valign(Gtk.Align.CENTER); artwork_button.set_child(self.artwork); artwork_button.connect("clicked", lambda *_: self.set_roon_view("details")); content.append(artwork_button); self.artwork_button = artwork_button
         centre = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=7); centre.set_valign(Gtk.Align.CENTER); centre.set_hexpand(True)
         self.title = self.label("Waiting for Roon…", "roon-title", .5); self.title.set_wrap(True); self.title.set_lines(2); self.title.set_justify(Gtk.Justification.CENTER)
         self.artist = self.label("Enable Pi Home Roon Controller in Roon", "roon-artist", .5); self.artist.set_wrap(True); self.artist.set_justify(Gtk.Justification.CENTER); centre.append(self.title); centre.append(self.artist)
@@ -271,14 +277,17 @@ class Display(Gtk.Application):
         queue_scroll.get_vadjustment().connect("value-changed", self.load_visible_queue_artwork)
         self.roon_views.add_named(queue_scroll, "queue")
         detail_panel = Gtk.Box(spacing=24); detail_panel.add_css_class("detail-panel"); detail_panel.set_hexpand(True); detail_panel.set_vexpand(True)
-        self.detail_artwork = Gtk.Picture(); self.detail_artwork.add_css_class("detail-artwork"); self.detail_artwork.set_size_request(420, 420); self.detail_artwork.set_content_fit(Gtk.ContentFit.COVER); self.detail_artwork.set_valign(Gtk.Align.CENTER); detail_panel.append(self.detail_artwork)
+        self.detail_artwork = Gtk.Picture(); self.detail_artwork.add_css_class("detail-artwork"); self.detail_artwork.set_size_request(420, 420); self.detail_artwork.set_content_fit(Gtk.ContentFit.COVER); self.detail_artwork.set_valign(Gtk.Align.CENTER)
+        detail_artwork_button = Gtk.Button(); detail_artwork_button.add_css_class("detail-artwork-button"); detail_artwork_button.set_halign(Gtk.Align.CENTER); detail_artwork_button.set_valign(Gtk.Align.CENTER); detail_artwork_button.set_child(self.detail_artwork); detail_artwork_button.connect("clicked", lambda *_: self.set_roon_view("now")); detail_panel.append(detail_artwork_button)
         detail_copy = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6); detail_copy.set_hexpand(True); detail_copy.set_vexpand(True); detail_copy.set_valign(Gtk.Align.FILL)
-        detail_copy.append(self.label("ALBUM & ARTIST", "eyebrow"))
-        self.detail_title = self.label("Nothing playing", "detail-title"); self.detail_title.set_wrap(True); self.detail_title.set_lines(2); self.detail_title.set_ellipsize(Pango.EllipsizeMode.END); detail_copy.append(self.detail_title)
-        self.detail_artist = self.label("", "detail-artist"); self.detail_artist.set_wrap(True); detail_copy.append(self.detail_artist)
-        self.detail_subtitle = self.label("", "detail-subtitle"); self.detail_subtitle.set_wrap(True); detail_copy.append(self.detail_subtitle)
+        detail_content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6); detail_content.set_valign(Gtk.Align.CENTER); detail_content.set_vexpand(True)
+        detail_content.append(self.label("ALBUM & ARTIST", "eyebrow"))
+        self.detail_title = self.label("Nothing playing", "detail-title"); self.detail_title.set_wrap(True); self.detail_title.set_lines(2); self.detail_title.set_ellipsize(Pango.EllipsizeMode.END); detail_content.append(self.detail_title)
+        self.detail_artist = self.label("", "detail-artist"); self.detail_artist.set_wrap(True); detail_content.append(self.detail_artist)
+        self.detail_subtitle = self.label("", "detail-subtitle"); self.detail_subtitle.set_wrap(True); detail_content.append(self.detail_subtitle)
         self.detail_tracks = Gtk.Box(orientation=Gtk.Orientation.VERTICAL); self.detail_tracks.add_css_class("detail-tracks")
-        detail_scroll = Gtk.ScrolledWindow(); detail_scroll.add_css_class("queue-scroll"); detail_scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC); detail_scroll.set_kinetic_scrolling(True); detail_scroll.set_overlay_scrolling(True); detail_scroll.set_vexpand(True); detail_scroll.set_child(self.detail_tracks); detail_copy.append(detail_scroll)
+        detail_scroll = Gtk.ScrolledWindow(); detail_scroll.add_css_class("queue-scroll"); detail_scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC); detail_scroll.set_kinetic_scrolling(True); detail_scroll.set_overlay_scrolling(True); detail_scroll.set_propagate_natural_height(True); detail_scroll.set_max_content_height(210); detail_scroll.set_child(self.detail_tracks); detail_content.append(detail_scroll)
+        detail_copy.append(detail_content)
         detail_back = self.button("BACK", lambda *_: self.set_roon_view("now"), "detail-back"); detail_back.set_halign(Gtk.Align.START); detail_copy.append(detail_back)
         detail_panel.append(detail_copy); page.append(self.roon_views); page.append(self.navigation("roon"))
         takeover = Gtk.Box(); takeover.add_css_class("detail-takeover"); takeover.set_hexpand(True); takeover.set_vexpand(True)
@@ -294,7 +303,7 @@ class Display(Gtk.Application):
 
     def build_settings(self):
         page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8); page.add_css_class("page"); page.add_css_class("settings-page")
-        top = Gtk.Box(spacing=10); top.append(self.button("BACK", self.close_settings)); title = self.label("Touchscreen settings", "settings-title", .5); title.set_hexpand(True); top.append(title); top.append(self.button("SLEEP", self.sleep)); page.append(top)
+        top = Gtk.Box(spacing=10); top.append(self.button("BACK", self.close_settings)); title = self.label("Settings", "settings-title", .5); title.set_hexpand(True); top.append(title); top.append(self.button("SLEEP", self.sleep)); page.append(top)
         card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14); card.add_css_class("settings-card"); card.set_vexpand(True)
         self.device_status = self.label("Checking system…", "muted", .5); card.append(self.device_status)
         self.touch_diagnostics = self.label("Loading diagnostics…", "settings-diagnostic", .5); self.touch_diagnostics.set_wrap(True); self.touch_diagnostics.set_justify(Gtk.Justification.CENTER); self.touch_diagnostics.set_margin_top(8); self.touch_diagnostics.set_margin_bottom(14); card.append(self.touch_diagnostics)

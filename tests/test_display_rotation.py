@@ -44,6 +44,21 @@ class DisplayRotationTests(unittest.TestCase):
         self.assertIn('self.stack.add_named(self.build_boot_splash(), "boot")', display)
         self.assertIn('.boot-logo { color: #6ef0be', display)
 
+    def test_landscape_artwork_is_fixed_smaller_and_detail_art_can_close(self):
+        display = (ROOT / "native-display" / "pi_bus_native.py").read_text(encoding="utf-8")
+        web_html = (ROOT / "roon-controller" / "static" / "index.html").read_text(encoding="utf-8")
+        web_js = (ROOT / "roon-controller" / "static" / "app.js").read_text(encoding="utf-8")
+        self.assertIn("self.artwork.set_size_request(324, 324)", display)
+        self.assertIn("self.artwork_button.set_size_request(324, 324)", display)
+        self.assertIn('detail_artwork_button.connect("clicked", lambda *_: self.set_roon_view("now"))', display)
+        self.assertIn('id="details-artwork-close"', web_html)
+        self.assertIn("$('details-artwork-close').onclick = () => setMusicView('now')", web_js)
+
+    def test_touchscreen_settings_title_and_checkbox_spacing(self):
+        display = (ROOT / "native-display" / "pi_bus_native.py").read_text(encoding="utf-8")
+        self.assertIn('title = self.label("Settings", "settings-title", .5)', display)
+        self.assertIn(".setting-line checkbutton label { margin-left: 12px;", display)
+
     def test_appliance_boot_is_quiet_and_splash_free(self):
         script = (ROOT / "scripts" / "pi-bus-appliance-mode").read_text(encoding="utf-8")
         self.assertIn("disable_splash=1", script)

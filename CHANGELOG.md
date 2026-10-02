@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.9 — 2 October 2026
+
+- Fixed the main touchscreen Now Playing artwork at a genuinely smaller centred size instead of relying on a minimum-size rule that GTK could expand.
+- Vertically centred the album/artist information while retaining the Back control at the bottom margin.
+- Made the large detail artwork itself return to Now Playing when tapped, on both touchscreen and web.
+- Shortened the native page heading from “Touchscreen settings” to “Settings”.
+- Added deliberate spacing between every Settings checkbox and its label, including Roon Bridge and bus services.
+
 ## 0.9.8 — 2 October 2026
 
 - Reduced the main touchscreen Now Playing artwork by 10% without expanding surrounding content.
