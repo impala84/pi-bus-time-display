@@ -268,7 +268,16 @@ function browserTileSymbol(title, section) {
   if (value.includes('pop') || value.includes('rock')) return '⚡';
   if (value.includes('stage') || value.includes('screen') || value.includes('soundtrack')) return '★';
   if (value.includes('folk') || value.includes('country')) return '♧';
-  return '◉';
+  if (value.includes('blues')) return '♭';
+  if (value.includes('rap') || value.includes('hip-hop') || value.includes('r&b')) return '♫';
+  if (value.includes('reggae')) return '≋';
+  if (value.includes('latin') || value.includes('world') || value.includes('international')) return '◈';
+  if (value.includes('vocal') || value.includes('easy listening')) return '♩';
+  if (value.includes('new age') || value.includes('ambient')) return '✦';
+  if (value.includes('holiday')) return '❄';
+  if (value.includes('children')) return '☺';
+  if (value.includes('religious') || value.includes('gospel')) return '✦';
+  return String(title || '?').trim().charAt(0).toUpperCase() || '?';
 }
 
 function browserCard(item, layout, showLabels, section, showSubtitles = true) {
@@ -283,7 +292,8 @@ function browserCard(item, layout, showLabels, section, showSubtitles = true) {
   }
   if (layout !== 'covers' || showLabels) {
     const copy = document.createElement('span'); copy.className = 'browser-card-copy'; const title = document.createElement('strong'); title.textContent = item.title || 'Untitled'; copy.append(title);
-    if (showLabels && showSubtitles && item.subtitle) { const subtitle = document.createElement('small'); subtitle.textContent = item.subtitle; copy.append(subtitle); } button.append(copy);
+    if (showLabels && showSubtitles && item.subtitle) { const subtitle = document.createElement('small'); subtitle.textContent = item.subtitle; copy.append(subtitle); }
+    if (layout === 'tiles') artwork.append(copy); else button.append(copy);
   }
   button.setAttribute('aria-label', [item.title, item.subtitle].filter(Boolean).join(', ')); button.onclick = () => browseCommand('open', {item_key: item.item_key}); return button;
 }

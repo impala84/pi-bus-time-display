@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {BrowseManager, browserLayout, formatDuration, libraryItems, publicItem, rootItems, safeSession, withFallbackImage} = require('./browse-state');
+const {BrowseManager, browserLayout, formatDuration, libraryItems, publicItem, rootItems, safeSession, withAlbumArtist, withFallbackImage} = require('./browse-state');
 
 function fakeService() {
   const sessions = new Map();
@@ -89,6 +89,16 @@ test('album contents with a play action use track rows and preserve supplied dur
   assert.equal(publicItem({title: 'Track', duration: 245}).duration, '4:05');
   assert.equal(publicItem({title: 'Track', length: '3:09'}).duration, '3:09');
   assert.equal(formatDuration(null), '');
+});
+
+test('album track rows use the album artist rather than a long credits list', () => {
+  const items = withAlbumArtist([
+    publicItem({title: 'Play Album', hint: 'action'}),
+    publicItem({title: 'Track one', subtitle: 'Justice, Xavier de Rosnay, Gaspard Augé'}),
+    publicItem({title: 'Track two', subtitle: 'Justice, Featured Singer'})
+  ]);
+  assert.equal(items[1].subtitle, 'Justice');
+  assert.equal(items[2].subtitle, 'Justice');
 });
 
 test('library is reduced to four useful destinations', () => {

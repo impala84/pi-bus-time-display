@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.11.9 — 3 October 2026
+
+- Measure daytime inactivity from the latest raw touchscreen contact, including scrolling gestures that GTK consumes without a normal button press.
+- Turn the Overview software status into a useful version summary and a direct link to the opened Software section.
+- Add compact System section anchors, a Pi Home settings return link, roomier main tabs and animated disclosure chevrons.
+- Restyle the Albums and Artists A–Z control as a subdued fixed rail with only its thumb and tracking letter highlighted.
+- Put wrapped Genre and Playlist names inside fixed-size artwork tiles and expand genre-specific iconography.
+- Move Back to one consistent top-right position, match play-action artwork to track thumbnails and reduce album track credits to the album artist.
+
 ## 0.11.8 — 3 October 2026
 
 - Prevent the four-column browser grid from widening the touchscreen beyond the physical panel and clipping the clock, selectors and rightmost artwork.

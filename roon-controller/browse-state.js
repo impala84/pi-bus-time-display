@@ -67,6 +67,14 @@ function withFallbackImage(items, imageKey) {
   return items.map(item => !isActionItem(item) && !item.image_key ? {...item, image_key: imageKey} : item);
 }
 
+function withAlbumArtist(items) {
+  if (!items.some(item => item.action && /^play album$/i.test(String(item.title || '').trim()))) return items;
+  const firstTrack = items.find(item => !item.action && item.subtitle);
+  const albumArtist = String(firstTrack?.subtitle || '').split(/\s*,\s*/)[0].trim();
+  if (!albumArtist) return items;
+  return items.map(item => item.action ? item : {...item, subtitle: albumArtist});
+}
+
 function rootItems(items) {
   const wanted = ['library', 'playlists', 'genres'];
   const available = items.filter(item => item.hint !== 'header');
@@ -156,7 +164,7 @@ class BrowseManager {
 
   store(session, hierarchy, list, items, message, fallbackImageKey = null, loadedOffset = 0) {
     const level = Number(list?.level || 0);
-    let normalised = withFallbackImage(libraryItems(list, (items || []).map(publicItem)), fallbackImageKey);
+    let normalised = withAlbumArtist(withFallbackImage(libraryItems(list, (items || []).map(publicItem)), fallbackImageKey));
     if (hierarchy === 'browse' && level === 0) normalised = rootItems(normalised);
     const presentation = browserLayout(hierarchy, level, list, normalised);
     const filteredLibrary = /^library$/i.test(String(list?.title || '').trim());
@@ -180,7 +188,7 @@ class BrowseManager {
     if (!state || !state.has_more) return state || this._run(session, 'root', {});
     const nextOffset = Number(state.offset || 0) + state.items.length;
     const loaded = await request(service, 'load', {hierarchy: state.hierarchy, multi_session_key: session, level: state.level, offset: nextOffset, count: PAGE_SIZE});
-    const items = [...state.items, ...withFallbackImage((loaded.items || []).map(publicItem), state.fallback_image_key)];
+    const items = withAlbumArtist([...state.items, ...withFallbackImage((loaded.items || []).map(publicItem), state.fallback_image_key)]);
     const count = Number(loaded.list?.count ?? state.count);
     return this.save(session, {...state, items, count, has_more: Number(state.offset || 0) + items.length < count, message: ''});
   }
@@ -200,11 +208,11 @@ class BrowseManager {
     }
     const offset = Math.max(0, Math.min(low, Math.max(0, state.count - 1)));
     const loaded = await request(service, 'load', {hierarchy: state.hierarchy, multi_session_key: session, level: state.level, offset, count: PAGE_SIZE});
-    const items = withFallbackImage((loaded.items || []).map(publicItem), state.fallback_image_key);
+    const items = withAlbumArtist(withFallbackImage((loaded.items || []).map(publicItem), state.fallback_image_key));
     return this.save(session, {...state, offset, items, count: Number(loaded.list?.count ?? state.count), has_more: offset + items.length < Number(loaded.list?.count ?? state.count), message: ''});
   }
 
   save(session, state) { this.sessions.set(session, state); return state; }
 }
 
-module.exports = {BrowseManager, browserLayout, formatDuration, isActionItem, libraryItems, publicItem, rootItems, safeSession, withFallbackImage};
+module.exports = {BrowseManager, browserLayout, formatDuration, isActionItem, libraryItems, publicItem, rootItems, safeSession, withAlbumArtist, withFallbackImage};

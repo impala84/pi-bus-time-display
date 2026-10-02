@@ -34,6 +34,7 @@ class DisplayRotationTests(unittest.TestCase):
     def test_sleep_button_touch_cannot_replay_as_a_wake(self):
         display = (ROOT / "native-display" / "pi_bus_native.py").read_text(encoding="utf-8")
         self.assertIn("GLib.idle_add(self.low_level_touch_wake, contact_at)", display)
+        self.assertIn("self.last_interaction = max(self.last_interaction, contact_at or time.monotonic())", display)
         self.assertIn("contact_at <= self.sleep_entered_at", display)
         self.assertIn("self.inactivity_sleeping = True\n            self.prepare_sleep_wake()", display)
         self.assertIn("if self.manual_sleep_pending:", display)
@@ -107,13 +108,24 @@ class DisplayRotationTests(unittest.TestCase):
         self.assertIn("['home', 'menu', 'covers', 'tiles'].includes", web)
         self.assertIn('columns = 4', display)
         self.assertNotIn('self.browser_title', display)
-        self.assertIn('sidebar.append(self.browser_back)', display)
+        self.assertIn('browser.add_overlay(self.browser_back)', display)
+        self.assertIn('self.browser_scrub_scale.set_has_origin(False)', display)
         self.assertIn('for _ in range(3): threading.Thread(target=self.thumbnail_worker', display)
         self.assertIn('def maybe_load_more_browser(self):', display)
         self.assertIn('def browser_action_icon(self, title):', display)
         self.assertIn('browser_scroll.set_overlay_scrolling(True)', display)
         self.assertIn('item.get("duration") or ""', display)
         self.assertNotIn('self.button("LOAD MORE"', display)
+
+    def test_admin_system_cards_link_to_animated_in_page_sections(self):
+        html = (ROOT / "src" / "pi_bus_time_display" / "static" / "admin.html").read_text(encoding="utf-8")
+        css = (ROOT / "src" / "pi_bus_time_display" / "static" / "admin.css").read_text(encoding="utf-8")
+        javascript = (ROOT / "src" / "pi_bus_time_display" / "static" / "admin.js").read_text(encoding="utf-8")
+        self.assertIn('data-jump-target="system-maintenance"', html)
+        self.assertIn('data-system-anchor="system-device"', html)
+        self.assertIn('id="system-maintenance"', html)
+        self.assertIn("function openSystemSection(id)", javascript)
+        self.assertIn("details[open]>summary::before", css)
 
     def test_long_now_playing_copy_pauses_and_scrolls_without_polling(self):
         app = (ROOT / "roon-controller" / "static" / "app.js").read_text(encoding="utf-8")
