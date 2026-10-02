@@ -1,6 +1,6 @@
 {
   "name": "pi-bus-roon-controller",
-  "version": "0.10.1",
+  "version": "0.10.2",
   "private": true,
   "description": "Touch-first Roon Now Playing controller for Pi Home",
   "main": "server.js",

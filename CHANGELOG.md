@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.10.2 — 2 October 2026
+
+- Added a safe compilation fallback for album enrichment: when Roon's track artists are not the album artist, Pi Home accepts MusicBrainz metadata only if the album search has exactly one exact-title match.
+- Continued to reject ambiguous album titles rather than showing potentially incorrect information.
+
 ## 0.10.1 — 2 October 2026
 
 - Collapsed the mobile Roon selector to the last word of each configured label so inputs fit as compact uppercase names such as TV, LP, ROON and QUEUE.

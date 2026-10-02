@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {playingMetadata, chooseItem, artistCandidates, chooseMusicBrainzGroup, musicBrainzFacts, parseBandcampPage, loadAlbumWriteup, loadMusicBrainzMetadata, loadDetails} = require('./details-state');
+const {playingMetadata, chooseItem, artistCandidates, chooseMusicBrainzGroup, chooseUniqueTitleGroup, musicBrainzFacts, parseBandcampPage, loadAlbumWriteup, loadMusicBrainzMetadata, loadDetails} = require('./details-state');
 
 test('playingMetadata reads three-line Roon metadata', () => {
   assert.deepEqual(playingMetadata({now_playing: {three_line: {line1: 'Track', line2: 'Artist', line3: 'Album'}, image_key: 'art'}}),
@@ -50,6 +50,25 @@ test('MusicBrainz matching accepts the album artist within Roon track credits', 
   assert.deepEqual(artistCandidates('Emancipator / SunSquabi / Stephanie Starnes'), ['Emancipator', 'SunSquabi', 'Stephanie Starnes', 'Emancipator / SunSquabi / Stephanie Starnes']);
   const groups = [{id: 'chrysalis', title: 'Chrysalis', score: 100, 'artist-credit': [{name: 'Emancipator'}]}];
   assert.equal(chooseMusicBrainzGroup(groups, 'Chrysalis', 'Emancipator / SunSquabi / Stephanie Starnes').id, 'chrysalis');
+});
+
+test('MusicBrainz title fallback accepts only one exact album title', () => {
+  const unique = [{id: 'exact', title: 'Edits by Mr. K'}, {id: 'other', title: 'Danny Krivit: Edits by Mr. K'}];
+  assert.equal(chooseUniqueTitleGroup(unique, 'Edits by Mr. K').id, 'exact');
+  assert.equal(chooseUniqueTitleGroup([...unique, {id: 'ambiguous', title: 'Edits by Mr. K'}], 'Edits by Mr. K'), null);
+});
+
+test('MusicBrainz enrichment falls back to a unique exact album title', async () => {
+  const paths = [];
+  const fetchJson = async path => {
+    paths.push(path);
+    if (path.includes('/fallback?')) return {id: 'fallback', title: 'Edits by Mr. K', 'first-release-date': '2019-11-01', 'primary-type': 'EP', genres: [{name: 'electronic', count: 1}], releases: []};
+    if (path.includes('query=') && path.includes('limit=10')) return {'release-groups': [{id: 'fallback', title: 'Edits by Mr. K'}, {id: 'other', title: 'Different Album'}]};
+    return {'release-groups': []};
+  };
+  const facts = await loadMusicBrainzMetadata('Edits by Mr. K', 'The Vision / Andreya Triana', 0, fetchJson);
+  assert.equal(facts.year, '2019'); assert.equal(facts.type, 'EP'); assert.equal(facts.genres[0], 'electronic');
+  assert(paths.some(path => path.includes('limit=10')));
 });
 
 test('MusicBrainz facts expose useful compact album metadata', () => {

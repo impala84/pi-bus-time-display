@@ -27,7 +27,7 @@ function musicBrainzJson(path) {
     return new Promise((resolve, reject) => {
       const request = https.get({
         hostname: 'musicbrainz.org', path, timeout: 3500,
-        headers: {'Accept': 'application/json', 'User-Agent': 'PiHome/0.10.1 (https://github.com/impala84/pi-home)'}
+        headers: {'Accept': 'application/json', 'User-Agent': 'PiHome/0.10.2 (https://github.com/impala84/pi-home)'}
       }, response => {
         let body = '';
         response.setEncoding('utf8');
@@ -51,7 +51,7 @@ function externalText(url) {
   const allowed = target.hostname === 'wikipedia.org' || target.hostname.endsWith('.wikipedia.org') || target.hostname === 'bandcamp.com' || target.hostname.endsWith('.bandcamp.com');
   if (!allowed || target.protocol !== 'https:') return Promise.reject(new Error('Unsupported metadata source'));
   return new Promise((resolve, reject) => {
-    const request = https.get(target, {timeout: 3500, headers: {'Accept': 'text/html,application/json', 'User-Agent': 'PiHome/0.10.1 (https://github.com/impala84/pi-home)'}}, response => {
+    const request = https.get(target, {timeout: 3500, headers: {'Accept': 'text/html,application/json', 'User-Agent': 'PiHome/0.10.2 (https://github.com/impala84/pi-home)'}}, response => {
       let body = '';
       response.setEncoding('utf8');
       response.on('data', chunk => { body += chunk; if (body.length > 2 * 1024 * 1024) request.destroy(new Error('Metadata response too large')); });
@@ -131,6 +131,12 @@ function chooseMusicBrainzGroup(groups, album, artist) {
   return ranked[0]?.group || null;
 }
 
+function chooseUniqueTitleGroup(groups, album) {
+  const wantedAlbum = clean(album);
+  const exact = (groups || []).filter(group => clean(group?.title) === wantedAlbum);
+  return exact.length === 1 ? exact[0] : null;
+}
+
 function preferredMusicBrainzRelease(group) {
   const releases = group?.releases || [];
   return releases.filter(release => release.status === 'Official').sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')))[0] || releases[0] || {};
@@ -171,6 +177,11 @@ async function loadMusicBrainzMetadata(album, artist, trackCount = 0, fetchJson 
     const search = await fetchJson(`/ws/2/release-group/?query=${encodeURIComponent(query)}&fmt=json&limit=5`);
     match = chooseMusicBrainzGroup(search?.['release-groups'], album, artist);
     if (match) break;
+  }
+  if (!match) {
+    const query = `releasegroup:"${album.replace(/["\\]/g, ' ')}"`;
+    const search = await fetchJson(`/ws/2/release-group/?query=${encodeURIComponent(query)}&fmt=json&limit=10`);
+    match = chooseUniqueTitleGroup(search?.['release-groups'], album);
   }
   if (!match?.id) return musicBrainzFacts(null, trackCount);
   const group = await fetchJson(`/ws/2/release-group/${encodeURIComponent(match.id)}?inc=genres+releases+url-rels&fmt=json`);
@@ -239,4 +250,4 @@ async function loadDetails(service, zone, enrich = loadMusicBrainzMetadata) {
   return base;
 }
 
-module.exports = {playingMetadata, chooseItem, artistCandidates, chooseMusicBrainzGroup, musicBrainzFacts, parseBandcampPage, loadAlbumWriteup, loadMusicBrainzMetadata, loadDetails};
+module.exports = {playingMetadata, chooseItem, artistCandidates, chooseMusicBrainzGroup, chooseUniqueTitleGroup, musicBrainzFacts, parseBandcampPage, loadAlbumWriteup, loadMusicBrainzMetadata, loadDetails};
