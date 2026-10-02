@@ -45,8 +45,8 @@ button { border: 0; box-shadow: none; background-image: none; outline: none; }
 .roon-subnav { margin-top: 0; }.roon-subnav button { min-height: 29px; padding: 4px 13px 2px; border-radius: 0; border-top: 3px solid transparent; background: transparent; color: #68736f; font-size: 10px; font-weight: 750; letter-spacing: 1px; }.roon-subnav button.active { border-top-color: #5bcbd6; color: #f4f0e6; }
 .source-view { padding: 8px; }.source-title { font-size: 25px; font-weight: 700; }.source-volume { font-size: 104px; font-weight: 620; font-variant-numeric: tabular-nums; }.source-step { min-width: 92px; min-height: 92px; border-radius: 46px; background: #18211f; color: #f4f0e6; font-size: 45px; }.source-mute { min-width: 92px; min-height: 38px; border-radius: 8px; background: #18211f; color: #dfe4e1; font-size: 11px; font-weight: 750; }
 .queue-scroll { background: transparent; }.queue-scroll scrollbar { opacity: 0; min-width: 0; min-height: 0; }.queue-list { padding: 5px 8px 8px; }.queue-row { min-height: 66px; padding: 5px 9px; border-radius: 8px; background: transparent; color: #f4f0e6; }.queue-row:hover, .queue-row:active { background: #18211f; }.queue-row.current { background: #121e1c; border-left: 3px solid #5bcbd6; }.queue-row.previous { opacity: .5; }.queue-art { min-width: 56px; min-height: 56px; border-radius: 5px; background: #18211f; }.queue-title { color: #f4f0e6; font-size: 16px; font-weight: 650; }.queue-meta { color: #84908c; font-size: 12px; }.queue-duration { color: #84908c; font-size: 12px; font-variant-numeric: tabular-nums; }.queue-empty { color: #78837f; font-size: 15px; padding: 60px 0; }
-.browser-view { padding: 2px 12px 10px; }.browser-toolbar { padding: 4px 6px 10px; }.browser-back { min-width: 92px; min-height: 42px; padding: 7px 13px; border-radius: 8px; background: #18211f; color: #dfe4e1; font-size: 13px; font-weight: 750; }.browser-heading { font-size: 24px; font-weight: 680; }.browser-message { color: #7f8b87; font-size: 13px; }.browser-search { min-width: 250px; min-height: 46px; padding: 4px 12px; border: 0; border-bottom: 1px solid #33413d; border-radius: 0; box-shadow: none; outline: none; background: transparent; color: #f4f0e6; font-size: 15px; }.browser-search:focus { border-color: #6ed9ae; box-shadow: none; outline: none; }.browser-search-button { min-width: 96px; min-height: 46px; border-radius: 8px; background: #18211f; color: #dfe4e1; font-size: 13px; font-weight: 750; }.browser-row { min-height: 78px; padding: 7px 12px; border-radius: 10px; background: transparent; color: #f4f0e6; }.browser-row:hover, .browser-row:active { background: #18211f; }.browser-action-icon { min-width: 66px; min-height: 66px; border-radius: 8px; background: #14231f; color: #6ed9ae; }.browser-arrow { min-width: 44px; color: #84908c; font-size: 15px; font-variant-numeric: tabular-nums; }.browser-scroll scrollbar { opacity: 1; min-width: 12px; background: transparent; }.browser-scroll scrollbar slider { min-width: 7px; min-height: 48px; border-radius: 4px; background: #4b5a55; }.browser-section { padding: 15px 8px 5px; color: #6ed9ae; font-size: 12px; font-weight: 750; letter-spacing: 1px; }
-.browser-home-grid, .browser-cover-grid { padding: 10px 6px 18px; }.browser-home-card { min-height: 270px; padding: 22px 14px; border-radius: 14px; background: #131c1a; color: #f4f0e6; }.browser-home-card.compact { min-height: 150px; }.browser-home-card:hover, .browser-home-card:active { background: #19302a; }.browser-home-icon { color: #6ed9ae; font-size: 64px; font-weight: 350; }.browser-home-title { color: #f4f0e6; font-size: 21px; font-weight: 720; }.browser-cover-card { min-height: 202px; padding: 7px; border-radius: 10px; background: transparent; color: #f4f0e6; }.browser-cover-card:hover, .browser-cover-card:active { background: #18211f; }.browser-cover-art { min-width: 172px; min-height: 172px; border-radius: 8px; background: #18211f; }.browser-cover-title { padding-top: 6px; color: #f4f0e6; font-size: 14px; font-weight: 650; }.browser-cover-subtitle { color: #87928e; font-size: 11px; }.browser-keyboard { padding: 10px 16px 14px; border-radius: 14px 14px 0 0; background: rgba(8, 13, 12, .98); }.browser-keyboard-row { padding: 2px 0; }.browser-key { min-width: 68px; min-height: 48px; border-radius: 7px; background: #202a27; color: #f4f0e6; font-size: 17px; font-weight: 680; }.browser-key-wide { min-width: 128px; }.browser-key-search { background: #285f4d; color: #f4f0e6; }
+.browser-view { padding: 2px 12px 10px; }.browser-sidebar { min-width: 150px; padding: 6px 12px 8px 0; border-right: 1px solid #26312e; }.browser-filter { min-height: 58px; padding: 8px 14px; border-radius: 8px; background: transparent; color: #84908c; font-size: 16px; font-weight: 720; }.browser-filter.active { background: #19302a; color: #f4f0e6; }.browser-main { padding-left: 12px; }.browser-toolbar { min-height: 46px; padding: 2px 4px 7px; }.browser-back { min-width: 74px; min-height: 38px; padding: 6px 11px; border-radius: 7px; background: #18211f; color: #dfe4e1; font-size: 12px; font-weight: 750; }.browser-heading { color: #aab4b0; font-size: 17px; font-weight: 680; letter-spacing: .5px; }.browser-message { color: #7f8b87; font-size: 12px; }.browser-row { min-height: 78px; padding: 7px 12px; border-radius: 10px; background: transparent; color: #f4f0e6; }.browser-row:hover, .browser-row:active { background: #18211f; }.browser-action-icon { min-width: 66px; min-height: 66px; border-radius: 8px; background: #14231f; color: #6ed9ae; }.browser-arrow { min-width: 44px; color: #84908c; font-size: 15px; font-variant-numeric: tabular-nums; }.browser-scrubber { min-width: 74px; padding-left: 7px; }.browser-scrubber scale { min-width: 30px; padding: 8px; }.browser-scrubber trough { min-width: 5px; border-radius: 3px; background: #25312e; }.browser-scrubber highlight { background: #6ed9ae; }.browser-scrubber slider { min-width: 18px; min-height: 18px; border-radius: 9px; background: #6ed9ae; }.browser-scrub-letter { min-width: 34px; min-height: 34px; border-radius: 17px; background: #19302a; color: #6ed9ae; font-size: 16px; font-weight: 800; }.browser-section { padding: 15px 8px 5px; color: #6ed9ae; font-size: 12px; font-weight: 750; letter-spacing: 1px; }
+.browser-home-grid, .browser-cover-grid { padding: 10px 6px 18px; }.browser-home-card { min-height: 270px; padding: 22px 14px; border-radius: 14px; background: #131c1a; color: #f4f0e6; }.browser-home-card.compact { min-height: 150px; }.browser-home-card:hover, .browser-home-card:active { background: #19302a; }.browser-home-icon { color: #6ed9ae; font-size: 64px; font-weight: 350; }.browser-home-title { color: #f4f0e6; font-size: 21px; font-weight: 720; }.browser-cover-card { min-height: 202px; padding: 7px; border-radius: 10px; background: transparent; color: #f4f0e6; }.browser-cover-card:hover, .browser-cover-card:active { background: #18211f; }.browser-cover-art { min-width: 172px; min-height: 172px; border-radius: 8px; background: #18211f; }.browser-cover-title { padding-top: 6px; color: #f4f0e6; font-size: 14px; font-weight: 650; }.browser-cover-subtitle { color: #87928e; font-size: 11px; }
 .transport button { min-width: 50px; min-height: 50px; border-radius: 25px; padding: 0; background: #18211f; color: #e4e7e4; }.transport .play { min-width: 68px; min-height: 68px; border-radius: 34px; background: #285f4d; }
 .progress trough, .volume trough { min-height: 7px; border: 0; box-shadow: none; border-radius: 4px; background: #303a37; }.progress highlight, .volume highlight { border: 0; box-shadow: none; background: #6ed9ae; }.time { color: #87928e; font-size: 12px; }
 .sleep { background: #000; }.sleep-clock { font-size: 112px; font-weight: 550; }.settings-title { font-size: 32px; font-weight: 650; }
@@ -71,7 +71,7 @@ button { border: 0; box-shadow: none; background-image: none; outline: none; }
 .touch-landscape .roon-subnav button { min-height: 42px; padding: 2px 14px 4px; }
 .touch-landscape .source-volume { font-size: 220px; font-weight: 450; }.touch-landscape .source-step { min-width: 112px; min-height: 112px; border-radius: 56px; font-size: 58px; }.touch-landscape .source-mute { min-width: 160px; min-height: 62px; font-size: 20px; }
 .touch-landscape .time { font-size: 20px; }.touch-landscape .volume-number { font-size: 26px; }
-.touch-landscape .browser-heading { font-size: 30px; }.touch-landscape .browser-back { min-width: 104px; min-height: 48px; font-size: 15px; }.touch-landscape .browser-search { min-width: 280px; min-height: 50px; font-size: 18px; }.touch-landscape .browser-search-button { min-height: 50px; font-size: 16px; }.touch-landscape .browser-row { min-height: 88px; }.touch-landscape .browser-home-card { min-height: 290px; }.touch-landscape .browser-home-icon { font-size: 78px; }.touch-landscape .browser-home-title { font-size: 26px; }.touch-landscape .browser-cover-art { min-width: 184px; min-height: 184px; }.touch-landscape .browser-cover-title { font-size: 16px; }.touch-landscape .browser-key { min-height: 52px; font-size: 19px; }
+.touch-landscape .browser-heading { font-size: 18px; }.touch-landscape .browser-back { min-width: 82px; min-height: 42px; font-size: 13px; }.touch-landscape .browser-filter { min-height: 64px; font-size: 17px; }.touch-landscape .browser-row { min-height: 88px; }.touch-landscape .browser-home-card { min-height: 290px; }.touch-landscape .browser-home-icon { font-size: 78px; }.touch-landscape .browser-home-title { font-size: 26px; }.touch-landscape .browser-cover-art { min-width: 184px; min-height: 184px; }.touch-landscape .browser-cover-title { font-size: 16px; }.touch-landscape .browser-scrub-letter { font-size: 18px; }
 .touch-landscape .settings-page { padding-top: 18px; padding-bottom: 18px; }.touch-landscape .settings-page button { padding: 8px 20px; }
 .touch-landscape .settings-page .settings-card { padding: 8px 10px; border: 0; background: transparent; }
 .touch-landscape .settings-page .setting-line { min-height: 72px; padding: 5px 18px; }.touch-landscape .settings-page .setting-line checkbutton label { margin-left: 16px; }
@@ -288,16 +288,22 @@ class Display(Gtk.Application):
         queue_scroll = Gtk.ScrolledWindow(); queue_scroll.add_css_class("queue-scroll"); queue_scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC); queue_scroll.set_kinetic_scrolling(True); queue_scroll.set_overlay_scrolling(True); queue_scroll.set_propagate_natural_height(False); queue_scroll.set_propagate_natural_width(False); queue_scroll.set_min_content_height(1); queue_scroll.set_size_request(-1, 1); queue_scroll.set_vexpand(True); queue_scroll.set_hexpand(True); queue_scroll.set_child(self.queue_list); self.queue_scroll = queue_scroll
         queue_scroll.get_vadjustment().connect("value-changed", self.load_visible_queue_artwork)
         self.roon_views.add_named(queue_scroll, "queue")
-        browser = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4); browser.add_css_class("browser-view"); browser.set_vexpand(True); browser.set_hexpand(True)
+        browser = Gtk.Box(spacing=0); browser.add_css_class("browser-view"); browser.set_vexpand(True); browser.set_hexpand(True)
+        self.browser_section_buttons = {}; sidebar = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=5); sidebar.add_css_class("browser-sidebar")
+        for section in ("albums", "artists", "genres", "playlists"):
+            button = self.button(section.upper(), lambda _button, value=section: self.request_browser("section", section=value), "browser-filter"); self.browser_section_buttons[section] = button; sidebar.append(button)
+        browser.append(sidebar)
+        browser_main = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2); browser_main.add_css_class("browser-main"); browser_main.set_vexpand(True); browser_main.set_hexpand(True)
         browser_toolbar = Gtk.Box(spacing=9); browser_toolbar.add_css_class("browser-toolbar")
         self.browser_back = self.button("BACK", lambda *_: self.request_browser("back"), "browser-back"); self.browser_back.set_visible(False); browser_toolbar.append(self.browser_back)
-        browser_heading = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=1); browser_heading.set_hexpand(True); browser_heading.set_valign(Gtk.Align.CENTER); self.browser_title = self.label("Browse", "browser-heading"); self.browser_message = self.label("", "browser-message"); self.browser_message.set_ellipsize(Pango.EllipsizeMode.END); self.browser_message.set_visible(False); browser_heading.append(self.browser_title); browser_heading.append(self.browser_message); browser_toolbar.append(browser_heading)
-        self.browser_search = Gtk.Entry(); self.browser_search.add_css_class("browser-search"); self.browser_search.set_placeholder_text("Search Roon"); self.browser_search.set_size_request(260, -1); self.browser_search.connect("activate", self.search_browser); self.browser_search.connect("notify::has-focus", self.browser_search_focused); search_touch = Gtk.GestureClick(); search_touch.connect("pressed", self.show_browser_keyboard); self.browser_search.add_controller(search_touch); browser_toolbar.append(self.browser_search)
-        browser_toolbar.append(self.button("SEARCH", self.search_browser, "browser-search-button")); browser.append(browser_toolbar)
+        browser_heading = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0); browser_heading.set_hexpand(True); browser_heading.set_valign(Gtk.Align.CENTER); self.browser_title = self.label("LIBRARY / ALBUMS", "browser-heading"); self.browser_message = self.label("", "browser-message"); self.browser_message.set_ellipsize(Pango.EllipsizeMode.END); self.browser_message.set_visible(False); browser_heading.append(self.browser_title); browser_heading.append(self.browser_message); browser_toolbar.append(browser_heading); browser_main.append(browser_toolbar)
         self.browser_list = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2); self.browser_list.add_css_class("queue-list")
-        browser_scroll = Gtk.ScrolledWindow(); browser_scroll.add_css_class("queue-scroll"); browser_scroll.add_css_class("browser-scroll"); browser_scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC); browser_scroll.set_kinetic_scrolling(True); browser_scroll.set_overlay_scrolling(False); browser_scroll.set_propagate_natural_height(False); browser_scroll.set_propagate_natural_width(False); browser_scroll.set_min_content_height(1); browser_scroll.set_size_request(-1, 1); browser_scroll.set_vexpand(True); browser_scroll.set_hexpand(True); browser_scroll.set_child(self.browser_list); self.browser_scroll = browser_scroll
-        browser_scroll.get_vadjustment().connect("value-changed", self.browser_scrolled); browser.append(browser_scroll)
-        self.browser_keyboard = self.build_browser_keyboard(); self.browser_keyboard.set_hexpand(True); self.browser_keyboard.set_visible(False); browser.append(self.browser_keyboard)
+        browser_scroll = Gtk.ScrolledWindow(); browser_scroll.add_css_class("queue-scroll"); browser_scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC); browser_scroll.set_kinetic_scrolling(True); browser_scroll.set_overlay_scrolling(True); browser_scroll.set_propagate_natural_height(False); browser_scroll.set_propagate_natural_width(False); browser_scroll.set_min_content_height(1); browser_scroll.set_size_request(-1, 1); browser_scroll.set_vexpand(True); browser_scroll.set_hexpand(True); browser_scroll.set_child(self.browser_list); self.browser_scroll = browser_scroll
+        browser_scroll.get_vadjustment().connect("value-changed", self.browser_scrolled)
+        content = Gtk.Box(spacing=2); content.set_vexpand(True); content.set_hexpand(True); content.append(browser_scroll)
+        self.browser_scrubber = Gtk.Overlay(); self.browser_scrubber.add_css_class("browser-scrubber"); self.browser_scrubber.set_size_request(74, -1); self.browser_scrubber.set_visible(False)
+        self.browser_scrub_scale = Gtk.Scale.new_with_range(Gtk.Orientation.VERTICAL, 0, 25, 1); self.browser_scrub_scale.set_draw_value(False); self.browser_scrub_scale.set_inverted(True); self.browser_scrub_scale.set_vexpand(True); self.browser_scrub_scale.set_halign(Gtk.Align.END); self.browser_scrub_scale.connect("value-changed", self.browser_scrub_changed); self.browser_scrubber.set_child(self.browser_scrub_scale)
+        self.browser_scrub_letter = self.label("A", "browser-scrub-letter", .5); self.browser_scrub_letter.set_halign(Gtk.Align.START); self.browser_scrub_letter.set_valign(Gtk.Align.START); self.browser_scrubber.add_overlay(self.browser_scrub_letter); content.append(self.browser_scrubber); browser_main.append(content); browser.append(browser_main)
         self.roon_views.add_named(browser, "browse")
         detail_panel = Gtk.Box(spacing=24); detail_panel.add_css_class("detail-panel"); detail_panel.set_hexpand(True); detail_panel.set_vexpand(True)
         self.detail_artwork = Gtk.Picture(); self.detail_artwork.add_css_class("detail-artwork"); self.detail_artwork.set_size_request(420, 420); self.detail_artwork.set_content_fit(Gtk.ContentFit.COVER); self.detail_artwork.set_valign(Gtk.Align.CENTER)
@@ -318,33 +324,6 @@ class Display(Gtk.Application):
         takeover = Gtk.Box(); takeover.add_css_class("detail-takeover"); takeover.set_hexpand(True); takeover.set_vexpand(True)
         takeover.append(detail_panel); takeover.set_visible(False); self.detail_takeover = takeover
         root = Gtk.Overlay(); root.set_child(page); root.add_overlay(takeover); return root
-
-    def build_browser_keyboard(self):
-        keyboard = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2); keyboard.add_css_class("browser-keyboard")
-        for keys in ("QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"):
-            row = Gtk.Box(spacing=5); row.add_css_class("browser-keyboard-row"); row.set_homogeneous(True); row.set_halign(Gtk.Align.FILL)
-            for key in keys: row.append(self.button(key, lambda _button, value=key: self.browser_keyboard_input(value), "browser-key"))
-            keyboard.append(row)
-        actions = Gtk.Box(spacing=6); actions.add_css_class("browser-keyboard-row"); actions.set_homogeneous(True)
-        actions.append(self.button("SPACE", lambda *_: self.browser_keyboard_input(" "), "browser-key browser-key-wide"))
-        actions.append(self.button("⌫", lambda *_: self.browser_keyboard_input("backspace"), "browser-key"))
-        actions.append(self.button("CLEAR", lambda *_: self.browser_keyboard_input("clear"), "browser-key"))
-        actions.append(self.button("CLOSE", lambda *_: self.browser_keyboard.set_visible(False), "browser-key"))
-        actions.append(self.button("SEARCH", self.search_browser, "browser-key browser-key-wide browser-key-search")); keyboard.append(actions)
-        return keyboard
-
-    def browser_search_focused(self, entry, _parameter):
-        if entry.has_focus(): self.browser_keyboard.set_visible(True)
-
-    def show_browser_keyboard(self, *_):
-        self.browser_search.grab_focus(); self.browser_keyboard.set_visible(True)
-
-    def browser_keyboard_input(self, value):
-        text = self.browser_search.get_text()
-        if value == "backspace": text = text[:-1]
-        elif value == "clear": text = ""
-        else: text += value
-        self.browser_search.set_text(text); self.browser_search.set_position(-1)
 
     def build_home(self):
         page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=7); page.add_css_class("page"); page.add_css_class("home-page")
@@ -707,7 +686,6 @@ class Display(Gtk.Application):
 
     def set_roon_view(self, name):
         if name in {"now", "queue", "browse", "source"}: self.requested_audio_view = name
-        if name != "browse" and hasattr(self, "browser_keyboard"): self.browser_keyboard.set_visible(False)
         self.detail_takeover.set_visible(name == "details")
         if name != "details": self.roon_views.set_visible_child_name(name)
         self.now_playing_tab.remove_css_class("active"); self.queue_tab.remove_css_class("active"); self.browser_tab.remove_css_class("active")
@@ -721,27 +699,40 @@ class Display(Gtk.Application):
 
     def show_browser(self, *_):
         self.set_roon_view("browse")
-        if self.browser_state is None: self.request_browser("current")
-
-    def search_browser(self, *_):
-        query = self.browser_search.get_text().strip()
-        if query:
-            self.browser_keyboard.set_visible(False); self.request_browser("search", query=query)
-        else:
-            self.show_browser_keyboard()
+        if self.browser_state is None: self.request_browser("section", section="albums")
 
     def request_browser(self, action, **payload):
         if self.browser_loading: return
-        if action != "search": self.browser_keyboard.set_visible(False)
         if action == "more": self.browser_scroll_restore = self.browser_scroll.get_vadjustment().get_value()
+        elif action in {"jump", "section"}: self.browser_scroll_restore = 0.0
         self.browser_loading = True; self.browser_message.set_text("Loading…")
         self.browser_message.set_visible(True)
         threading.Thread(target=self._request_browser, args=(action, payload), daemon=True).start()
 
     def _request_browser(self, action, payload):
         if action == "current": result = get_json(f"{ROON}/api/browse?session=touch", timeout=3.0)
-        else: result = post_json(ROON + "/api/browse", {"session": "touch", "action": action, **payload}, timeout=4.0)
+        else: result = post_json(ROON + "/api/browse", {"session": "touch", "action": action, **payload}, timeout=8.0 if action in {"jump", "section"} else 4.0)
         GLib.idle_add(self.render_browser, result or {"status": "ready", "title": "Browse", "items": [], "message": "Roon Browse did not respond.", "error": True})
+
+    def browser_scrub_changed(self, scale):
+        if getattr(self, "browser_scrub_sync", False): return
+        value = max(0, min(25, round(scale.get_value()))); letter = chr(65 + value); self.position_browser_scrub_letter(letter, value)
+        if timer := getattr(self, "browser_scrub_timer", None): GLib.source_remove(timer)
+        self.browser_scrub_timer = GLib.timeout_add(220, self.commit_browser_scrub, letter)
+
+    def position_browser_scrub_letter(self, letter, value):
+        self.browser_scrub_letter.set_text(letter); height = max(40, self.browser_scrubber.get_allocated_height()); self.browser_scrub_letter.set_margin_top(round((height - 38) * value / 25))
+
+    def commit_browser_scrub(self, letter):
+        self.browser_scrub_timer = None; self.request_browser("jump", letter=letter); return False
+
+    def sync_browser_scrubber(self, item=None):
+        if not self.browser_state or not self.browser_state.get("alpha_scrub"): return
+        if item is None:
+            items = [entry for entry in (self.browser_state.get("items") or []) if not entry.get("action") and entry.get("title")]
+            item = items[0] if items else None
+        first = str((item or {}).get("title") or "A").lstrip("'\"([{ ")[:1].upper(); value = ord(first) - 65 if "A" <= first <= "Z" else 0
+        self.browser_scrub_sync = True; self.browser_scrub_scale.set_value(value); self.browser_scrub_sync = False; self.position_browser_scrub_letter(chr(65 + value), value)
 
     def open_browser_item(self, _button, item_key):
         if item_key: self.request_browser("open", item_key=item_key)
@@ -751,7 +742,6 @@ class Display(Gtk.Application):
         if "library" in value: return "folder-music-symbolic"
         if "playlist" in value: return "view-list-symbolic"
         if "genre" in value: return "audio-x-generic-symbolic"
-        if "tidal" in value: return "network-server-symbolic"
         if "artist" in value: return "avatar-default-symbolic"
         if "album" in value: return "media-optical-symbolic"
         if "track" in value or "radio" in value: return "audio-x-generic-symbolic"
@@ -788,7 +778,11 @@ class Display(Gtk.Application):
         button = Gtk.Button(); button.add_css_class("browser-cover-card"); button.set_child(content); button.set_sensitive(bool(item.get("item_key"))); button.connect("clicked", self.open_browser_item, item.get("item_key")); return button
 
     def render_browser(self, data):
-        self.browser_rendering = True; self.browser_loading = False; self.browser_state = data; self.browser_title.set_text(data.get("title") or "Browse"); self.browser_back.set_visible(bool(data.get("can_back"))); self.browser_back.set_sensitive(bool(data.get("can_back")))
+        self.browser_rendering = True; self.browser_loading = False; self.browser_state = data; self.browser_title.set_text(data.get("breadcrumb") or data.get("title") or "Browse"); self.browser_back.set_visible(bool(data.get("can_back"))); self.browser_back.set_sensitive(bool(data.get("can_back"))); self.browser_scrubber.set_visible(bool(data.get("alpha_scrub")))
+        active_section = data.get("section") or "albums"
+        for section, button in self.browser_section_buttons.items():
+            if section == active_section: button.add_css_class("active")
+            else: button.remove_css_class("active")
         message = data.get("message") or ""; self.browser_message.set_text(message); self.browser_message.set_visible(bool(message))
         self.browser_pictures = {}; self.browser_artwork_keys = []
         while child := self.browser_list.get_first_child(): self.browser_list.remove(child)
@@ -828,6 +822,7 @@ class Display(Gtk.Application):
         for key in dict.fromkeys(key for key in self.browser_artwork_keys if key):
             if key not in self.queue_thumbnail_cache and key not in self.queue_thumbnail_pending: self.queue_thumbnail_pending.add(key); self.queue_thumbnail_jobs.put(key)
         if self.browser_scroll_restore is not None: GLib.idle_add(self.restore_browser_scroll)
+        self.sync_browser_scrubber()
         self.browser_rendering = False; GLib.timeout_add(180, self.maybe_load_more_browser)
         return False
 
@@ -838,6 +833,10 @@ class Display(Gtk.Application):
 
     def browser_scrolled(self, *_):
         self.load_visible_browser_artwork()
+        if self.browser_state and self.browser_state.get("alpha_scrub"):
+            value = self.browser_scroll.get_vadjustment().get_value(); columns = 5; index = min(len(self.browser_state.get("items") or []) - 1, max(0, int(value / 214) * columns))
+            items = self.browser_state.get("items") or []
+            if items and index >= 0: self.sync_browser_scrubber(items[index])
         if not self.browser_rendering: self.maybe_load_more_browser()
 
     def maybe_load_more_browser(self):

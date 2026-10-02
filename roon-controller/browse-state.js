@@ -66,14 +66,9 @@ function withFallbackImage(items, imageKey) {
 }
 
 function rootItems(items) {
-  const wanted = ['library', 'playlists', 'genres', 'tidal'];
+  const wanted = ['library', 'playlists', 'genres'];
   const available = items.filter(item => item.hint !== 'header');
-  const selected = wanted.map(name => available.find(item => String(item.title || '').trim().toLowerCase() === name)).filter(Boolean);
-  for (const item of available) {
-    if (selected.length >= 4) break;
-    if (!selected.includes(item)) selected.push(item);
-  }
-  return selected;
+  return wanted.map(name => available.find(item => String(item.title || '').trim().toLowerCase() === name)).filter(Boolean);
 }
 
 class BrowseManager {
@@ -82,9 +77,10 @@ class BrowseManager {
     this.zone = zone;
     this.sessions = new Map();
     this.pending = new Map();
+    this.sections = new Map();
   }
 
-  clear() { this.sessions.clear(); this.pending.clear(); }
+  clear() { this.sessions.clear(); this.pending.clear(); this.sections.clear(); }
 
   run(sessionName, command = 'current', data = {}) {
     const session = safeSession(sessionName);
@@ -99,17 +95,37 @@ class BrowseManager {
     if (!service || !zone) return {status: 'unavailable', title: 'Browse', items: [], can_back: false, has_more: false};
     if (command === 'current' && this.sessions.has(session)) return this.sessions.get(session);
     if (command === 'more') return this.loadMore(service, session);
+    if (command === 'jump') return this.jumpTo(service, session, String(data.letter || 'A'));
+    if (command === 'section' || command === 'root' || (command === 'current' && !this.sessions.has(session))) return this.openSection(service, zone, session, String(data.section || 'albums'));
     if (command === 'search') return this.search(service, zone, session, String(data.query || '').trim());
     const state = this.sessions.get(session);
     if (command === 'back' && state?.hierarchy !== 'browse' && state?.level === 0) return this._run(session, 'root', {});
-    const hierarchy = command === 'root' || !state ? 'browse' : state.hierarchy;
+    const hierarchy = !state ? 'browse' : state.hierarchy;
     const options = {hierarchy, multi_session_key: session, zone_or_output_id: zone.zone_id};
-    if (command === 'root' || !state) options.pop_all = true;
+    if (!state) options.pop_all = true;
     else if (command === 'back') options.pop_levels = 1;
     else if (command === 'open' && data.item_key) options.item_key = String(data.item_key);
     else return state || this._run(session, 'root', {});
     const opened = command === 'open' ? state?.items?.find(item => String(item.item_key) === String(data.item_key)) : null;
     return this.follow(service, session, hierarchy, await request(service, 'browse', options), opened?.image_key || null);
+  }
+
+  async openNamed(service, zone, session, result, title) {
+    if (result?.action !== 'list' || !result.list) return null;
+    const loaded = await request(service, 'load', {hierarchy: 'browse', multi_session_key: session, level: result.list.level, offset: 0, count: 100});
+    const item = (loaded.items || []).find(candidate => String(candidate.title || '').trim().toLowerCase() === title);
+    if (!item?.item_key) return null;
+    return request(service, 'browse', {hierarchy: 'browse', multi_session_key: session, zone_or_output_id: zone.zone_id, item_key: item.item_key});
+  }
+
+  async openSection(service, zone, session, requested) {
+    const section = ['albums', 'artists', 'genres', 'playlists'].includes(requested.toLowerCase()) ? requested.toLowerCase() : 'albums';
+    this.sections.set(session, section);
+    let result = await request(service, 'browse', {hierarchy: 'browse', multi_session_key: session, zone_or_output_id: zone.zone_id, pop_all: true});
+    if (['albums', 'artists'].includes(section)) result = await this.openNamed(service, zone, session, result, 'library');
+    result = await this.openNamed(service, zone, session, result, section);
+    if (!result) return this.save(session, {status: 'ready', hierarchy: 'browse', level: 0, title: section[0].toUpperCase() + section.slice(1), section, section_root: true, breadcrumb: `LIBRARY / ${section.toUpperCase()}`, items: [], can_back: false, has_more: false, message: 'This section is not available from Roon.', error: true});
+    return this.follow(service, session, 'browse', result);
   }
 
   async search(service, zone, session, query) {
@@ -143,10 +159,14 @@ class BrowseManager {
     const presentation = browserLayout(hierarchy, level, list, normalised);
     const filteredLibrary = /^library$/i.test(String(list?.title || '').trim());
     const count = filteredLibrary ? normalised.length : Number(list?.count ?? normalised.length);
+    const section = this.sections.get(session) || '';
+    const sectionTitle = section ? section[0].toUpperCase() + section.slice(1) : '';
+    const sectionRoot = Boolean(section && String(list?.title || '').trim().toLowerCase() === section);
     return this.save(session, {
       status: 'ready', hierarchy, level, title: presentation.layout === 'home' ? 'Browse' : String(list?.title || (hierarchy === 'search' ? 'Search' : 'Browse')),
       subtitle: String(list?.subtitle || ''), count, offset: Number(loadedOffset || list?.display_offset || 0),
-      items: normalised, can_back: hierarchy !== 'browse' || Number(list?.level || 0) > 0,
+      items: normalised, section, section_root: sectionRoot, breadcrumb: sectionRoot ? `LIBRARY / ${section.toUpperCase()}` : `${sectionTitle.toUpperCase()} / ${String(list?.title || '').toUpperCase()}`,
+      alpha_scrub: sectionRoot && ['albums', 'artists'].includes(section), can_back: !sectionRoot && (hierarchy !== 'browse' || Number(list?.level || 0) > 0),
       has_more: !filteredLibrary && presentation.layout !== 'home' && Number(loadedOffset || 0) + normalised.length < count,
       fallback_image_key: fallbackImageKey, message, error: false,
       ...presentation
@@ -161,6 +181,25 @@ class BrowseManager {
     const items = [...state.items, ...withFallbackImage((loaded.items || []).map(publicItem), state.fallback_image_key)];
     const count = Number(loaded.list?.count ?? state.count);
     return this.save(session, {...state, items, count, has_more: Number(state.offset || 0) + items.length < count, message: ''});
+  }
+
+  async jumpTo(service, session, letter) {
+    const state = this.sessions.get(session);
+    if (!state?.alpha_scrub || !state.count) return state || this.openSection(service, this.zone(), session, 'albums');
+    const target = String(letter || 'A').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 1) || 'A';
+    let low = 0; let high = state.count;
+    while (low < high) {
+      const middle = Math.floor((low + high) / 2);
+      const probe = await request(service, 'load', {hierarchy: state.hierarchy, multi_session_key: session, level: state.level, offset: middle, count: 1});
+      const item = (probe.items || []).find(candidate => candidate.hint !== 'header');
+      const key = String(item?.title || '').normalize('NFKD').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+      if (key && key.localeCompare(target, 'en', {sensitivity: 'base'}) < 0) low = middle + 1;
+      else high = middle;
+    }
+    const offset = Math.max(0, Math.min(low, Math.max(0, state.count - 1)));
+    const loaded = await request(service, 'load', {hierarchy: state.hierarchy, multi_session_key: session, level: state.level, offset, count: PAGE_SIZE});
+    const items = withFallbackImage((loaded.items || []).map(publicItem), state.fallback_image_key);
+    return this.save(session, {...state, offset, items, count: Number(loaded.list?.count ?? state.count), has_more: offset + items.length < Number(loaded.list?.count ?? state.count), message: ''});
   }
 
   save(session, state) { this.sessions.set(session, state); return state; }

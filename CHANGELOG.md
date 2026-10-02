@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.11.7 — 2 October 2026
+
+- Replace the growing browser scrollbar with a fixed A–Z scrubber for Albums and Artists, including a floating current-letter indicator and direct paged jumps into the Roon library.
+- Add a persistent left section rail for Albums, Artists, Genres and Playlists on both the touchscreen and web player.
+- Remove TIDAL and the non-functional touchscreen search interface to give the artwork and track lists more usable height.
+- Keep album collections artwork-first while opened albums use full-width track rows with duration metadata where Roon supplies it.
+- Compact the browser breadcrumb and adapt the new rail and scrubber for portrait web screens.
+
 ## 0.11.6 — 2 October 2026
 
 - Restore the Albums library to the artwork-first tile grid.

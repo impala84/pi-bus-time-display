@@ -230,7 +230,7 @@ function setMusicView(view) {
   $('now-tab').classList.toggle('active', view === 'now'); $('queue-tab').classList.toggle('active', queue); $('browse-tab').classList.toggle('active', browse);
   document.querySelectorAll('.source-input').forEach(button => button.classList.toggle('active', source && String(button.dataset.inputId) === String(state?.amplifier?.active_input?.id)));
   if (queue) requestAnimationFrame(scrollQueueToCurrent);
-  if (browse && !browserState) browseCommand('current');
+  if (browse && !browserState) browseCommand('section', {section: 'albums'});
 }
 
 function browserRow(item) {
@@ -265,7 +265,7 @@ function browserCard(item, layout, showLabels) {
     if (item.image_key) { const image = document.createElement('img'); image.loading = 'lazy'; image.alt = ''; image.src = api(`/api/image?key=${encodeURIComponent(item.image_key)}&size=320`); artwork.append(image); }
     button.append(artwork);
   } else {
-    const icon = document.createElement('span'); icon.className = 'browser-card-icon'; icon.setAttribute('aria-hidden', 'true'); icon.textContent = /playlist/i.test(item.title) ? '≡' : /genre/i.test(item.title) ? '◉' : /tidal/i.test(item.title) ? '◇' : /artist/i.test(item.title) ? '●' : /album|library/i.test(item.title) ? '▦' : '›'; button.append(icon);
+    const icon = document.createElement('span'); icon.className = 'browser-card-icon'; icon.setAttribute('aria-hidden', 'true'); icon.textContent = /playlist/i.test(item.title) ? '≡' : /genre/i.test(item.title) ? '◉' : /artist/i.test(item.title) ? '●' : /album|library/i.test(item.title) ? '▦' : '›'; button.append(icon);
   }
   if (layout !== 'covers' || showLabels) {
     const copy = document.createElement('span'); copy.className = 'browser-card-copy'; const title = document.createElement('strong'); title.textContent = item.title || 'Untitled'; copy.append(title);
@@ -276,8 +276,10 @@ function browserCard(item, layout, showLabels) {
 
 function renderBrowser(data) {
   browserRendering = true; browserState = data; browserLoading = false;
-  $('browser-title').textContent = data.title || 'Browse';
-  $('browser-back').disabled = !data.can_back; $('browser-loading-more').hidden = true;
+  $('browser-title').textContent = data.breadcrumb || data.title || 'Browse';
+  $('browser-back').hidden = !data.can_back; $('browser-back').disabled = !data.can_back; $('browser-loading-more').hidden = true;
+  document.querySelectorAll('[data-browser-section]').forEach(button => button.classList.toggle('active', button.dataset.browserSection === (data.section || 'albums')));
+  $('browser-scrubber').hidden = !data.alpha_scrub;
   $('browser-message').hidden = !data.message; $('browser-message').textContent = data.message || ''; $('browser-message').classList.toggle('error', Boolean(data.error));
   const list = $('browser-list'); list.replaceChildren(); list.className = `browser-list layout-${data.layout || 'list'}`;
   if (data.status === 'unavailable') { const empty = document.createElement('p'); empty.className = 'queue-empty'; empty.textContent = 'Roon Browse is unavailable.'; list.append(empty); browserRendering = false; return; }
@@ -285,13 +287,28 @@ function renderBrowser(data) {
   if (!(data.items || []).length) { const empty = document.createElement('p'); empty.className = 'queue-empty'; empty.textContent = 'Nothing is available here.'; list.append(empty); }
   browserRendering = false;
   requestAnimationFrame(() => {
-    if (browserScrollRestore !== null) { $('browser-view').scrollTop = browserScrollRestore; browserScrollRestore = null; }
+    if (browserScrollRestore !== null) { $('browser-scroll').scrollTop = browserScrollRestore; browserScrollRestore = null; }
+    syncWebScrubber();
     maybeLoadMore();
   });
 }
 
+function positionWebScrubber(value) {
+  const bounded = Math.max(0, Math.min(25, Math.round(value))); const letter = String.fromCharCode(65 + bounded);
+  $('browser-scrub-letter').textContent = letter; $('browser-scrub-range').value = String(bounded); $('browser-scrubber').style.setProperty('--scrub-position', `${bounded / 25 * 100}%`);
+}
+
+function syncWebScrubber() {
+  if (!browserState?.alpha_scrub || $('browser-scrubber').hidden) return;
+  const top = $('browser-scroll').getBoundingClientRect().top + 45;
+  const cards = [...$('browser-list').querySelectorAll('.browser-card')];
+  const card = cards.find(candidate => candidate.getBoundingClientRect().bottom > top) || cards.at(-1);
+  const first = String(card?.getAttribute('aria-label') || 'A').trim().replace(/^[^A-Za-z]+/, '').charAt(0).toUpperCase();
+  positionWebScrubber(first >= 'A' && first <= 'Z' ? first.charCodeAt(0) - 65 : 0);
+}
+
 function maybeLoadMore() {
-  const view = $('browser-view');
+  const view = $('browser-scroll');
   if (musicView !== 'browse' || browserRendering || browserLoading || !browserState?.has_more) return;
   if (view.scrollHeight - view.scrollTop - view.clientHeight < 260) browseCommand('more');
 }
@@ -299,7 +316,8 @@ function maybeLoadMore() {
 async function browseCommand(action, data = {}) {
   if (browserLoading) return;
   browserLoading = true;
-  if (action === 'more') { browserScrollRestore = $('browser-view').scrollTop; $('browser-loading-more').hidden = false; }
+  if (action === 'more') { browserScrollRestore = $('browser-scroll').scrollTop; $('browser-loading-more').hidden = false; }
+  else if (action === 'jump' || action === 'section') browserScrollRestore = 0;
   try {
     const options = action === 'current' ? {method: 'GET', cache: 'no-store'} : {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({session: browserSession, action, ...data})};
     const url = action === 'current' ? api(`/api/browse?session=${encodeURIComponent(browserSession)}`) : api('/api/browse');
@@ -370,7 +388,9 @@ $('now-tab').onclick = () => setMusicView('now');
 $('queue-tab').onclick = () => setMusicView('queue');
 $('browse-tab').onclick = () => setMusicView('browse');
 $('browser-back').onclick = () => browseCommand('back');
-$('browser-search').onsubmit = event => { event.preventDefault(); const query = $('browser-query').value.trim(); if (query) browseCommand('search', {query}); };
-$('browser-view').addEventListener('scroll', maybeLoadMore, {passive: true});
+document.querySelectorAll('[data-browser-section]').forEach(button => button.onclick = () => browseCommand('section', {section: button.dataset.browserSection}));
+$('browser-scroll').addEventListener('scroll', () => { maybeLoadMore(); syncWebScrubber(); }, {passive: true});
+$('browser-scrub-range').oninput = event => positionWebScrubber(Number(event.target.value));
+$('browser-scrub-range').onchange = event => browseCommand('jump', {letter: String.fromCharCode(65 + Number(event.target.value))});
 $('details-open').onclick = () => setMusicView('details');
 $('details-artwork-close').onclick = () => setMusicView('now');
