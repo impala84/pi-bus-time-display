@@ -61,6 +61,14 @@ class DisplayRotationTests(unittest.TestCase):
         self.assertIn('title = self.label("Settings", "settings-title", .5)', display)
         self.assertIn(".setting-line checkbutton label { margin-left: 12px;", display)
 
+    def test_mobile_roon_navigation_uses_compact_uppercase_labels(self):
+        app = (ROOT / "roon-controller" / "static" / "app.js").read_text(encoding="utf-8")
+        css = (ROOT / "roon-controller" / "static" / "refinements.css").read_text(encoding="utf-8")
+        self.assertIn("function compactLabel(label)", app)
+        self.assertIn("words[words.length - 1]", app)
+        self.assertIn(".nav-label-compact { display: inline; }", css)
+        self.assertIn("text-transform: uppercase", css)
+
     def test_appliance_boot_is_quiet_and_splash_free(self):
         script = (ROOT / "scripts" / "pi-bus-appliance-mode").read_text(encoding="utf-8")
         self.assertIn("disable_splash=1", script)

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.10.1 — 2 October 2026
+
+- Collapsed the mobile Roon selector to the last word of each configured label so inputs fit as compact uppercase names such as TV, LP, ROON and QUEUE.
+- Fixed album enrichment when Roon reports track collaborators instead of the album artist, while retaining exact album-and-artist validation.
+
 ## 0.10.0 — 2 October 2026
 
 - Removed the redundant Back button from album details; tapping the large artwork now returns to Now Playing.

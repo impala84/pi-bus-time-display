@@ -27,7 +27,7 @@ function musicBrainzJson(path) {
     return new Promise((resolve, reject) => {
       const request = https.get({
         hostname: 'musicbrainz.org', path, timeout: 3500,
-        headers: {'Accept': 'application/json', 'User-Agent': 'PiHome/0.10.0 (https://github.com/impala84/pi-home)'}
+        headers: {'Accept': 'application/json', 'User-Agent': 'PiHome/0.10.1 (https://github.com/impala84/pi-home)'}
       }, response => {
         let body = '';
         response.setEncoding('utf8');
@@ -51,7 +51,7 @@ function externalText(url) {
   const allowed = target.hostname === 'wikipedia.org' || target.hostname.endsWith('.wikipedia.org') || target.hostname === 'bandcamp.com' || target.hostname.endsWith('.bandcamp.com');
   if (!allowed || target.protocol !== 'https:') return Promise.reject(new Error('Unsupported metadata source'));
   return new Promise((resolve, reject) => {
-    const request = https.get(target, {timeout: 3500, headers: {'Accept': 'text/html,application/json', 'User-Agent': 'PiHome/0.10.0 (https://github.com/impala84/pi-home)'}}, response => {
+    const request = https.get(target, {timeout: 3500, headers: {'Accept': 'text/html,application/json', 'User-Agent': 'PiHome/0.10.1 (https://github.com/impala84/pi-home)'}}, response => {
       let body = '';
       response.setEncoding('utf8');
       response.on('data', chunk => { body += chunk; if (body.length > 2 * 1024 * 1024) request.destroy(new Error('Metadata response too large')); });
@@ -113,12 +113,20 @@ function creditedArtist(group) {
   return (group?.['artist-credit'] || []).map(credit => credit?.name || credit?.artist?.name || '').join('');
 }
 
+function artistCandidates(artist) {
+  const original = String(artist || '').trim();
+  if (!original) return [];
+  const split = original.split(/\s+(?:\/|feat\.?|featuring)\s+/i).map(value => value.trim()).filter(Boolean);
+  return [...new Set([...(split.length > 1 ? split : []), original])];
+}
+
 function chooseMusicBrainzGroup(groups, album, artist) {
-  const wantedAlbum = clean(album); const wantedArtist = clean(artist);
+  const wantedAlbum = clean(album); const wantedArtists = artistCandidates(artist).map(clean);
   const ranked = (groups || []).map(group => {
     const title = clean(group.title); const credit = clean(creditedArtist(group));
-    const exactTitle = title === wantedAlbum; const exactArtist = !wantedArtist || credit === wantedArtist;
-    return {group, score: (exactTitle ? 1000 : title.includes(wantedAlbum) || wantedAlbum.includes(title) ? 200 : 0) + (exactArtist ? 500 : credit.includes(wantedArtist) || wantedArtist.includes(credit) ? 100 : 0) + Number(group.score || 0)};
+    const exactTitle = title === wantedAlbum; const exactArtist = !wantedArtists.length || wantedArtists.includes(credit);
+    const relatedArtist = wantedArtists.some(candidate => candidate && (credit.includes(candidate) || candidate.includes(credit)));
+    return {group, score: (exactTitle ? 1000 : title.includes(wantedAlbum) || wantedAlbum.includes(title) ? 200 : 0) + (exactArtist ? 500 : relatedArtist ? 100 : 0) + Number(group.score || 0)};
   }).filter(candidate => candidate.score >= 1400).sort((a, b) => b.score - a.score);
   return ranked[0]?.group || null;
 }
@@ -157,9 +165,13 @@ function musicBrainzFacts(group, trackCount = 0, releaseDetails = null) {
 
 async function loadMusicBrainzMetadata(album, artist, trackCount = 0, fetchJson = musicBrainzJson) {
   if (!album || !artist) return musicBrainzFacts(null, trackCount);
-  const query = `releasegroup:"${album.replace(/["\\]/g, ' ')}" AND artist:"${artist.replace(/["\\]/g, ' ')}"`;
-  const search = await fetchJson(`/ws/2/release-group/?query=${encodeURIComponent(query)}&fmt=json&limit=5`);
-  const match = chooseMusicBrainzGroup(search?.['release-groups'], album, artist);
+  let match = null;
+  for (const candidate of artistCandidates(artist)) {
+    const query = `releasegroup:"${album.replace(/["\\]/g, ' ')}" AND artist:"${candidate.replace(/["\\]/g, ' ')}"`;
+    const search = await fetchJson(`/ws/2/release-group/?query=${encodeURIComponent(query)}&fmt=json&limit=5`);
+    match = chooseMusicBrainzGroup(search?.['release-groups'], album, artist);
+    if (match) break;
+  }
   if (!match?.id) return musicBrainzFacts(null, trackCount);
   const group = await fetchJson(`/ws/2/release-group/${encodeURIComponent(match.id)}?inc=genres+releases+url-rels&fmt=json`);
   const preferred = preferredMusicBrainzRelease(group);
@@ -227,4 +239,4 @@ async function loadDetails(service, zone, enrich = loadMusicBrainzMetadata) {
   return base;
 }
 
-module.exports = {playingMetadata, chooseItem, chooseMusicBrainzGroup, musicBrainzFacts, parseBandcampPage, loadAlbumWriteup, loadMusicBrainzMetadata, loadDetails};
+module.exports = {playingMetadata, chooseItem, artistCandidates, chooseMusicBrainzGroup, musicBrainzFacts, parseBandcampPage, loadAlbumWriteup, loadMusicBrainzMetadata, loadDetails};

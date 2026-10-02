@@ -89,7 +89,10 @@ h1 {
   font-size: 11px;
   font-weight: 800;
   letter-spacing: .08em;
+  text-transform: uppercase;
 }
+
+.nav-label-compact { display: none; }
 
 .music-subnav button.active { color: var(--ink); }
 .music-subnav button.active::after { content: ""; position: absolute; left: 10%; right: 10%; bottom: 0; height: 3px; border-radius: 3px; background: var(--mint); }
@@ -199,6 +202,10 @@ h1 {
   .timeline > div { text-align: left; }
   .settings-cog { top: max(9px, env(safe-area-inset-top)); left: 10px; }
   .music-subnav { top: max(7px, env(safe-area-inset-top)); }
+  .music-subnav { width: calc(100% - 122px); justify-content: space-evenly; gap: 8px; }
+  .music-subnav button { flex: 0 1 auto; min-width: 0; padding-right: 3px; padding-left: 3px; }
+  .nav-label-full { display: none; }
+  .nav-label-compact { display: inline; }
   .source-view { inset: 102px 20px 74px; }
   .queue-view { inset: 54px 0 62px; }
   .queue-list { width: calc(100% - 20px); padding-top: 3px; }

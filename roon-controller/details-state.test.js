@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {playingMetadata, chooseItem, chooseMusicBrainzGroup, musicBrainzFacts, parseBandcampPage, loadAlbumWriteup, loadMusicBrainzMetadata, loadDetails} = require('./details-state');
+const {playingMetadata, chooseItem, artistCandidates, chooseMusicBrainzGroup, musicBrainzFacts, parseBandcampPage, loadAlbumWriteup, loadMusicBrainzMetadata, loadDetails} = require('./details-state');
 
 test('playingMetadata reads three-line Roon metadata', () => {
   assert.deepEqual(playingMetadata({now_playing: {three_line: {line1: 'Track', line2: 'Artist', line3: 'Album'}, image_key: 'art'}}),
@@ -44,6 +44,12 @@ test('MusicBrainz matching requires the exact album and artist', () => {
   ];
   assert.equal(chooseMusicBrainzGroup(groups, 'Chrysalis', 'Emancipator').id, 'right');
   assert.equal(chooseMusicBrainzGroup(groups, 'Unknown', 'Emancipator'), null);
+});
+
+test('MusicBrainz matching accepts the album artist within Roon track credits', () => {
+  assert.deepEqual(artistCandidates('Emancipator / SunSquabi / Stephanie Starnes'), ['Emancipator', 'SunSquabi', 'Stephanie Starnes', 'Emancipator / SunSquabi / Stephanie Starnes']);
+  const groups = [{id: 'chrysalis', title: 'Chrysalis', score: 100, 'artist-credit': [{name: 'Emancipator'}]}];
+  assert.equal(chooseMusicBrainzGroup(groups, 'Chrysalis', 'Emancipator / SunSquabi / Stephanie Starnes').id, 'chrysalis');
 });
 
 test('MusicBrainz facts expose useful compact album metadata', () => {

@@ -19,6 +19,22 @@ const format = value => {
   return `${Math.floor(value / 60)}:${String(value % 60).padStart(2, '0')}`;
 };
 
+function compactLabel(label) {
+  const words = String(label || '').trim().split(/\s+/).filter(Boolean);
+  return (words[words.length - 1] || '').toUpperCase();
+}
+
+function setNavLabel(button, label) {
+  const full = String(label || '').trim().toUpperCase();
+  if (button.dataset.fullLabel === full) return;
+  button.dataset.fullLabel = full;
+  button.setAttribute('aria-label', label);
+  button.replaceChildren();
+  const wide = document.createElement('span'); wide.className = 'nav-label-full'; wide.textContent = full;
+  const compact = document.createElement('span'); compact.className = 'nav-label-compact'; compact.textContent = compactLabel(label);
+  button.append(wide, compact);
+}
+
 async function post(path, data) {
   await fetch(api(path), {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)});
 }
@@ -27,8 +43,8 @@ function render(next) {
   state = next;
   const labels = next.labels || {};
   $('roon-link').textContent = labels.display || 'Roon';
-  $('now-tab').textContent = (labels.now_playing || 'Now Playing').toUpperCase();
-  $('queue-tab').textContent = (labels.queue || 'Queue').toUpperCase();
+  setNavLabel($('now-tab'), labels.now_playing || 'Now Playing');
+  setNavLabel($('queue-tab'), labels.queue || 'Queue');
   lastTick = Date.now();
   const zone = next.zone;
   const amplifier = next.amplifier || {};
@@ -115,7 +131,7 @@ function renderAmplifier(amplifier, zone) {
 }
 
 function inputButton(input, active) {
-  const button = document.createElement('button'); button.textContent = input.name; button.className = `source-input${active ? ' active' : ''}`;
+  const button = document.createElement('button'); button.className = `source-input${active ? ' active' : ''}`; setNavLabel(button, input.name);
   button.dataset.inputId = input.id; button.onclick = () => { setMusicView('source'); post('/api/bluos/input', {input_id: input.id}); }; return button;
 }
 
