@@ -14,7 +14,9 @@ install -d -o morningbus -g morningbus /opt/pi-bus-time-display /etc/pi-bus-time
 cp -a "${SOURCE_DIR}/." /opt/pi-bus-time-display/
 python3 -m venv --system-site-packages /opt/pi-bus-time-display/.venv
 /opt/pi-bus-time-display/.venv/bin/pip install --no-deps /opt/pi-bus-time-display
-npm --prefix /opt/pi-bus-time-display/roon-controller install --omit=dev
+npm --prefix /opt/pi-bus-time-display/roon-controller ci --omit=dev --no-audit --no-fund
+sha256sum /opt/pi-bus-time-display/roon-controller/package-lock.json | cut -d' ' -f1 >/var/lib/pi-bus-time-display/roon-package-lock.sha256
+chmod 0644 /var/lib/pi-bus-time-display/roon-package-lock.sha256
 [[ -f /etc/pi-bus-time-display/config.toml ]] || install -m 0640 -o morningbus -g morningbus /opt/pi-bus-time-display/config.example.toml /etc/pi-bus-time-display/config.toml
 [[ -f /etc/pi-bus-time-display/secrets.env ]] || install -m 0600 -o morningbus -g morningbus /opt/pi-bus-time-display/.env.example /etc/pi-bus-time-display/secrets.env
 [[ -f /etc/pi-bus-time-display/roon.env ]] || install -m 0640 -o morningbus -g morningbus /dev/null /etc/pi-bus-time-display/roon.env

@@ -159,12 +159,20 @@ class DisplayModeTests(unittest.TestCase):
     def test_touchscreen_update_request_is_atomically_queued(self):
         with tempfile.TemporaryDirectory() as directory:
             state_dir = Path(directory)
-            write_control_request(state_dir, {"action": "update"})
+            self.assertTrue(write_control_request(state_dir, {"action": "update"}))
             requests = list((state_dir / "system-action-queue").glob("*.json"))
             self.assertEqual(len(requests), 1)
             self.assertEqual(requests[0].read_text(encoding="utf-8"), '{"action": "update"}')
             self.assertTrue((state_dir / "system-action-trigger").read_text(encoding="ascii").strip())
             self.assertFalse(list((state_dir / "system-action-queue").glob("*.tmp")))
+            self.assertEqual((state_dir / "update-status").read_text(encoding="utf-8"), "Update · Queued…\n")
+
+    def test_duplicate_update_request_is_not_queued(self):
+        with tempfile.TemporaryDirectory() as directory:
+            state_dir = Path(directory)
+            self.assertTrue(write_control_request(state_dir, {"action": "update"}))
+            self.assertFalse(write_control_request(state_dir, {"action": "update"}))
+            self.assertEqual(len(list((state_dir / "system-action-queue").glob("*.json"))), 1)
 
     def test_quick_privileged_actions_do_not_overwrite_each_other(self):
         with tempfile.TemporaryDirectory() as directory:

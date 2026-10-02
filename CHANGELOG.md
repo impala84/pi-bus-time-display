@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.11.2 — 2 October 2026
+
+- Prevented the touchscreen and web interface from queuing duplicate update jobs, and discard duplicate requests left behind by an older release.
+- Added a single-instance updater lock, bounded network and installation timeouts, and an explicit terminal failure status instead of an endless Working state.
+- Skip operating-system and Roon dependency installation when the installed dependencies already match, substantially reducing routine update work and device load.
+- Capped the privileged updater to one CPU core at low CPU and I/O priority while keeping the display responsive.
+- Improved update progress handling in both interfaces, including a clear already-running state and a client-side safety timeout.
+
 ## 0.11.1 — 2 October 2026
 
 - Reworked the Browse root into four large visual destinations: Library, Playlists, Genres and TIDAL.

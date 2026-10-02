@@ -3,6 +3,8 @@ set -euo pipefail
 
 app_dir=/opt/pi-bus-time-display
 status_file=/var/lib/pi-bus-time-display/update-status
+dependency_stamp=/var/lib/pi-bus-time-display/roon-package-lock.sha256
+update_stage="starting the update"
 
 progress() {
   local message=$1
@@ -11,6 +13,16 @@ progress() {
   printf '%s\n' "Update · ${message}" >"${temporary}"
   chmod 0644 "${temporary}"
   mv -f "${temporary}" "${status_file}"
+}
+
+fail_cleanly() {
+  local code=$?
+  if ((code != 0)); then
+    printf '%s\n' "Failed: ${update_stage}. The updater stopped safely (exit ${code})." >"${status_file}.tmp"
+    chmod 0644 "${status_file}.tmp"
+    mv -f "${status_file}.tmp" "${status_file}"
+  fi
+  exit "${code}"
 }
 
 if [[ ${EUID} -ne 0 ]]; then
@@ -23,6 +35,17 @@ if [[ ! -d ${app_dir}/.git ]]; then
   exit 1
 fi
 
+if [[ ${PI_HOME_UPDATE_LOCKED:-0} != 1 ]]; then
+  exec 9>/run/lock/pi-home-update.lock
+  if ! flock -n 9; then
+    echo "A Pi Home update is already running."
+    exit 0
+  fi
+  export PI_HOME_UPDATE_LOCKED=1
+fi
+trap fail_cleanly EXIT
+
+update_stage="checking the installed version"
 progress "Checking the installed version…"
 if [[ -n $(git -c safe.directory="${app_dir}" -C "${app_dir}" status --porcelain) ]]; then
   backup_name="pi-bus-update backup $(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -30,8 +53,10 @@ if [[ -n $(git -c safe.directory="${app_dir}" -C "${app_dir}" status --porcelain
   git -c safe.directory="${app_dir}" -C "${app_dir}" stash push --include-untracked --message "${backup_name}"
 fi
 progress "Downloading the latest Pi Home release…"
-git -c safe.directory="${app_dir}" -C "${app_dir}" fetch origin main
-git -c safe.directory="${app_dir}" -C "${app_dir}" checkout -B main origin/main
+update_stage="downloading the latest release"
+timeout --signal=TERM --kill-after=10s 2m git -c safe.directory="${app_dir}" -c http.lowSpeedLimit=1024 -c http.lowSpeedTime=30 -C "${app_dir}" fetch origin main
+update_stage="switching to the downloaded release"
+timeout --signal=TERM --kill-after=10s 1m git -c safe.directory="${app_dir}" -C "${app_dir}" checkout -B main origin/main
 
 # Continue with the updater from the checkout we just fetched. This makes
 # updater/install changes effective in this run instead of the next one.
@@ -49,17 +74,31 @@ for package in "${required_packages[@]}"; do
   fi
 done
 if ((${#missing_packages[@]})); then
+  update_stage="installing missing system components"
   progress "Installing missing system components…"
-  apt-get update
-  apt-get install -y "${missing_packages[@]}"
+  timeout --signal=TERM --kill-after=15s 5m apt-get update
+  timeout --signal=TERM --kill-after=15s 8m apt-get install -y "${missing_packages[@]}"
 else
   progress "System components are already ready."
 fi
 install -d -o morningbus -g morningbus /var/lib/pi-bus-time-display/roon
 
 progress "Installing Pi Home application files…"
-"${app_dir}/.venv/bin/pip" install --no-deps "${app_dir}"
-npm --prefix "${app_dir}/roon-controller" install --omit=dev --prefer-offline --no-audit --no-fund
+update_stage="installing the Python application"
+timeout --signal=TERM --kill-after=10s 3m "${app_dir}/.venv/bin/pip" install --disable-pip-version-check --no-deps "${app_dir}"
+package_lock_hash=$(sha256sum "${app_dir}/roon-controller/package-lock.json" | cut -d' ' -f1)
+installed_hash=$(cat "${dependency_stamp}" 2>/dev/null || true)
+if [[ ! -d ${app_dir}/roon-controller/node_modules || ${installed_hash} != "${package_lock_hash}" ]]; then
+  update_stage="installing Roon controller dependencies"
+  progress "Installing updated Roon controller dependencies…"
+  timeout --signal=TERM --kill-after=15s 5m npm --prefix "${app_dir}/roon-controller" ci --omit=dev --prefer-offline --no-audit --no-fund
+  printf '%s\n' "${package_lock_hash}" >"${dependency_stamp}.tmp"
+  chmod 0644 "${dependency_stamp}.tmp"
+  mv -f "${dependency_stamp}.tmp" "${dependency_stamp}"
+else
+  progress "Roon controller dependencies are unchanged."
+fi
+update_stage="installing service definitions"
 progress "Installing service definitions…"
 install -m 0644 "${app_dir}/systemd/pi-bus-time-display.service" /etc/systemd/system/pi-bus-time-display.service
 install -m 0644 "${app_dir}/systemd/pi-bus-roon-controller.service" /etc/systemd/system/pi-bus-roon-controller.service
@@ -86,6 +125,7 @@ if [[ -n ${desktop_user} && ${desktop_user} != root ]]; then
 fi
 
 progress "Restarting Pi Home services…"
+update_stage="restarting Pi Home services"
 systemctl daemon-reload
 systemctl enable --now pi-bus-system-action.path
 systemctl enable pi-home-leds.service
@@ -127,3 +167,4 @@ progress "Complete — all Pi Home services are responding."
 printf '%s\n' "Update installed. Pi Home services restarted." >"${status_file}.tmp"
 chmod 0644 "${status_file}.tmp"
 mv -f "${status_file}.tmp" "${status_file}"
+trap - EXIT

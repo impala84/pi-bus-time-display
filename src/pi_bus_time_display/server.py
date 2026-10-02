@@ -25,6 +25,9 @@ from .observability import OpenObserveLogger, openobserve_endpoint
 from . import __version__
 
 
+CONTROL_REQUEST_LOCK = threading.Lock()
+
+
 class State:
     def __init__(self, config: Config, state_dir: Path | None = None):
         self.config = config
@@ -558,7 +561,7 @@ def system_snapshot(state_dir: Path, include_diagnostics: bool = False) -> dict:
     return snapshot
 
 
-def write_control_request(state_dir: Path, request: dict) -> None:
+def write_control_request(state_dir: Path, request: dict) -> bool:
     """Atomically enqueue a privileged action and wake the systemd path unit.
 
     A single shared request file loses actions when two HTTP worker threads
@@ -566,20 +569,35 @@ def write_control_request(state_dir: Path, request: dict) -> None:
     one immutable file per action so ordering is preserved across bursts such
     as display-off immediately followed by display-on.
     """
-    state_dir.mkdir(parents=True, exist_ok=True)
-    queue_dir = state_dir / "system-action-queue"
-    queue_dir.mkdir(mode=0o700, exist_ok=True)
-    request_id = f"{time.time_ns():020d}-{os.getpid()}-{threading.get_ident()}-{secrets.token_hex(4)}"
-    temporary = queue_dir / f".{request_id}.tmp"
-    target = queue_dir / f"{request_id}.json"
-    temporary.write_text(json.dumps(request), encoding="utf-8")
-    os.chmod(temporary, 0o600)
-    temporary.replace(target)
-    trigger_temporary = state_dir / f".system-action-trigger-{request_id}.tmp"
-    trigger = state_dir / "system-action-trigger"
-    trigger_temporary.write_text(request_id + "\n", encoding="ascii")
-    os.chmod(trigger_temporary, 0o600)
-    trigger_temporary.replace(trigger)
+    with CONTROL_REQUEST_LOCK:
+        state_dir.mkdir(parents=True, exist_ok=True)
+        queue_dir = state_dir / "system-action-queue"
+        queue_dir.mkdir(mode=0o700, exist_ok=True)
+        if request.get("action") == "update":
+            candidates = ([state_dir / "system-action-request.json"] if (state_dir / "system-action-request.json").exists() else []) + sorted(queue_dir.glob("*.json"))
+            for candidate in candidates:
+                try:
+                    if json.loads(candidate.read_text(encoding="utf-8")).get("action") == "update":
+                        return False
+                except (OSError, ValueError, json.JSONDecodeError):
+                    continue
+        request_id = f"{time.time_ns():020d}-{os.getpid()}-{threading.get_ident()}-{secrets.token_hex(4)}"
+        temporary = queue_dir / f".{request_id}.tmp"
+        target = queue_dir / f"{request_id}.json"
+        temporary.write_text(json.dumps(request), encoding="utf-8")
+        os.chmod(temporary, 0o600)
+        temporary.replace(target)
+        if request.get("action") == "update":
+            status_temporary = state_dir / ".update-status.tmp"
+            status_temporary.write_text("Update · Queued…\n", encoding="utf-8")
+            os.chmod(status_temporary, 0o644)
+            status_temporary.replace(state_dir / "update-status")
+        trigger_temporary = state_dir / f".system-action-trigger-{request_id}.tmp"
+        trigger = state_dir / "system-action-trigger"
+        trigger_temporary.write_text(request_id + "\n", encoding="ascii")
+        os.chmod(trigger_temporary, 0o600)
+        trigger_temporary.replace(trigger)
+        return True
 
 
 def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Path, events: OpenObserveLogger | None = None):
@@ -737,8 +755,8 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                 if self.client_address[0] not in {"127.0.0.1", "::1"}:
                     self.send_json(403, b'{"error":"Touchscreen only"}')
                     return
-                write_control_request(mode_path.parent, {"action": "update"})
-                self.send_json(202, b'{"ok":true}')
+                queued = write_control_request(mode_path.parent, {"action": "update"})
+                self.send_json(202, json.dumps({"ok": True, "queued": queued}).encode())
                 return
             if self.path == "/api/device/screen-power":
                 if self.client_address[0] not in {"127.0.0.1", "::1"}:
@@ -902,10 +920,10 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                         if transform not in {"normal", "90", "180", "270"}:
                             raise ValueError("Unknown display orientation")
                         request.update({"profile": profile, "transform": transform})
-                    write_control_request(mode_path.parent, request)
+                    queued = write_control_request(mode_path.parent, request)
                     if events:
                         events.emit("system.action.queued", action=action)
-                    self.send_json(202, json.dumps({"ok": True, "status": "queued"}).encode())
+                    self.send_json(202, json.dumps({"ok": True, "status": "queued" if queued else "already_running", "queued": queued}).encode())
                     return
                 if self.path == "/api/admin/display-mode":
                     mode = str(data.get("mode", ""))

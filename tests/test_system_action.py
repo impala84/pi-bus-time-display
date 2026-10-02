@@ -66,6 +66,20 @@ class SystemActionQueueTests(unittest.TestCase):
             self.assertEqual(seen, ["bad", "display_on"])
             self.assertFalse(list(queue.glob("*.json")))
 
+    def test_collapses_update_requests_left_by_an_older_release(self):
+        helper = load_helper()
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            queue = state / "system-action-queue"
+            queue.mkdir()
+            (queue / "0001.json").write_text(json.dumps({"action": "update"}), encoding="utf-8")
+            (queue / "0002.json").write_text(json.dumps({"action": "update"}), encoding="utf-8")
+            (queue / "0003.json").write_text(json.dumps({"action": "display_on"}), encoding="utf-8")
+            with patch.object(helper, "STATE", state), patch.object(helper, "REQUEST", state / "legacy.json"), patch.object(helper, "QUEUE", queue), patch.object(helper, "STATUS", state / "status"), patch.object(helper, "execute") as execute:
+                helper.main()
+            self.assertEqual([call.args[0]["action"] for call in execute.call_args_list], ["update", "display_on"])
+            self.assertFalse(list(queue.glob("*.json")))
+
 
 if __name__ == "__main__":
     unittest.main()

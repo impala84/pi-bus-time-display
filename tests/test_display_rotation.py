@@ -118,6 +118,8 @@ class DisplayRotationTests(unittest.TestCase):
         self.assertNotIn(".global-update{position:fixed", css)
         self.assertIn("setTimeout(()=>location.reload(),1200)", script)
         self.assertIn("const updateButtons=[...document.querySelectorAll", script)
+        self.assertIn("function stopUpdateWatch()", script)
+        self.assertIn("16*60*1000", script)
 
     def test_appliance_boot_is_quiet_and_splash_free(self):
         script = (ROOT / "scripts" / "pi-bus-appliance-mode").read_text(encoding="utf-8")

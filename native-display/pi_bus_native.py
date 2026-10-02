@@ -1055,7 +1055,8 @@ class Display(Gtk.Application):
 
     def _request_update(self):
         result = post_json(BUS + "/api/device/update", {})
-        GLib.idle_add(self.device_status.set_text, "Update · Queued…" if result else "Could not start update")
+        queued = bool(result and result.get("queued", True))
+        GLib.idle_add(self.device_status.set_text, "Update · Queued…" if queued else ("Update already running…" if result else "Could not start update"))
         if result:
             self.last_system_fetch = 0
             GLib.idle_add(self.start_poll)

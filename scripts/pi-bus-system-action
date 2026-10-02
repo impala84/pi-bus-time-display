@@ -210,10 +210,16 @@ def main() -> None:
     # Keep draining until the queue is empty. Requests arriving just after the
     # final scan also update system-action-trigger, causing systemd to start a
     # fresh one-shot once this invocation exits.
+    update_seen = False
     while requests := pending_requests():
         for request in requests:
             try:
                 data = json.loads(request.read_text(encoding="utf-8"))
+                if data.get("action") == "update":
+                    if update_seen:
+                        print(f"Discarding duplicate update request: {request.name}", flush=True)
+                        continue
+                    update_seen = True
                 execute(data)
             except Exception as error:
                 # One malformed or failed action must not strand later wake,
