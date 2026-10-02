@@ -101,6 +101,11 @@ h1 {
 }
 
 .nav-label-compact { display: none; }
+.browser-card.tiles.playlist-card .browser-card-copy { position:static; min-height:0; padding:0; margin-top:6px; background:transparent; text-align:center; }
+.browser-card.tiles.playlist-card .browser-card-copy strong { font-size:14px; }
+.browser-card.tiles .browser-card-copy { background:transparent!important; }
+.browser-sidebar { padding-top:12px!important; }
+.browser-back { top:12px!important; right:6px!important; }
 
 .music-subnav button.active { color: var(--ink); }
 .music-subnav button.active::after { content: ""; position: absolute; left: 10%; right: 10%; bottom: 0; height: 3px; border-radius: 3px; background: var(--mint); }

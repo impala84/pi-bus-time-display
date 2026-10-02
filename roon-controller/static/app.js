@@ -293,7 +293,8 @@ function browserCard(item, layout, showLabels, section, showSubtitles = true) {
   if (layout !== 'covers' || showLabels) {
     const copy = document.createElement('span'); copy.className = 'browser-card-copy'; const title = document.createElement('strong'); title.textContent = item.title || 'Untitled'; copy.append(title);
     if (showLabels && showSubtitles && item.subtitle) { const subtitle = document.createElement('small'); subtitle.textContent = item.subtitle; copy.append(subtitle); }
-    if (layout === 'tiles') artwork.append(copy); else button.append(copy);
+    if (layout === 'tiles' && section === 'genres') button.querySelector('.browser-card-art').append(copy);
+    else { if (layout === 'tiles') button.classList.add('playlist-card'); button.append(copy); }
   }
   button.setAttribute('aria-label', [item.title, item.subtitle].filter(Boolean).join(', ')); button.onclick = () => browseCommand('open', {item_key: item.item_key}); return button;
 }
@@ -339,7 +340,7 @@ function maybeLoadMore() {
 async function browseCommand(action, data = {}) {
   if (browserLoading) return;
   browserLoading = true;
-  if (action === 'more') { browserScrollRestore = $('browser-scroll').scrollTop; $('browser-loading-more').hidden = false; }
+  if (action === 'more') { browserScrollRestore = $('browser-scroll').scrollTop; }
   else if (action === 'jump' || action === 'section') browserScrollRestore = 0;
   try {
     const options = action === 'current' ? {method: 'GET', cache: 'no-store'} : {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({session: browserSession, action, ...data})};

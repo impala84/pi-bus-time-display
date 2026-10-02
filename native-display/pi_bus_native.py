@@ -82,6 +82,14 @@ button { border: 0; box-shadow: none; background-image: none; outline: none; }
 """
 
 
+CSS += b"""
+.browser-sidebar { padding-top: 12px; }
+.browser-back { margin-top: 12px; margin-right: 0; }
+.browser-cover-title.tile { background: transparent; }
+.browser-action-icon, .queue-art { padding: 0; }
+"""
+
+
 def get_json(url: str, timeout: float = .8):
     try:
         with urllib.request.urlopen(url, timeout=timeout) as response:
@@ -304,6 +312,7 @@ class Display(Gtk.Application):
         self.browser_scrubber = Gtk.Overlay(); self.browser_scrubber.add_css_class("browser-scrubber"); self.browser_scrubber.set_size_request(74, -1); self.browser_scrubber.set_visible(False)
         self.browser_scrub_scale = Gtk.Scale.new_with_range(Gtk.Orientation.VERTICAL, 0, 25, 1); self.browser_scrub_scale.set_draw_value(False); self.browser_scrub_scale.set_has_origin(False); self.browser_scrub_scale.set_inverted(True); self.browser_scrub_scale.set_vexpand(True); self.browser_scrub_scale.set_halign(Gtk.Align.END); self.browser_scrub_scale.connect("value-changed", self.browser_scrub_changed); self.browser_scrubber.set_child(self.browser_scrub_scale)
         self.browser_scrub_letter = self.label("A", "browser-scrub-letter", .5); self.browser_scrub_letter.set_halign(Gtk.Align.START); self.browser_scrub_letter.set_valign(Gtk.Align.START); self.browser_scrubber.add_overlay(self.browser_scrub_letter); content.append(self.browser_scrubber); browser_main.append(content); browser_body.append(browser_main)
+        self.browser_scrub_scale.set_inverted(False)
         self.roon_views.add_named(browser, "browse")
         detail_panel = Gtk.Box(spacing=24); detail_panel.add_css_class("detail-panel"); detail_panel.set_hexpand(True); detail_panel.set_vexpand(True)
         self.detail_artwork = Gtk.Picture(); self.detail_artwork.add_css_class("detail-artwork"); self.detail_artwork.set_size_request(420, 420); self.detail_artwork.set_content_fit(Gtk.ContentFit.COVER); self.detail_artwork.set_valign(Gtk.Align.CENTER)
@@ -710,8 +719,7 @@ class Display(Gtk.Application):
         if self.browser_loading: return
         if action == "more": self.browser_scroll_restore = self.browser_scroll.get_vadjustment().get_value()
         elif action in {"jump", "section"}: self.browser_scroll_restore = 0.0
-        self.browser_loading = True; self.browser_message.set_text("Loading…")
-        self.browser_message.set_visible(True)
+        self.browser_loading = True; self.browser_message.set_visible(False)
         threading.Thread(target=self._request_browser, args=(action, payload), daemon=True).start()
 
     def _request_browser(self, action, payload):
@@ -800,8 +808,10 @@ class Display(Gtk.Application):
             icon = self.label(self.browser_tile_symbol(item.get("title"), tile_kind), "browser-tile-icon", .5); icon.set_halign(Gtk.Align.CENTER); icon.set_valign(Gtk.Align.CENTER); icon.set_margin_bottom(20); artwork.add_overlay(icon)
         if show_labels:
             title = self.label(item.get("title") or "Untitled", "browser-cover-title", .5); title.set_max_width_chars(22); title.set_ellipsize(Pango.EllipsizeMode.END); content.append(title)
-            if tile_kind:
+            if tile_kind == "genres":
                 content.remove(title); title.add_css_class("tile"); title.set_wrap(True); title.set_lines(2); title.set_ellipsize(Pango.EllipsizeMode.END); title.set_halign(Gtk.Align.FILL); title.set_valign(Gtk.Align.END); artwork.add_overlay(title)
+            elif tile_kind == "playlists":
+                title.set_wrap(True); title.set_lines(2); title.set_max_width_chars(18)
             if item.get("subtitle") and not tile_kind:
                 subtitle = self.label(item.get("subtitle"), "browser-cover-subtitle", .5); subtitle.set_max_width_chars(22); subtitle.set_ellipsize(Pango.EllipsizeMode.END); content.append(subtitle)
         button = Gtk.Button(); button.add_css_class("browser-cover-card"); button.set_child(content); button.set_sensitive(bool(item.get("item_key"))); button.connect("clicked", self.open_browser_item, item.get("item_key")); return button
@@ -834,7 +844,8 @@ class Display(Gtk.Application):
                 row = Gtk.Box(spacing=14); row.set_hexpand(True)
                 key = item.get("image_key")
                 if item.get("action"):
-                    action_icon = Gtk.Image.new_from_icon_name(self.browser_action_icon(item.get("title"))); action_icon.set_pixel_size(34); action_icon.set_size_request(66, 66); action_icon.add_css_class("browser-action-icon"); row.append(action_icon)
+                    action_icon = Gtk.Image.new_from_icon_name(self.browser_action_icon(item.get("title"))); action_icon.set_pixel_size(34)
+                    action_frame = Gtk.Box(); action_frame.add_css_class("browser-action-icon"); action_frame.set_size_request(66, 66); action_icon.set_halign(Gtk.Align.CENTER); action_icon.set_valign(Gtk.Align.CENTER); action_icon.set_hexpand(True); action_icon.set_vexpand(True); action_frame.append(action_icon); row.append(action_frame)
                 else:
                     picture = Gtk.Picture(); picture.add_css_class("queue-art"); picture.set_size_request(66, 66); picture.set_content_fit(Gtk.ContentFit.COVER); row.append(picture)
                     self.browser_artwork_keys.append(key)

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.11.10 — 3 October 2026
+
+- Correct the touchscreen alphabet thumb direction so it follows the current letter.
+- Remove genre label gradients and restore smaller playlist names beneath their tiles.
+- Hide browsing loading text while retaining error messages.
+- Match play-action containers to track thumbnails and align the sidebar and Back margins.
+- Fix the web genre label renderer referencing artwork outside its scope.
+
 ## 0.11.9 — 3 October 2026
 
 - Measure daytime inactivity from the latest raw touchscreen contact, including scrolling gestures that GTK consumes without a normal button press.
