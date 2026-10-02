@@ -188,10 +188,11 @@ function queueRow(item) {
   const button = document.createElement('button');
   button.className = `queue-row${item.is_current ? ' current' : ''}${item.is_previous ? ' previous' : ''}`;
   if (!item.is_current) button.onclick = () => post('/api/queue/play', {queue_item_id: item.queue_item_id});
-  const artwork = document.createElement('span'); artwork.className = 'queue-art';
+  const artwork = document.createElement('span'); artwork.className = `queue-art${item.is_current ? ' playing' : ''}`;
   if (item.image_key) {
     const image = document.createElement('img'); image.loading = 'lazy'; image.alt = ''; image.src = api(`/api/image?key=${encodeURIComponent(item.image_key)}&size=96`); artwork.append(image);
   }
+  if (item.is_current) { const playing = document.createElement('span'); playing.className = 'queue-play-badge'; playing.textContent = '▶'; artwork.append(playing); }
   const copy = document.createElement('span'); copy.className = 'queue-copy';
   const title = document.createElement('strong'); title.textContent = item.title || 'Untitled track'; copy.append(title);
   const meta = document.createElement('small'); meta.textContent = [item.artist, item.album].filter(Boolean).join(' · ') || 'Roon'; copy.append(meta);
@@ -258,32 +259,44 @@ function browserActionIcon(title) {
   return svg;
 }
 
-function browserCard(item, layout, showLabels) {
+function browserTileSymbol(title, section) {
+  const value = String(title || '').toLowerCase();
+  if (section === 'playlists') return '≡';
+  if (value.includes('jazz')) return '♪';
+  if (value.includes('classical')) return '♬';
+  if (value.includes('electronic')) return '⌁';
+  if (value.includes('pop') || value.includes('rock')) return '⚡';
+  if (value.includes('stage') || value.includes('screen') || value.includes('soundtrack')) return '★';
+  if (value.includes('folk') || value.includes('country')) return '♧';
+  return '◉';
+}
+
+function browserCard(item, layout, showLabels, section, showSubtitles = true) {
   const button = document.createElement('button'); button.className = `browser-card ${layout}`; button.disabled = !item.item_key;
-  if (layout === 'covers') {
+  if (layout === 'covers' || layout === 'tiles') {
     const artwork = document.createElement('span'); artwork.className = 'browser-card-art';
     if (item.image_key) { const image = document.createElement('img'); image.loading = 'lazy'; image.alt = ''; image.src = api(`/api/image?key=${encodeURIComponent(item.image_key)}&size=320`); artwork.append(image); }
+    else if (layout === 'tiles') { const icon = document.createElement('span'); icon.className = 'browser-tile-icon'; icon.textContent = browserTileSymbol(item.title, section); artwork.append(icon); }
     button.append(artwork);
   } else {
     const icon = document.createElement('span'); icon.className = 'browser-card-icon'; icon.setAttribute('aria-hidden', 'true'); icon.textContent = /playlist/i.test(item.title) ? '≡' : /genre/i.test(item.title) ? '◉' : /artist/i.test(item.title) ? '●' : /album|library/i.test(item.title) ? '▦' : '›'; button.append(icon);
   }
   if (layout !== 'covers' || showLabels) {
     const copy = document.createElement('span'); copy.className = 'browser-card-copy'; const title = document.createElement('strong'); title.textContent = item.title || 'Untitled'; copy.append(title);
-    if (showLabels && item.subtitle) { const subtitle = document.createElement('small'); subtitle.textContent = item.subtitle; copy.append(subtitle); } button.append(copy);
+    if (showLabels && showSubtitles && item.subtitle) { const subtitle = document.createElement('small'); subtitle.textContent = item.subtitle; copy.append(subtitle); } button.append(copy);
   }
   button.setAttribute('aria-label', [item.title, item.subtitle].filter(Boolean).join(', ')); button.onclick = () => browseCommand('open', {item_key: item.item_key}); return button;
 }
 
 function renderBrowser(data) {
   browserRendering = true; browserState = data; browserLoading = false;
-  $('browser-title').textContent = data.breadcrumb || data.title || 'Browse';
   $('browser-back').hidden = !data.can_back; $('browser-back').disabled = !data.can_back; $('browser-loading-more').hidden = true;
   document.querySelectorAll('[data-browser-section]').forEach(button => button.classList.toggle('active', button.dataset.browserSection === (data.section || 'albums')));
   $('browser-scrubber').hidden = !data.alpha_scrub;
   $('browser-message').hidden = !data.message; $('browser-message').textContent = data.message || ''; $('browser-message').classList.toggle('error', Boolean(data.error));
   const list = $('browser-list'); list.replaceChildren(); list.className = `browser-list layout-${data.layout || 'list'}`;
   if (data.status === 'unavailable') { const empty = document.createElement('p'); empty.className = 'queue-empty'; empty.textContent = 'Roon Browse is unavailable.'; list.append(empty); browserRendering = false; return; }
-  (data.items || []).forEach(item => list.append(item.action ? browserRow(item) : (['home', 'menu', 'covers'].includes(data.layout) ? browserCard(item, data.layout, Boolean(data.show_labels)) : browserRow(item))));
+  (data.items || []).forEach(item => list.append(item.action ? browserRow(item) : (['home', 'menu', 'covers', 'tiles'].includes(data.layout) ? browserCard(item, data.layout, Boolean(data.show_labels), data.section, data.show_subtitles !== false) : browserRow(item))));
   if (!(data.items || []).length) { const empty = document.createElement('p'); empty.className = 'queue-empty'; empty.textContent = 'Nothing is available here.'; list.append(empty); }
   browserRendering = false;
   requestAnimationFrame(() => {

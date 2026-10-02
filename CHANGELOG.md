@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.11.8 — 3 October 2026
+
+- Prevent the four-column browser grid from widening the touchscreen beyond the physical panel and clipping the clock, selectors and rightmost artwork.
+- Remove the browser breadcrumb row and divider, tighten the left section rail, and anchor Back at the rail's bottom only when it is needed.
+- Present Genres and Playlists as visual tiles, with genre-specific symbols, playlist placeholders, larger names and no redundant item counts.
+- Standardise Play Album and other action artwork to the same footprint as track thumbnails.
+- Enlarge Queue artwork, titles, metadata and durations, remove the cyan current-item edge, and overlay a play marker on the current track.
+
 ## 0.11.7 — 2 October 2026
 
 - Replace the growing browser scrollbar with a fixed A–Z scrubber for Albums and Artists, including a floating current-letter indicator and direct paged jumps into the Roon library.

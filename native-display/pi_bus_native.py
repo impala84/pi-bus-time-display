@@ -44,9 +44,9 @@ button { border: 0; box-shadow: none; background-image: none; outline: none; }
 .artwork-button { padding: 0; border-radius: 12px; background: transparent; }.detail-takeover { padding: 18px; background: rgba(6, 10, 9, .96); }.detail-panel { padding: 0; }.detail-artwork-button { padding: 0; border-radius: 12px; background: transparent; }.detail-artwork { border-radius: 12px; }.detail-title { font-size: 31px; font-weight: 650; }.detail-artist { color: #b6c0bc; font-size: 20px; }.detail-subtitle { color: #84908c; font-size: 13px; }.detail-writeup { color: #d3d9d6; font-size: 15px; line-height: 1.35; }.detail-source { color: #68736f; font-size: 10px; font-weight: 700; }.detail-facts { padding: 8px 0 10px; }.detail-fact { color: #a8b3af; font-size: 14px; font-weight: 600; }.detail-tracks { padding-top: 5px; }.detail-track { min-height: 30px; padding: 3px 6px; border-top: 1px solid #26312e; }.detail-track-no { color: #78837f; font-size: 11px; }.detail-track-title { color: #f4f0e6; font-size: 13px; }
 .roon-subnav { margin-top: 0; }.roon-subnav button { min-height: 29px; padding: 4px 13px 2px; border-radius: 0; border-top: 3px solid transparent; background: transparent; color: #68736f; font-size: 10px; font-weight: 750; letter-spacing: 1px; }.roon-subnav button.active { border-top-color: #5bcbd6; color: #f4f0e6; }
 .source-view { padding: 8px; }.source-title { font-size: 25px; font-weight: 700; }.source-volume { font-size: 104px; font-weight: 620; font-variant-numeric: tabular-nums; }.source-step { min-width: 92px; min-height: 92px; border-radius: 46px; background: #18211f; color: #f4f0e6; font-size: 45px; }.source-mute { min-width: 92px; min-height: 38px; border-radius: 8px; background: #18211f; color: #dfe4e1; font-size: 11px; font-weight: 750; }
-.queue-scroll { background: transparent; }.queue-scroll scrollbar { opacity: 0; min-width: 0; min-height: 0; }.queue-list { padding: 5px 8px 8px; }.queue-row { min-height: 66px; padding: 5px 9px; border-radius: 8px; background: transparent; color: #f4f0e6; }.queue-row:hover, .queue-row:active { background: #18211f; }.queue-row.current { background: #121e1c; border-left: 3px solid #5bcbd6; }.queue-row.previous { opacity: .5; }.queue-art { min-width: 56px; min-height: 56px; border-radius: 5px; background: #18211f; }.queue-title { color: #f4f0e6; font-size: 16px; font-weight: 650; }.queue-meta { color: #84908c; font-size: 12px; }.queue-duration { color: #84908c; font-size: 12px; font-variant-numeric: tabular-nums; }.queue-empty { color: #78837f; font-size: 15px; padding: 60px 0; }
-.browser-view { padding: 2px 12px 10px; }.browser-sidebar { min-width: 150px; padding: 6px 12px 8px 0; border-right: 1px solid #26312e; }.browser-filter { min-height: 58px; padding: 8px 14px; border-radius: 8px; background: transparent; color: #84908c; font-size: 16px; font-weight: 720; }.browser-filter.active { background: #19302a; color: #f4f0e6; }.browser-main { padding-left: 12px; }.browser-toolbar { min-height: 46px; padding: 2px 4px 7px; }.browser-back { min-width: 74px; min-height: 38px; padding: 6px 11px; border-radius: 7px; background: #18211f; color: #dfe4e1; font-size: 12px; font-weight: 750; }.browser-heading { color: #aab4b0; font-size: 17px; font-weight: 680; letter-spacing: .5px; }.browser-message { color: #7f8b87; font-size: 12px; }.browser-row { min-height: 78px; padding: 7px 12px; border-radius: 10px; background: transparent; color: #f4f0e6; }.browser-row:hover, .browser-row:active { background: #18211f; }.browser-action-icon { min-width: 66px; min-height: 66px; border-radius: 8px; background: #14231f; color: #6ed9ae; }.browser-arrow { min-width: 44px; color: #84908c; font-size: 15px; font-variant-numeric: tabular-nums; }.browser-scrubber { min-width: 74px; padding-left: 7px; }.browser-scrubber scale { min-width: 30px; padding: 8px; }.browser-scrubber trough { min-width: 5px; border-radius: 3px; background: #25312e; }.browser-scrubber highlight { background: #6ed9ae; }.browser-scrubber slider { min-width: 18px; min-height: 18px; border-radius: 9px; background: #6ed9ae; }.browser-scrub-letter { min-width: 34px; min-height: 34px; border-radius: 17px; background: #19302a; color: #6ed9ae; font-size: 16px; font-weight: 800; }.browser-section { padding: 15px 8px 5px; color: #6ed9ae; font-size: 12px; font-weight: 750; letter-spacing: 1px; }
-.browser-home-grid, .browser-cover-grid { padding: 10px 6px 18px; }.browser-home-card { min-height: 270px; padding: 22px 14px; border-radius: 14px; background: #131c1a; color: #f4f0e6; }.browser-home-card.compact { min-height: 150px; }.browser-home-card:hover, .browser-home-card:active { background: #19302a; }.browser-home-icon { color: #6ed9ae; font-size: 64px; font-weight: 350; }.browser-home-title { color: #f4f0e6; font-size: 21px; font-weight: 720; }.browser-cover-card { min-height: 202px; padding: 7px; border-radius: 10px; background: transparent; color: #f4f0e6; }.browser-cover-card:hover, .browser-cover-card:active { background: #18211f; }.browser-cover-art { min-width: 172px; min-height: 172px; border-radius: 8px; background: #18211f; }.browser-cover-title { padding-top: 6px; color: #f4f0e6; font-size: 14px; font-weight: 650; }.browser-cover-subtitle { color: #87928e; font-size: 11px; }
+.queue-scroll { background: transparent; }.queue-scroll scrollbar { opacity: 0; min-width: 0; min-height: 0; }.queue-list { padding: 5px 8px 8px; }.queue-row { min-height: 78px; padding: 7px 11px; border-radius: 8px; background: transparent; color: #f4f0e6; }.queue-row:hover, .queue-row:active, .queue-row.current { background: #121e1c; }.queue-row.previous { opacity: .5; }.queue-art { min-width: 66px; min-height: 66px; border-radius: 6px; background: #18211f; }.queue-art-stack { min-width: 66px; min-height: 66px; }.queue-play-badge { min-width: 34px; min-height: 34px; border-radius: 17px; background: rgba(8,13,12,.82); color: #6ed9ae; }.queue-title { color: #f4f0e6; font-size: 20px; font-weight: 650; }.queue-meta { color: #84908c; font-size: 15px; }.queue-duration { color: #aab4b0; font-size: 18px; font-variant-numeric: tabular-nums; }.queue-empty { color: #78837f; font-size: 15px; padding: 60px 0; }
+.browser-view { padding: 2px 4px 10px; }.browser-sidebar { min-width: 132px; padding: 4px 5px 4px 0; }.browser-filter { min-height: 58px; padding: 8px 10px; border-radius: 8px; background: transparent; color: #84908c; font-size: 16px; font-weight: 720; }.browser-filter.active { background: #19302a; color: #f4f0e6; }.browser-main { padding-left: 3px; }.browser-back { min-width: 100px; min-height: 44px; margin: 0 8px 2px; padding: 6px 11px; border-radius: 7px; background: #18211f; color: #dfe4e1; font-size: 13px; font-weight: 750; }.browser-message { padding: 3px 8px; color: #7f8b87; font-size: 12px; }.browser-row { min-height: 78px; padding: 7px 12px; border-radius: 10px; background: transparent; color: #f4f0e6; }.browser-row:hover, .browser-row:active { background: #18211f; }.browser-action-icon { min-width: 66px; min-height: 66px; border-radius: 6px; background: #18211f; color: #6ed9ae; }.browser-arrow { min-width: 44px; color: #84908c; font-size: 15px; font-variant-numeric: tabular-nums; }.browser-scrubber { min-width: 64px; padding-left: 3px; }.browser-scrubber scale { min-width: 28px; padding: 8px; }.browser-scrubber trough { min-width: 5px; border-radius: 3px; background: #25312e; }.browser-scrubber highlight { background: #6ed9ae; }.browser-scrubber slider { min-width: 18px; min-height: 18px; border-radius: 9px; background: #6ed9ae; }.browser-scrub-letter { min-width: 34px; min-height: 34px; border-radius: 17px; background: #19302a; color: #6ed9ae; font-size: 16px; font-weight: 800; }.browser-section { padding: 15px 8px 5px; color: #6ed9ae; font-size: 12px; font-weight: 750; letter-spacing: 1px; }
+.browser-home-grid, .browser-cover-grid { padding: 3px 3px 18px; }.browser-home-card { min-height: 270px; padding: 22px 14px; border-radius: 14px; background: #131c1a; color: #f4f0e6; }.browser-home-card.compact { min-height: 150px; }.browser-home-card:hover, .browser-home-card:active { background: #19302a; }.browser-home-icon { color: #6ed9ae; font-size: 64px; font-weight: 350; }.browser-home-title { color: #f4f0e6; font-size: 21px; font-weight: 720; }.browser-cover-card { min-height: 202px; padding: 7px; border-radius: 10px; background: transparent; color: #f4f0e6; }.browser-cover-card:hover, .browser-cover-card:active { background: #18211f; }.browser-cover-art { min-width: 172px; min-height: 172px; border-radius: 8px; background: #18211f; }.browser-tile-icon { color: #6ed9ae; font-size: 54px; font-weight: 500; }.browser-cover-title { padding-top: 6px; color: #f4f0e6; font-size: 14px; font-weight: 650; }.browser-cover-title.tile { font-size: 20px; }.browser-cover-subtitle { color: #87928e; font-size: 11px; }
 .transport button { min-width: 50px; min-height: 50px; border-radius: 25px; padding: 0; background: #18211f; color: #e4e7e4; }.transport .play { min-width: 68px; min-height: 68px; border-radius: 34px; background: #285f4d; }
 .progress trough, .volume trough { min-height: 7px; border: 0; box-shadow: none; border-radius: 4px; background: #303a37; }.progress highlight, .volume highlight { border: 0; box-shadow: none; background: #6ed9ae; }.time { color: #87928e; font-size: 12px; }
 .sleep { background: #000; }.sleep-clock { font-size: 112px; font-weight: 550; }.settings-title { font-size: 32px; font-weight: 650; }
@@ -71,7 +71,7 @@ button { border: 0; box-shadow: none; background-image: none; outline: none; }
 .touch-landscape .roon-subnav button { min-height: 42px; padding: 2px 14px 4px; }
 .touch-landscape .source-volume { font-size: 220px; font-weight: 450; }.touch-landscape .source-step { min-width: 112px; min-height: 112px; border-radius: 56px; font-size: 58px; }.touch-landscape .source-mute { min-width: 160px; min-height: 62px; font-size: 20px; }
 .touch-landscape .time { font-size: 20px; }.touch-landscape .volume-number { font-size: 26px; }
-.touch-landscape .browser-heading { font-size: 18px; }.touch-landscape .browser-back { min-width: 82px; min-height: 42px; font-size: 13px; }.touch-landscape .browser-filter { min-height: 64px; font-size: 17px; }.touch-landscape .browser-row { min-height: 88px; }.touch-landscape .browser-home-card { min-height: 290px; }.touch-landscape .browser-home-icon { font-size: 78px; }.touch-landscape .browser-home-title { font-size: 26px; }.touch-landscape .browser-cover-art { min-width: 184px; min-height: 184px; }.touch-landscape .browser-cover-title { font-size: 16px; }.touch-landscape .browser-scrub-letter { font-size: 18px; }
+.touch-landscape .browser-back { min-width: 104px; min-height: 48px; font-size: 15px; }.touch-landscape .browser-filter { min-height: 62px; font-size: 17px; }.touch-landscape .browser-row { min-height: 88px; }.touch-landscape .browser-home-card { min-height: 290px; }.touch-landscape .browser-home-icon { font-size: 78px; }.touch-landscape .browser-home-title { font-size: 26px; }.touch-landscape .browser-cover-art { min-width: 172px; min-height: 172px; }.touch-landscape .browser-cover-title { font-size: 16px; }.touch-landscape .browser-cover-title.tile { font-size: 21px; }.touch-landscape .browser-scrub-letter { font-size: 18px; }
 .touch-landscape .settings-page { padding-top: 18px; padding-bottom: 18px; }.touch-landscape .settings-page button { padding: 8px 20px; }
 .touch-landscape .settings-page .settings-card { padding: 8px 10px; border: 0; background: transparent; }
 .touch-landscape .settings-page .setting-line { min-height: 72px; padding: 5px 18px; }.touch-landscape .settings-page .setting-line checkbutton label { margin-left: 16px; }
@@ -292,11 +292,11 @@ class Display(Gtk.Application):
         self.browser_section_buttons = {}; sidebar = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=5); sidebar.add_css_class("browser-sidebar")
         for section in ("albums", "artists", "genres", "playlists"):
             button = self.button(section.upper(), lambda _button, value=section: self.request_browser("section", section=value), "browser-filter"); self.browser_section_buttons[section] = button; sidebar.append(button)
+        sidebar_spacer = Gtk.Box(); sidebar_spacer.set_vexpand(True); sidebar.append(sidebar_spacer)
+        self.browser_back = self.button("BACK", lambda *_: self.request_browser("back"), "browser-back"); self.browser_back.set_visible(False); sidebar.append(self.browser_back)
         browser.append(sidebar)
         browser_main = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2); browser_main.add_css_class("browser-main"); browser_main.set_vexpand(True); browser_main.set_hexpand(True)
-        browser_toolbar = Gtk.Box(spacing=9); browser_toolbar.add_css_class("browser-toolbar")
-        self.browser_back = self.button("BACK", lambda *_: self.request_browser("back"), "browser-back"); self.browser_back.set_visible(False); browser_toolbar.append(self.browser_back)
-        browser_heading = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0); browser_heading.set_hexpand(True); browser_heading.set_valign(Gtk.Align.CENTER); self.browser_title = self.label("LIBRARY / ALBUMS", "browser-heading"); self.browser_message = self.label("", "browser-message"); self.browser_message.set_ellipsize(Pango.EllipsizeMode.END); self.browser_message.set_visible(False); browser_heading.append(self.browser_title); browser_heading.append(self.browser_message); browser_toolbar.append(browser_heading); browser_main.append(browser_toolbar)
+        self.browser_message = self.label("", "browser-message"); self.browser_message.set_ellipsize(Pango.EllipsizeMode.END); self.browser_message.set_visible(False); browser_main.append(self.browser_message)
         self.browser_list = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2); self.browser_list.add_css_class("queue-list")
         browser_scroll = Gtk.ScrolledWindow(); browser_scroll.add_css_class("queue-scroll"); browser_scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC); browser_scroll.set_kinetic_scrolling(True); browser_scroll.set_overlay_scrolling(True); browser_scroll.set_propagate_natural_height(False); browser_scroll.set_propagate_natural_width(False); browser_scroll.set_min_content_height(1); browser_scroll.set_size_request(-1, 1); browser_scroll.set_vexpand(True); browser_scroll.set_hexpand(True); browser_scroll.set_child(self.browser_list); self.browser_scroll = browser_scroll
         browser_scroll.get_vadjustment().connect("value-changed", self.browser_scrolled)
@@ -747,6 +747,17 @@ class Display(Gtk.Application):
         if "track" in value or "radio" in value: return "audio-x-generic-symbolic"
         return "folder-symbolic"
 
+    def browser_tile_symbol(self, title, kind):
+        value = (title or "").lower()
+        if kind == "playlists": return "≡"
+        if "jazz" in value: return "♪"
+        if "classical" in value: return "♬"
+        if "electronic" in value: return "⌁"
+        if "pop" in value or "rock" in value: return "⚡"
+        if "stage" in value or "screen" in value or "soundtrack" in value: return "★"
+        if "folk" in value or "country" in value: return "♧"
+        return "◉"
+
     def browser_action_icon(self, title):
         value = (title or "").lower()
         if "add next" in value: return "list-add-symbolic"
@@ -763,22 +774,25 @@ class Display(Gtk.Application):
         if compact: button.add_css_class("compact")
         button.set_hexpand(True); button.set_vexpand(True); button.set_child(content); button.set_sensitive(bool(item.get("item_key"))); button.connect("clicked", self.open_browser_item, item.get("item_key")); return button
 
-    def browser_cover_card(self, item, show_labels):
+    def browser_cover_card(self, item, show_labels, tile_kind=None):
         content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=1); content.set_halign(Gtk.Align.CENTER)
-        picture = Gtk.Picture(); picture.add_css_class("browser-cover-art"); picture.set_size_request(172, 172); picture.set_content_fit(Gtk.ContentFit.COVER); content.append(picture)
+        artwork = Gtk.Overlay(); picture = Gtk.Picture(); picture.add_css_class("browser-cover-art"); picture.set_size_request(172, 172); picture.set_content_fit(Gtk.ContentFit.COVER); artwork.set_child(picture); content.append(artwork)
         key = item.get("image_key"); self.browser_artwork_keys.append(key)
         if key:
             self.browser_pictures.setdefault(key, []).append(picture)
             texture = self.queue_thumbnail_cache.get(key)
             if texture: picture.set_paintable(texture)
+        elif tile_kind:
+            icon = self.label(self.browser_tile_symbol(item.get("title"), tile_kind), "browser-tile-icon", .5); icon.set_halign(Gtk.Align.CENTER); icon.set_valign(Gtk.Align.CENTER); artwork.add_overlay(icon)
         if show_labels:
             title = self.label(item.get("title") or "Untitled", "browser-cover-title", .5); title.set_max_width_chars(22); title.set_ellipsize(Pango.EllipsizeMode.END); content.append(title)
-            if item.get("subtitle"):
+            if tile_kind: title.add_css_class("tile")
+            if item.get("subtitle") and not tile_kind:
                 subtitle = self.label(item.get("subtitle"), "browser-cover-subtitle", .5); subtitle.set_max_width_chars(22); subtitle.set_ellipsize(Pango.EllipsizeMode.END); content.append(subtitle)
         button = Gtk.Button(); button.add_css_class("browser-cover-card"); button.set_child(content); button.set_sensitive(bool(item.get("item_key"))); button.connect("clicked", self.open_browser_item, item.get("item_key")); return button
 
     def render_browser(self, data):
-        self.browser_rendering = True; self.browser_loading = False; self.browser_state = data; self.browser_title.set_text(data.get("breadcrumb") or data.get("title") or "Browse"); self.browser_back.set_visible(bool(data.get("can_back"))); self.browser_back.set_sensitive(bool(data.get("can_back"))); self.browser_scrubber.set_visible(bool(data.get("alpha_scrub")))
+        self.browser_rendering = True; self.browser_loading = False; self.browser_state = data; self.browser_back.set_visible(bool(data.get("can_back"))); self.browser_back.set_sensitive(bool(data.get("can_back"))); self.browser_scrubber.set_visible(bool(data.get("alpha_scrub")))
         active_section = data.get("section") or "albums"
         for section, button in self.browser_section_buttons.items():
             if section == active_section: button.add_css_class("active")
@@ -794,9 +808,10 @@ class Display(Gtk.Application):
             grid = Gtk.Grid(column_spacing=12, row_spacing=12); grid.add_css_class("browser-home-grid"); grid.set_column_homogeneous(True); grid.set_row_homogeneous(True); columns = 4
             for index, item in enumerate(item for item in items if item.get("hint") != "header"): grid.attach(self.browser_menu_card(item, layout == "menu"), index % columns, index // columns, 1, 1)
             self.browser_list.append(grid)
-        elif items and layout == "covers":
-            grid = Gtk.Grid(column_spacing=10, row_spacing=12); grid.add_css_class("browser-cover-grid"); grid.set_column_homogeneous(True); columns = 5
-            for index, item in enumerate(item for item in items if item.get("hint") != "header"): grid.attach(self.browser_cover_card(item, bool(data.get("show_labels"))), index % columns, index // columns, 1, 1)
+        elif items and layout in {"covers", "tiles"}:
+            grid = Gtk.Grid(column_spacing=10, row_spacing=12); grid.add_css_class("browser-cover-grid"); grid.set_column_homogeneous(True); columns = 4
+            tile_kind = active_section if layout == "tiles" else None
+            for index, item in enumerate(item for item in items if item.get("hint") != "header"): grid.attach(self.browser_cover_card(item, bool(data.get("show_labels")), tile_kind), index % columns, index // columns, 1, 1)
             self.browser_list.append(grid)
         else:
             for item in items:
@@ -804,7 +819,7 @@ class Display(Gtk.Application):
                 row = Gtk.Box(spacing=14); row.set_hexpand(True)
                 key = item.get("image_key")
                 if item.get("action"):
-                    action_icon = Gtk.Image.new_from_icon_name(self.browser_action_icon(item.get("title"))); action_icon.set_pixel_size(34); action_icon.add_css_class("browser-action-icon"); row.append(action_icon)
+                    action_icon = Gtk.Image.new_from_icon_name(self.browser_action_icon(item.get("title"))); action_icon.set_pixel_size(34); action_icon.set_size_request(66, 66); action_icon.add_css_class("browser-action-icon"); row.append(action_icon)
                 else:
                     picture = Gtk.Picture(); picture.add_css_class("queue-art"); picture.set_size_request(66, 66); picture.set_content_fit(Gtk.ContentFit.COVER); row.append(picture)
                     self.browser_artwork_keys.append(key)
@@ -834,7 +849,7 @@ class Display(Gtk.Application):
     def browser_scrolled(self, *_):
         self.load_visible_browser_artwork()
         if self.browser_state and self.browser_state.get("alpha_scrub"):
-            value = self.browser_scroll.get_vadjustment().get_value(); columns = 5; index = min(len(self.browser_state.get("items") or []) - 1, max(0, int(value / 214) * columns))
+            value = self.browser_scroll.get_vadjustment().get_value(); columns = 4; index = min(len(self.browser_state.get("items") or []) - 1, max(0, int(value / 214) * columns))
             items = self.browser_state.get("items") or []
             if items and index >= 0: self.sync_browser_scrubber(items[index])
         if not self.browser_rendering: self.maybe_load_more_browser()
@@ -886,7 +901,11 @@ class Display(Gtk.Application):
         self.queue_current_index = 0
         for index, item in enumerate(items):
             row = Gtk.Box(spacing=12); row.set_hexpand(True)
-            picture = Gtk.Picture(); picture.add_css_class("queue-art"); picture.set_size_request(56, 56); picture.set_content_fit(Gtk.ContentFit.COVER); row.append(picture)
+            artwork = Gtk.Overlay(); artwork.add_css_class("queue-art-stack"); artwork.set_size_request(66, 66)
+            picture = Gtk.Picture(); picture.add_css_class("queue-art"); picture.set_size_request(66, 66); picture.set_content_fit(Gtk.ContentFit.COVER); artwork.set_child(picture)
+            if item.get("is_current"):
+                playing = Gtk.Image.new_from_icon_name("media-playback-start-symbolic"); playing.set_pixel_size(22); playing.add_css_class("queue-play-badge"); playing.set_halign(Gtk.Align.CENTER); playing.set_valign(Gtk.Align.CENTER); artwork.add_overlay(playing)
+            row.append(artwork)
             key = item.get("image_key")
             self.queue_artwork_keys.append(key)
             if key:
@@ -906,7 +925,7 @@ class Display(Gtk.Application):
         GLib.idle_add(self.load_visible_queue_artwork)
 
     def scroll_queue_to_current(self):
-        row_height = 88 if self.window.has_css_class("high-resolution") else 68
+        row_height = 104 if self.window.has_css_class("high-resolution") else 90
         self.queue_scroll.get_vadjustment().set_value(max(0, getattr(self, "queue_current_index", 0) * row_height))
         return False
 

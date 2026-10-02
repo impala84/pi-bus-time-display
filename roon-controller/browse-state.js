@@ -47,7 +47,9 @@ function browserLayout(hierarchy, level, list, items) {
   const usable = items.filter(item => item.hint !== 'header');
   if (/^library$/i.test(title)) return {layout: 'menu', show_labels: true};
   if (usable.some(isActionItem)) return {layout: 'list', show_labels: true};
-  if (/playlists?/i.test(title) || (/\btracks?\b/i.test(subtitle) && !/^tracks?$/i.test(title))) return {layout: 'list', show_labels: true};
+  if (/^genres?$/i.test(title)) return {layout: 'tiles', show_labels: true, show_subtitles: false};
+  if (/^playlists?$/i.test(title)) return {layout: 'tiles', show_labels: true, show_subtitles: false};
+  if (/\btracks?\b/i.test(subtitle) && !/^tracks?$/i.test(title)) return {layout: 'list', show_labels: true};
   if (/^albums?$/i.test(title)) return {layout: 'covers', show_labels: false};
   const imageRatio = usable.length ? usable.filter(item => item.image_key).length / usable.length : 0;
   if (imageRatio >= .45) return {layout: 'covers', show_labels: !/albums?/i.test(title)};

@@ -98,9 +98,10 @@ test('library is reduced to four useful destinations', () => {
   assert.equal(browserLayout('browse', 1, list, libraryItems(list, items)).layout, 'menu');
 });
 
-test('playlist collections and playlist tracks stay in list layouts', () => {
+test('genre and playlist collections use tiles while playlist tracks stay in rows', () => {
   const pictured = [{title: 'One', image_key: '1'}, {title: 'Two', image_key: '2'}];
-  assert.equal(browserLayout('browse', 1, {title: 'Playlists'}, pictured).layout, 'list');
+  assert.deepEqual(browserLayout('browse', 1, {title: 'Genres'}, pictured), {layout: 'tiles', show_labels: true, show_subtitles: false});
+  assert.deepEqual(browserLayout('browse', 1, {title: 'Playlists'}, pictured), {layout: 'tiles', show_labels: true, show_subtitles: false});
   assert.equal(browserLayout('browse', 2, {title: 'Evening vibes', subtitle: '437 Tracks'}, pictured).layout, 'list');
 });
 
