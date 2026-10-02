@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.11.4 — 2 October 2026
+
+- Reuse the selected album's artwork for child track rows when Roon omits redundant per-track image keys, without applying artwork to action rows.
+
 ## 0.11.3 — 2 October 2026
 
 - Reduced Library to four useful destinations—Artists, Albums, Tracks and Composers—by removing the redundant Search and Tags cards.

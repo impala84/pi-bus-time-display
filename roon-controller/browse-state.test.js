@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {BrowseManager, browserLayout, libraryItems, rootItems, safeSession} = require('./browse-state');
+const {BrowseManager, browserLayout, libraryItems, rootItems, safeSession, withFallbackImage} = require('./browse-state');
 
 function fakeService() {
   const sessions = new Map();
@@ -69,4 +69,15 @@ test('playlist collections and playlist tracks stay in list layouts', () => {
   const pictured = [{title: 'One', image_key: '1'}, {title: 'Two', image_key: '2'}];
   assert.equal(browserLayout('browse', 1, {title: 'Playlists'}, pictured).layout, 'list');
   assert.equal(browserLayout('browse', 2, {title: 'Evening vibes', subtitle: '437 Tracks'}, pictured).layout, 'list');
+});
+
+test('album artwork fills child track rows when Roon omits redundant image keys', () => {
+  const items = withFallbackImage([
+    {title: 'Play Album', hint: 'action'},
+    {title: 'Track One', image_key: null},
+    {title: 'Track Two', image_key: 'specific'}
+  ], 'album-cover');
+  assert.equal(items[0].image_key, undefined);
+  assert.equal(items[1].image_key, 'album-cover');
+  assert.equal(items[2].image_key, 'specific');
 });

@@ -40,6 +40,11 @@ function libraryItems(list, items) {
   return items.filter(item => !/^(search|tags?)$/i.test(String(item.title || '').trim()));
 }
 
+function withFallbackImage(items, imageKey) {
+  if (!imageKey) return items;
+  return items.map(item => item.hint !== 'action' && !item.image_key ? {...item, image_key: imageKey} : item);
+}
+
 function rootItems(items) {
   const wanted = ['library', 'playlists', 'genres', 'tidal'];
   const available = items.filter(item => item.hint !== 'header');
@@ -83,7 +88,8 @@ class BrowseManager {
     else if (command === 'back') options.pop_levels = 1;
     else if (command === 'open' && data.item_key) options.item_key = String(data.item_key);
     else return state || this._run(session, 'root', {});
-    return this.follow(service, session, hierarchy, await request(service, 'browse', options));
+    const opened = command === 'open' ? state?.items?.find(item => String(item.item_key) === String(data.item_key)) : null;
+    return this.follow(service, session, hierarchy, await request(service, 'browse', options), opened?.image_key || null);
   }
 
   async search(service, zone, session, query) {
@@ -97,7 +103,7 @@ class BrowseManager {
     return this.follow(service, session, 'search', result);
   }
 
-  async follow(service, session, hierarchy, result) {
+  async follow(service, session, hierarchy, result, fallbackImageKey = null) {
     if (result.action === 'message') {
       const state = this.sessions.get(session) || {status: 'ready', hierarchy, title: 'Browse', items: [], can_back: false, has_more: false};
       return this.save(session, {...state, message: String(result.message || (result.is_error ? 'Roon could not complete that action.' : 'Done.')), error: Boolean(result.is_error)});
@@ -107,12 +113,12 @@ class BrowseManager {
       return this.save(session, {...state, message: 'Done.', error: false});
     }
     const loaded = await request(service, 'load', {hierarchy, multi_session_key: session, level: result.list.level, offset: 0, count: PAGE_SIZE});
-    return this.store(session, hierarchy, loaded.list || result.list, loaded.items || [], '');
+    return this.store(session, hierarchy, loaded.list || result.list, loaded.items || [], '', fallbackImageKey);
   }
 
-  store(session, hierarchy, list, items, message) {
+  store(session, hierarchy, list, items, message, fallbackImageKey = null) {
     const level = Number(list?.level || 0);
-    let normalised = libraryItems(list, (items || []).map(publicItem));
+    let normalised = withFallbackImage(libraryItems(list, (items || []).map(publicItem)), fallbackImageKey);
     if (hierarchy === 'browse' && level === 0) normalised = rootItems(normalised);
     const presentation = browserLayout(hierarchy, level, list, normalised);
     const filteredLibrary = /^library$/i.test(String(list?.title || '').trim());
@@ -121,7 +127,7 @@ class BrowseManager {
       status: 'ready', hierarchy, level, title: presentation.layout === 'home' ? 'Browse' : String(list?.title || (hierarchy === 'search' ? 'Search' : 'Browse')),
       subtitle: String(list?.subtitle || ''), count, offset: Number(list?.display_offset || 0),
       items: normalised, can_back: hierarchy !== 'browse' || Number(list?.level || 0) > 0,
-      has_more: !filteredLibrary && presentation.layout !== 'home' && normalised.length < count, message, error: false,
+      has_more: !filteredLibrary && presentation.layout !== 'home' && normalised.length < count, fallback_image_key: fallbackImageKey, message, error: false,
       ...presentation
     });
   }
@@ -130,11 +136,11 @@ class BrowseManager {
     const state = this.sessions.get(session);
     if (!state || !state.has_more) return state || this._run(session, 'root', {});
     const loaded = await request(service, 'load', {hierarchy: state.hierarchy, multi_session_key: session, level: state.level, offset: state.items.length, count: PAGE_SIZE});
-    const items = [...state.items, ...(loaded.items || []).map(publicItem)];
+    const items = [...state.items, ...withFallbackImage((loaded.items || []).map(publicItem), state.fallback_image_key)];
     return this.save(session, {...state, items, count: Number(loaded.list?.count ?? state.count), has_more: items.length < Number(loaded.list?.count ?? state.count), message: ''});
   }
 
   save(session, state) { this.sessions.set(session, state); return state; }
 }
 
-module.exports = {BrowseManager, browserLayout, libraryItems, publicItem, rootItems, safeSession};
+module.exports = {BrowseManager, browserLayout, libraryItems, publicItem, rootItems, safeSession, withFallbackImage};
