@@ -95,12 +95,16 @@ class DisplayRotationTests(unittest.TestCase):
         web = (ROOT / "roon-controller" / "static" / "app.js").read_text(encoding="utf-8")
         self.assertIn("def build_browser_keyboard(self):", display)
         self.assertIn('self.browser_keyboard.set_visible(True)', display)
+        self.assertIn('browser.append(self.browser_keyboard)', display)
+        self.assertNotIn('browser_overlay.add_overlay(self.browser_keyboard)', display)
         self.assertIn('columns = 5', display)
         self.assertIn('browser_cover_card', display)
         self.assertIn("['home', 'menu', 'covers'].includes", web)
         self.assertIn('for _ in range(3): threading.Thread(target=self.thumbnail_worker', display)
         self.assertIn('def maybe_load_more_browser(self):', display)
         self.assertIn('def browser_action_icon(self, title):', display)
+        self.assertIn('for letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZ"', display)
+        self.assertIn('item.get("duration") or ""', display)
         self.assertNotIn('self.button("LOAD MORE"', display)
 
     def test_long_now_playing_copy_pauses_and_scrolls_without_polling(self):

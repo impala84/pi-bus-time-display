@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.11.5 — 2 October 2026
+
+- Mount the touchscreen search keyboard inside the browser layout so it is visibly allocated whenever Search receives focus.
+- Present album collections and album contents as readable lists rather than dense artwork grids.
+- Replace browser chevrons with track durations when Roon supplies duration metadata, leaving a clean edge when it does not.
+- Remove the blue-green selection keyline from Play, Add Next and other browser action rows.
+- Use the standard play symbol for Play Album and Play Playlist actions.
+- Add an A–Z quick index to the right edge of Albums and Artists, backed by direct paged jumps rather than loading the entire library.
+
 ## 0.11.4 — 2 October 2026
 
 - Reuse the selected album's artwork for child track rows when Roon omits redundant per-track image keys, without applying artwork to action rows.

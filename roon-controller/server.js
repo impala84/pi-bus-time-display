@@ -211,7 +211,7 @@ function cachedImage(key, size, callback) {
 const roon = new RoonApi({
   extension_id: 'com.impala84.pi-bus-time-display',
   display_name: 'Pi Home Roon Controller',
-  display_version: '0.11.4',
+  display_version: '0.11.5',
   publisher: 'Pi Home',
   email: 'noreply@example.invalid',
   website: 'https://github.com/impala84/pi-home',
@@ -297,7 +297,7 @@ http.createServer(async (request, response) => {
       if (!transport || !zone) return json(response, 409, {error: 'Roon is not connected'});
       if (url.pathname === '/api/browse') {
         if (!configuredRuntime().browserEnabled) return json(response, 404, {error: 'Roon Browse is disabled'});
-        const action = ['root', 'open', 'back', 'more', 'search', 'current'].includes(data.action) ? data.action : 'current';
+        const action = ['root', 'open', 'back', 'more', 'jump', 'search', 'current'].includes(data.action) ? data.action : 'current';
         return json(response, 200, await browser.run(data.session, action, data));
       }
       if (url.pathname === '/api/control' && data.action === 'resume') resumeRoon(zone);
