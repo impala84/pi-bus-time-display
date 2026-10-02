@@ -69,6 +69,15 @@ class DisplayRotationTests(unittest.TestCase):
         self.assertIn(".nav-label-compact { display: inline; }", css)
         self.assertIn("text-transform: uppercase", css)
 
+    def test_long_now_playing_copy_pauses_and_scrolls_without_polling(self):
+        app = (ROOT / "roon-controller" / "static" / "app.js").read_text(encoding="utf-8")
+        css = (ROOT / "roon-controller" / "static" / "refinements.css").read_text(encoding="utf-8")
+        self.assertIn("function setScrollingText(element, text)", app)
+        self.assertIn("const startPause = 10000", app)
+        self.assertIn("entry.content.animate", app)
+        self.assertIn("prefers-reduced-motion: reduce", css)
+        self.assertNotIn("setInterval(() => refreshScrollingText", app)
+
     def test_appliance_boot_is_quiet_and_splash_free(self):
         script = (ROOT / "scripts" / "pi-bus-appliance-mode").read_text(encoding="utf-8")
         self.assertIn("disable_splash=1", script)

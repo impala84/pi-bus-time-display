@@ -21,6 +21,7 @@ from zoneinfo import ZoneInfo
 from .config import Config, load_config, load_env
 from .domain import normalise
 from .lta import LTAError, fetch, simulated
+from .observability import OpenObserveLogger, openobserve_endpoint
 from . import __version__
 
 
@@ -106,7 +107,8 @@ def scheduled_period(config: Config, now: datetime) -> str:
     return "day"
 
 
-def poll(state: State, stop: threading.Event) -> None:
+def poll(state: State, stop: threading.Event, events: OpenObserveLogger | None = None) -> None:
+    last_status: str | None = None
     while not stop.is_set():
         config = state.config
         timezone = ZoneInfo(config.timezone)
@@ -117,9 +119,15 @@ def poll(state: State, stop: threading.Event) -> None:
             with state.lock:
                 state.data = {"status": "ok", "services": services, "updated_at": now.isoformat(), "error": None}
                 state.last_success = now
+            status = "ok"
         except LTAError as exc:
             with state.lock:
                 state.data = {**state.data, "status": "offline", "error": str(exc)}
+            status = "offline"
+
+        if status != last_status and events:
+            events.emit("bus.source.status", level="error" if status == "offline" else "info", status=status)
+        last_status = status
 
         stop.wait(config.poll_seconds)
 
@@ -157,11 +165,15 @@ def home_assistant_set_state(config: Config, entity_id: str, enabled: bool) -> o
     return home_assistant_request(config, f"/api/services/{domain}/{service}", {"entity_id": entity_id})
 
 
-def home_assistant_poll(state: State, stop: threading.Event) -> None:
+def home_assistant_poll(state: State, stop: threading.Event, events: OpenObserveLogger | None = None) -> None:
+    last_status: str | None = None
     while not stop.is_set():
         config = state.config
         if not config.home_assistant_enabled or not config.home_assistant_entities:
             state.home_data = {"status": "disabled", "entities": []}
+            if last_status != "disabled" and events:
+                events.emit("home_assistant.status", status="disabled")
+            last_status = "disabled"
             stop.wait(5)
             continue
         try:
@@ -186,8 +198,13 @@ def home_assistant_poll(state: State, stop: threading.Event) -> None:
             order = {entity_id: index for index, entity_id in enumerate(config.home_assistant_entities)}
             entities.sort(key=lambda item: order.get(item["entity_id"], 99))
             state.home_data = {"status": "ok", "entities": entities, "updated_at": datetime.now(ZoneInfo(config.timezone)).isoformat()}
+            status = "ok"
         except (OSError, ValueError, urllib.error.URLError, json.JSONDecodeError) as exc:
             state.home_data = {"status": "offline", "entities": [], "error": str(exc)}
+            status = "offline"
+        if status != last_status and events:
+            events.emit("home_assistant.status", level="error" if status == "offline" else "info", status=status)
+        last_status = status
         stop.wait(3)
 
 
@@ -226,6 +243,11 @@ def write_config(path: Path, config: Config) -> None:
         f"home_assistant_enabled = {str(config.home_assistant_enabled).lower()}",
         f"home_assistant_url = {json.dumps(config.home_assistant_url)}",
         "home_assistant_entities = [" + ", ".join(json.dumps(item) for item in config.home_assistant_entities) + "]",
+        f"openobserve_enabled = {str(config.openobserve_enabled).lower()}",
+        f"openobserve_url = {json.dumps(config.openobserve_url)}",
+        f"openobserve_org = {json.dumps(config.openobserve_org)}",
+        f"openobserve_stream = {json.dumps(config.openobserve_stream)}",
+        f"openobserve_username = {json.dumps(config.openobserve_username)}",
         f"end_action = {json.dumps(config.end_action)}",
         "",
     ))
@@ -547,7 +569,7 @@ def write_control_request(state_dir: Path, request: dict) -> None:
     trigger_temporary.replace(trigger)
 
 
-def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Path):
+def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Path, events: OpenObserveLogger | None = None):
     static = Path(__file__).with_name("static")
     sessions: dict[str, float] = {}
 
@@ -632,6 +654,12 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                     "home_assistant_url": config.home_assistant_url,
                     "home_assistant_entities": list(config.home_assistant_entities),
                     "has_home_assistant_token": bool(os.getenv("HOME_ASSISTANT_TOKEN")),
+                    "openobserve_enabled": config.openobserve_enabled,
+                    "openobserve_url": config.openobserve_url,
+                    "openobserve_org": config.openobserve_org,
+                    "openobserve_stream": config.openobserve_stream,
+                    "openobserve_username": config.openobserve_username,
+                    "has_openobserve_password": bool(os.getenv("OPENOBSERVE_PASSWORD")),
                     "app_version": __version__,
                     "admin_username": os.getenv("ADMIN_USERNAME", "admin"),
                     "admin_auth_enabled": os.getenv("ADMIN_AUTH_ENABLED", "true").lower() != "false",
@@ -708,6 +736,8 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                 if data.get("powered"):
                     request["brightness"] = state.display_brightness
                 write_control_request(mode_path.parent, request)
+                if events:
+                    events.emit("display.power.requested", powered=bool(data.get("powered")))
                 self.send_json(202, b'{"ok":true}')
                 return
             if self.path == "/api/device/brightness":
@@ -731,6 +761,8 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                 data = json.loads(self.rfile.read(length) or b"{}")
                 state.awake_view = "roon" if data.get("view") == "roon" else "bus"
                 state.awake_until = time.monotonic() + state.config.outside_hours_wake_seconds
+                if events:
+                    events.emit("display.wake.requested", view=state.awake_view)
                 self.send_json(200, json.dumps({"ok": True, "awake_seconds": state.config.outside_hours_wake_seconds}).encode())
                 return
             if self.path in {"/api/device/service-visibility", "/api/device/roon-bridge", "/api/device/home-toggle", "/api/device/home-state", "/api/device/home-value"}:
@@ -790,7 +822,7 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                 except (OSError, ValueError, urllib.error.URLError, json.JSONDecodeError) as exc:
                     self.send_json(400, json.dumps({"error": str(exc)}).encode())
                 return
-            if self.path not in {"/api/admin/config", "/api/admin/display-mode", "/api/admin/system-action", "/api/admin/password", "/api/admin/brightness"}:
+            if self.path not in {"/api/admin/config", "/api/admin/display-mode", "/api/admin/system-action", "/api/admin/password", "/api/admin/brightness", "/api/admin/openobserve-test"}:
                 self.send_error(404)
                 return
             if not self.authorised():
@@ -800,6 +832,12 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                 if length > 16_384:
                     raise ValueError("Request is too large")
                 data = json.loads(self.rfile.read(length))
+                if self.path == "/api/admin/openobserve-test":
+                    if events is None:
+                        raise ValueError("Central logging is unavailable")
+                    events.test()
+                    self.send_json(200, b'{"ok":true}')
+                    return
                 if self.path == "/api/admin/password":
                     username = str(data.get("username", "")).strip()
                     password = str(data.get("password", ""))
@@ -851,6 +889,8 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                             raise ValueError("Unknown display orientation")
                         request.update({"profile": profile, "transform": transform})
                     write_control_request(mode_path.parent, request)
+                    if events:
+                        events.emit("system.action.queued", action=action)
                     self.send_json(202, json.dumps({"ok": True, "status": "queued"}).encode())
                     return
                 if self.path == "/api/admin/display-mode":
@@ -859,6 +899,8 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                         raise ValueError("Display mode must be auto, bus, roon, home or sleep")
                     mode_path.parent.mkdir(parents=True, exist_ok=True)
                     mode_path.write_text(mode + "\n", encoding="utf-8")
+                    if events:
+                        events.emit("display.mode.changed", mode=mode)
                     self.send_json(200, json.dumps({"ok": True, "display_mode": mode}).encode())
                     return
                 current = state.config
@@ -877,6 +919,7 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                 home_url = str(data.get("home_assistant_url", current.home_assistant_url)).strip()
                 if home_url and not home_url.startswith(("http://", "https://")):
                     raise ValueError("Home Assistant address must start with http:// or https://")
+                openobserve_url = str(data.get("openobserve_url", current.openobserve_url)).strip().rstrip("/")
                 candidate = Config(
                     bus_stop_code=str(data.get("bus_stop_code", current.bus_stop_code)).strip(),
                     bus_stop_name=str(data.get("bus_stop_name", current.bus_stop_name)).strip(),
@@ -906,6 +949,11 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                     home_assistant_enabled=bool(data.get("home_assistant_enabled", current.home_assistant_enabled)),
                     home_assistant_url=home_url,
                     home_assistant_entities=requested_home_entities,
+                    openobserve_enabled=bool(data.get("openobserve_enabled", current.openobserve_enabled)),
+                    openobserve_url=openobserve_url,
+                    openobserve_org=str(data.get("openobserve_org", current.openobserve_org)).strip(),
+                    openobserve_stream=str(data.get("openobserve_stream", current.openobserve_stream)).strip(),
+                    openobserve_username=str(data.get("openobserve_username", current.openobserve_username)).strip(),
                     end_action="display", simulate=current.simulate,
                 )
                 if not candidate.bus_stop_code.isdigit() or len(candidate.bus_stop_code) != 5:
@@ -928,6 +976,13 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                 wall_time.fromisoformat(candidate.morning_end)
                 wall_time.fromisoformat(candidate.sleep_start)
                 wall_time.fromisoformat(candidate.sleep_end)
+                if candidate.openobserve_enabled:
+                    openobserve_endpoint(candidate)
+                    supplied_openobserve_password = str(data.get("openobserve_password", ""))
+                    if not candidate.openobserve_username:
+                        raise ValueError("OpenObserve username is required")
+                    if not supplied_openobserve_password and not os.getenv("OPENOBSERVE_PASSWORD", ""):
+                        raise ValueError("OpenObserve password is required")
                 write_config(config_path, candidate)
                 account_key = str(data.get("lta_account_key", "")).strip()
                 if account_key:
@@ -935,10 +990,15 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                 home_token = str(data.get("home_assistant_token", "")).strip()
                 if home_token:
                     update_secret(env_path, "HOME_ASSISTANT_TOKEN", home_token)
+                openobserve_password = str(data.get("openobserve_password", ""))
+                if openobserve_password:
+                    update_secret(env_path, "OPENOBSERVE_PASSWORD", openobserve_password)
                 state.enabled_services.intersection_update(candidate.services)
                 state.enabled_services.update(service for service in candidate.services if service not in current.services)
                 state.save_enabled_services()
                 state.config = candidate
+                if events:
+                    events.emit("settings.saved", section=str(data.get("section", "unknown")))
                 self.send_json(200, json.dumps({"ok": True}).encode())
             except (KeyError, TypeError, ValueError, OSError, json.JSONDecodeError) as exc:
                 self.send_json(400, json.dumps({"error": str(exc)}).encode())
@@ -1023,16 +1083,19 @@ def main() -> None:
         config = Config(**{**config.__dict__, "simulate": True})
     clear_sleep_mode_on_start(args.state_dir / "display-mode")
     state = State(config, args.state_dir)
+    events = OpenObserveLogger(lambda: state.config)
     stop = threading.Event()
-    threading.Thread(target=poll, args=(state, stop), daemon=True).start()
-    threading.Thread(target=home_assistant_poll, args=(state, stop), daemon=True).start()
-    server = ThreadingHTTPServer((args.host, args.port), make_handler(state, args.config, args.env, args.state_dir / "display-mode"))
+    threading.Thread(target=poll, args=(state, stop, events), daemon=True).start()
+    threading.Thread(target=home_assistant_poll, args=(state, stop, events), daemon=True).start()
+    server = ThreadingHTTPServer((args.host, args.port), make_handler(state, args.config, args.env, args.state_dir / "display-mode", events))
+    events.emit("application.started", bind_host=args.host, bind_port=args.port)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
         pass
     finally:
         stop.set()
+        events.close()
         server.server_close()
 
 

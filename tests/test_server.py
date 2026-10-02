@@ -24,6 +24,16 @@ class DisplayModeTests(unittest.TestCase):
             self.assertEqual(loaded.roon_now_playing_name, "Roon")
             self.assertEqual(loaded.roon_queue_name, "Q")
 
+    def test_openobserve_settings_persist_without_a_password(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "config.toml"
+            write_config(path, Config(openobserve_enabled=True, openobserve_url="http://observe.local:5080", openobserve_username="admin"))
+            loaded = load_config(path)
+            self.assertTrue(loaded.openobserve_enabled)
+            self.assertEqual(loaded.openobserve_url, "http://observe.local:5080")
+            self.assertEqual(loaded.openobserve_username, "admin")
+            self.assertNotIn("password", path.read_text(encoding="utf-8"))
+
     def test_system_summary_skips_diagnostics_unless_requested(self):
         with tempfile.TemporaryDirectory() as directory, patch("pi_bus_time_display.server.command_output", return_value=""), patch("pi_bus_time_display.server.diagnostics_snapshot", return_value={"checked": True}) as diagnostics:
             self.assertNotIn("diagnostics", system_snapshot(Path(directory)))

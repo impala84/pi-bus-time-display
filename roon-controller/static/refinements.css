@@ -14,6 +14,14 @@ h1 {
   line-clamp: 2;
 }
 
+#title,#artist { overflow: hidden; text-overflow: clip; }
+.scrolling-content { display: inline-block; min-width: max-content; will-change: transform; }
+#title:not(.is-scrolling) .scrolling-content,#artist:not(.is-scrolling) .scrolling-content { max-width: 100%; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }
+
+@media (prefers-reduced-motion: reduce) {
+  .scrolling-content { transform: none !important; }
+}
+
 .transport button {
   display: grid;
   place-items: center;

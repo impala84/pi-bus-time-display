@@ -30,6 +30,11 @@ daytime_inactivity_seconds = 900
 home_assistant_enabled = false
 home_assistant_url = "http://homeassistant.local:8123"
 home_assistant_entities = []
+openobserve_enabled = false
+openobserve_url = ""
+openobserve_org = "default"
+openobserve_stream = "pi_home"
+openobserve_username = ""
 
 # Retained for configuration compatibility. The one-card appliance keeps running
 # Roon Bridge and changes the touchscreen to its quiet clock outside the window.

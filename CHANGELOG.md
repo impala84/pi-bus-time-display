@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.10.3 — 2 October 2026
+
+- Added overflow-aware Now Playing text movement for long track and artist/album names: pause for ten seconds, scroll at a readable speed, pause at the end, then return.
+- Kept short text static, recalculated movement after viewport changes and respected reduced-motion preferences without polling.
+- Added opt-in OpenObserve logging with a bounded background queue, compact batching, retry backoff and a connection test in System settings.
+- Logged operational state changes without sending listening history, Home Assistant entity IDs, artwork or credentials.
+
 ## 0.10.2 — 2 October 2026
 
 - Added a safe compilation fallback for album enrichment: when Roon's track artists are not the album artist, Pi Home accepts MusicBrainz metadata only if the album search has exactly one exact-title match.

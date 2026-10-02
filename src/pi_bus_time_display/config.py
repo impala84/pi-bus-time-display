@@ -40,6 +40,11 @@ class Config:
     home_assistant_enabled: bool = False
     home_assistant_url: str = ""
     home_assistant_entities: tuple[str, ...] = ()
+    openobserve_enabled: bool = False
+    openobserve_url: str = ""
+    openobserve_org: str = "default"
+    openobserve_stream: str = "pi_home"
+    openobserve_username: str = ""
     end_action: str = "display"
     simulate: bool = False
 
@@ -84,4 +89,8 @@ def load_config(path: Path) -> Config:
         raise ValueError("A maximum of eight Home Assistant entities can be shown")
     if config.bluos_player_address and any(char.isspace() for char in config.bluos_player_address):
         raise ValueError("BluOS player address cannot contain spaces")
+    if config.openobserve_url and not config.openobserve_url.startswith(("http://", "https://")):
+        raise ValueError("openobserve_url must start with http:// or https://")
+    if any(not value.strip() for value in (config.openobserve_org, config.openobserve_stream)):
+        raise ValueError("OpenObserve organisation and stream cannot be empty")
     return config

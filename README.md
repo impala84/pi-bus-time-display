@@ -105,6 +105,7 @@ Edit `/etc/pi-bus-time-display/config.toml`:
 - `outside_hours_wake_seconds`: how long a touch wake lasts during overnight hours
 - `daytime_inactivity_seconds`: seconds without a touch before the display sleeps during the day; `0` disables it
 - `home_assistant_enabled`, `home_assistant_url` and `home_assistant_entities`: optional Home panel connection and allow-list (the token remains in `secrets.env`)
+- `openobserve_enabled`, `openobserve_url`, `openobserve_org`, `openobserve_stream` and `openobserve_username`: optional central operational logging; set the password through System settings or as `OPENOBSERVE_PASSWORD` in `secrets.env`
 
 Restart after changes with `sudo systemctl restart pi-bus-time-display`.
 

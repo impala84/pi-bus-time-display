@@ -19,6 +19,45 @@ const format = value => {
   return `${Math.floor(value / 60)}:${String(value % 60).padStart(2, '0')}`;
 };
 
+const scrollingCopy = new Map();
+
+function setScrollingText(element, text) {
+  const value = String(text || '');
+  let entry = scrollingCopy.get(element);
+  if (!entry) {
+    const content = document.createElement('span'); content.className = 'scrolling-content';
+    element.replaceChildren(content); entry = {content, animation: null, value: ''}; scrollingCopy.set(element, entry);
+  }
+  if (entry.value === value) return;
+  entry.value = value; entry.content.textContent = value;
+  requestAnimationFrame(() => refreshScrollingText(element));
+}
+
+function refreshScrollingText(element) {
+  const entry = scrollingCopy.get(element);
+  if (!entry) return;
+  if (entry.animation) { entry.animation.cancel(); entry.animation = null; }
+  const distance = Math.ceil(entry.content.scrollWidth - element.clientWidth);
+  element.classList.toggle('is-scrolling', distance > 4);
+  if (distance <= 4 || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const startPause = 10000; const endPause = 5000;
+  const outward = Math.max(4500, distance / 22 * 1000); const returning = Math.max(3000, distance / 34 * 1000);
+  const total = startPause + outward + endPause + returning;
+  entry.animation = entry.content.animate([
+    {transform: 'translateX(0)', offset: 0},
+    {transform: 'translateX(0)', offset: startPause / total},
+    {transform: `translateX(${-distance}px)`, offset: (startPause + outward) / total},
+    {transform: `translateX(${-distance}px)`, offset: (startPause + outward + endPause) / total},
+    {transform: 'translateX(0)', offset: 1}
+  ], {duration: total, iterations: Infinity, easing: 'linear'});
+}
+
+let scrollingResizeTimer = null;
+addEventListener('resize', () => {
+  clearTimeout(scrollingResizeTimer);
+  scrollingResizeTimer = setTimeout(() => scrollingCopy.forEach((_, element) => refreshScrollingText(element)), 150);
+});
+
 function compactLabel(label) {
   const words = String(label || '').trim().split(/\s+/).filter(Boolean);
   return (words[words.length - 1] || '').toUpperCase();
@@ -79,8 +118,8 @@ function render(next) {
   const playing = zone.now_playing || {};
   const lines = playing.three_line || playing.two_line || playing.one_line || {};
   $('zone').textContent = zone.name;
-  $('title').textContent = lines.line1 || 'Nothing playing';
-  $('artist').textContent = [lines.line2, lines.line3].filter(Boolean).join(' · ') || 'Roon';
+  setScrollingText($('title'), lines.line1 || 'Nothing playing');
+  setScrollingText($('artist'), [lines.line2, lines.line3].filter(Boolean).join(' · ') || 'Roon');
   if (playing.image_key) {
     const url = api(`/api/image?key=${encodeURIComponent(playing.image_key)}`);
     if ($('art').src !== location.origin + url) $('art').src = url;
