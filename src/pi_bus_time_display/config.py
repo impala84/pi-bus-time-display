@@ -28,6 +28,7 @@ class Config:
     roon_show_controls: bool = True
     roon_show_clock: bool = True
     roon_show_queue: bool = True
+    roon_show_browser: bool = True
     bluos_enabled: bool = False
     bluos_player_address: str = ""
     bluos_visible_inputs: tuple[str, ...] = ()

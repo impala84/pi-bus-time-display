@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.11.0 — 2 October 2026
+
+- Added a native Roon Browse view to both the touchscreen and web player, including Roon library navigation, search, album artwork and action rows.
+- Reused Queue's bounded kinetic-scrolling layout so long browser lists cannot displace the fixed top selector or bottom navigation.
+- Kept independent Roon browsing sessions for the touchscreen and each browser, with hierarchy Back navigation and incremental loading for long lists.
+- Added an optional **Show Browse view** setting under Roon & BluOS; disabling it removes Browse from both interfaces.
+
 ## 0.10.8 — 2 October 2026
 
 - Make an explicit manual Sleep cancel any earlier temporary tap-to-wake allowance.

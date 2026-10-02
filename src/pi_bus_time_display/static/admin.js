@@ -11,7 +11,7 @@ const updateHistory=[];
 const sectionFields={
   automation:['morning_start','morning_end','auto_switch_to_roon','roon_idle_return_minutes','sleep_when_roon_idle','daytime_inactivity_minutes','sleep_start','sleep_end','outside_hours_wake_minutes','sleep_show_clock'],
   bus:['bus_stop_code','bus_stop_name','services','walking_minutes','poll_seconds','lta_account_key'],
-  roon:['roon_display_name','roon_now_playing_name','roon_queue_name','roon_zone_name','roon_show_controls','roon_show_clock','roon_show_queue','bluos_enabled','bluos_player_address','bluos_visible_inputs','bluos_input_names'],
+  roon:['roon_display_name','roon_now_playing_name','roon_queue_name','roon_zone_name','roon_show_controls','roon_show_clock','roon_show_queue','roon_show_browser','bluos_enabled','bluos_player_address','bluos_visible_inputs','bluos_input_names'],
   home:['home_assistant_enabled','home_assistant_url','home_assistant_token','home_assistant_entities'],
   logging:['openobserve_enabled','openobserve_url','openobserve_org','openobserve_stream','openobserve_username','openobserve_password'],
 };

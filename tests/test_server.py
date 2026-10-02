@@ -24,6 +24,12 @@ class DisplayModeTests(unittest.TestCase):
             self.assertEqual(loaded.roon_now_playing_name, "Roon")
             self.assertEqual(loaded.roon_queue_name, "Q")
 
+    def test_roon_browser_visibility_persists(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "config.toml"
+            write_config(path, Config(roon_show_browser=False))
+            self.assertFalse(load_config(path).roon_show_browser)
+
     def test_openobserve_settings_persist_without_a_password(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "config.toml"

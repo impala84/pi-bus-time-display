@@ -78,6 +78,18 @@ class DisplayRotationTests(unittest.TestCase):
         self.assertIn(".nav-label-compact { display: inline; }", css)
         self.assertIn("text-transform: uppercase", css)
 
+    def test_roon_browser_reuses_protected_scroll_layout(self):
+        display = (ROOT / "native-display" / "pi_bus_native.py").read_text(encoding="utf-8")
+        html = (ROOT / "roon-controller" / "static" / "index.html").read_text(encoding="utf-8")
+        css = (ROOT / "roon-controller" / "static" / "refinements.css").read_text(encoding="utf-8")
+        admin = (ROOT / "src" / "pi_bus_time_display" / "static" / "admin.html").read_text(encoding="utf-8")
+        self.assertIn('id="browse-tab"', html)
+        self.assertIn('id="browser-view"', html)
+        self.assertIn(".browser-view { position: fixed", css)
+        self.assertIn("inset: 58px 0 96px", css)
+        self.assertIn("browser_scroll.set_kinetic_scrolling(True)", display)
+        self.assertIn('name="roon_show_browser"', admin)
+
     def test_long_now_playing_copy_pauses_and_scrolls_without_polling(self):
         app = (ROOT / "roon-controller" / "static" / "app.js").read_text(encoding="utf-8")
         css = (ROOT / "roon-controller" / "static" / "refinements.css").read_text(encoding="utf-8")

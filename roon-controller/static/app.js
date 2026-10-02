@@ -5,6 +5,10 @@ let musicView = 'now';
 let queueSignature = '';
 let inputSignature = '';
 let lastActiveInput = '';
+let browserState = null;
+let browserLoading = false;
+const browserSession = sessionStorage.getItem('pi-home-roon-browser') || (globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`);
+sessionStorage.setItem('pi-home-roon-browser', browserSession);
 const proxied = location.pathname.startsWith('/roon');
 const api = path => `${proxied ? '/roon' : ''}${path}`;
 const mainOrigin = proxied ? location.origin : `${location.protocol}//${location.hostname}:8765`;
@@ -84,6 +88,9 @@ function render(next) {
   $('roon-link').textContent = labels.display || 'Roon';
   setNavLabel($('now-tab'), labels.now_playing || 'Now Playing');
   setNavLabel($('queue-tab'), labels.queue || 'Queue');
+  setNavLabel($('browse-tab'), labels.browse || 'Browse');
+  $('browse-tab').hidden = !next.browser_enabled;
+  if (!next.browser_enabled && musicView === 'browse') musicView = 'now';
   lastTick = Date.now();
   const zone = next.zone;
   const amplifier = next.amplifier || {};
@@ -103,8 +110,9 @@ function render(next) {
   $('source-view').hidden = !externalView;
   $('now-view').hidden = musicView !== 'now';
   $('queue-view').hidden = musicView !== 'queue';
+  $('browser-view').hidden = musicView !== 'browse';
   $('details-view').hidden = musicView !== 'details';
-  $('now-tab').disabled = $('queue-tab').disabled = false;
+  $('now-tab').disabled = $('queue-tab').disabled = $('browse-tab').disabled = false;
   if (externalView) return;
   if (!zone) {
     $('title').textContent = next.connected ? 'Choose a Roon zone' : 'Waiting for Roon';
@@ -161,7 +169,7 @@ function renderAmplifier(amplifier, zone) {
     inputs.forEach(input => picker.insertBefore(inputButton(input, musicView === 'source' && String(input.id) === String(amplifier.active_input?.id)), $('now-tab')));
   }
   const active = amplifier.active_input;
-  $('now-tab').classList.toggle('active', musicView === 'now'); $('queue-tab').classList.toggle('active', musicView === 'queue');
+  $('now-tab').classList.toggle('active', musicView === 'now'); $('queue-tab').classList.toggle('active', musicView === 'queue'); $('browse-tab').classList.toggle('active', musicView === 'browse');
   $('source-title').textContent = active?.name || 'External input';
   $('source-subtitle').textContent = [amplifier.player?.name || amplifier.player?.model, amplifier.playback?.format].filter(Boolean).join(' · ') || amplifier.status || 'BluOS amplifier';
   const volume = amplifier.volume;
@@ -213,12 +221,48 @@ function scrollQueueToCurrent() {
 function setMusicView(view) {
   musicView = view;
   const queue = view === 'queue';
+  const browse = view === 'browse';
   const details = view === 'details';
   const source = view === 'source';
-  $('now-view').hidden = queue || details || source; $('queue-view').hidden = !queue; $('details-view').hidden = !details; $('source-view').hidden = !source;
-  $('now-tab').classList.toggle('active', view === 'now'); $('queue-tab').classList.toggle('active', queue);
+  $('now-view').hidden = queue || browse || details || source; $('queue-view').hidden = !queue; $('browser-view').hidden = !browse; $('details-view').hidden = !details; $('source-view').hidden = !source;
+  $('now-tab').classList.toggle('active', view === 'now'); $('queue-tab').classList.toggle('active', queue); $('browse-tab').classList.toggle('active', browse);
   document.querySelectorAll('.source-input').forEach(button => button.classList.toggle('active', source && String(button.dataset.inputId) === String(state?.amplifier?.active_input?.id)));
   if (queue) requestAnimationFrame(scrollQueueToCurrent);
+  if (browse && !browserState) browseCommand('current');
+}
+
+function browserRow(item) {
+  if (item.hint === 'header') {
+    const heading = document.createElement('h3'); heading.className = 'browser-section'; heading.textContent = item.title; return heading;
+  }
+  const button = document.createElement('button'); button.className = `browser-row${item.hint === 'action' ? ' action' : ''}`; button.disabled = !item.item_key;
+  const artwork = document.createElement('span'); artwork.className = 'browser-art';
+  if (item.image_key) { const image = document.createElement('img'); image.loading = 'lazy'; image.alt = ''; image.src = api(`/api/image?key=${encodeURIComponent(item.image_key)}&size=128`); artwork.append(image); }
+  const copy = document.createElement('span'); copy.className = 'browser-copy'; const title = document.createElement('strong'); title.textContent = item.title || 'Untitled'; copy.append(title);
+  if (item.subtitle) { const subtitle = document.createElement('small'); subtitle.textContent = item.subtitle; copy.append(subtitle); }
+  const arrow = document.createElement('span'); arrow.className = 'browser-arrow'; arrow.textContent = item.hint === 'action' ? 'PLAY' : '›';
+  button.append(artwork, copy, arrow); button.onclick = () => browseCommand('open', {item_key: item.item_key}); return button;
+}
+
+function renderBrowser(data) {
+  browserState = data; browserLoading = false;
+  $('browser-title').textContent = data.title || 'Browse'; $('browser-subtitle').textContent = data.subtitle || '';
+  $('browser-back').disabled = !data.can_back; $('browser-more').hidden = !data.has_more; $('browser-more').disabled = false;
+  $('browser-message').hidden = !data.message; $('browser-message').textContent = data.message || ''; $('browser-message').classList.toggle('error', Boolean(data.error));
+  const list = $('browser-list'); list.replaceChildren();
+  if (data.status === 'unavailable') { const empty = document.createElement('p'); empty.className = 'queue-empty'; empty.textContent = 'Roon Browse is unavailable.'; list.append(empty); return; }
+  (data.items || []).forEach(item => list.append(browserRow(item)));
+  if (!(data.items || []).length) { const empty = document.createElement('p'); empty.className = 'queue-empty'; empty.textContent = 'Nothing is available here.'; list.append(empty); }
+}
+
+async function browseCommand(action, data = {}) {
+  if (browserLoading) return;
+  browserLoading = true; $('browser-more').disabled = true;
+  try {
+    const options = action === 'current' ? {method: 'GET', cache: 'no-store'} : {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({session: browserSession, action, ...data})};
+    const url = action === 'current' ? api(`/api/browse?session=${encodeURIComponent(browserSession)}`) : api('/api/browse');
+    const response = await fetch(url, options); const result = await response.json(); if (!response.ok) throw new Error(result.error || 'Browse failed'); renderBrowser(result);
+  } catch (error) { browserLoading = false; renderBrowser({...(browserState || {}), status: 'ready', title: browserState?.title || 'Browse', items: browserState?.items || [], message: error.message, error: true}); }
 }
 
 function renderDetails(info) {
@@ -282,5 +326,9 @@ $('amp-up').onclick = () => post('/api/bluos/volume', {value: Number(state?.ampl
 $('amp-mute').onclick = () => post('/api/bluos/mute', {});
 $('now-tab').onclick = () => setMusicView('now');
 $('queue-tab').onclick = () => setMusicView('queue');
+$('browse-tab').onclick = () => setMusicView('browse');
+$('browser-back').onclick = () => browseCommand('back');
+$('browser-more').onclick = () => browseCommand('more');
+$('browser-search').onsubmit = event => { event.preventDefault(); const query = $('browser-query').value.trim(); if (query) browseCommand('search', {query}); };
 $('details-open').onclick = () => setMusicView('details');
 $('details-artwork-close').onclick = () => setMusicView('now');

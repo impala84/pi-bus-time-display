@@ -11,6 +11,7 @@ const RoonApiTransport = require('node-roon-api-transport');
 const {publicQueueItems, updateQueueState} = require('./queue-state');
 const {playingMetadata, loadDetails} = require('./details-state');
 const {BluOSClient, discoverPlayers} = require('./bluos-client');
+const {BrowseManager} = require('./browse-state');
 
 const port = Number(process.env.PORT || 8766);
 const staticDir = path.join(__dirname, 'static');
@@ -37,7 +38,7 @@ let runtimeConfigExpires = 0;
 function configuredRuntime() {
   const now = Date.now();
   if (runtimeConfig && now < runtimeConfigExpires) return runtimeConfig;
-  const defaults = {zoneName: process.env.ROON_ZONE_NAME || '', displayName: 'Roon', nowPlayingName: 'Now Playing', queueName: 'Queue', queueEnabled: true, bluos: {enabled: false, address: '', visibleInputs: [], inputNames: []}};
+  const defaults = {zoneName: process.env.ROON_ZONE_NAME || '', displayName: 'Roon', nowPlayingName: 'Now Playing', queueName: 'Queue', queueEnabled: true, browserEnabled: true, bluos: {enabled: false, address: '', visibleInputs: [], inputNames: []}};
   try {
     const text = fs.readFileSync(process.env.CONFIG_PATH || '/etc/pi-bus-time-display/config.toml', 'utf8');
     const stringValue = name => JSON.parse(text.match(new RegExp(`^${name}\\s*=\\s*("(?:[^"\\\\]|\\\\.)*")`, 'm'))?.[1] || '""');
@@ -48,6 +49,7 @@ function configuredRuntime() {
       nowPlayingName: stringValue('roon_now_playing_name') || 'Now Playing',
       queueName: stringValue('roon_queue_name') || 'Queue',
       queueEnabled: text.match(/^roon_show_queue\s*=\s*(true|false)/m)?.[1] !== 'false',
+      browserEnabled: text.match(/^roon_show_browser\s*=\s*(true|false)/m)?.[1] !== 'false',
       bluos: {
         enabled: text.match(/^bluos_enabled\s*=\s*(true|false)/m)?.[1] === 'true',
         address: stringValue('bluos_player_address'),
@@ -98,8 +100,8 @@ function publicState() {
   bluos.refreshConfig().catch(() => {});
   const configured = configuredRuntime();
   const zone = selectedZone();
-  const labels = {display: configured.displayName, now_playing: configured.nowPlayingName, queue: configured.queueName};
-  if (!zone) return {connected: Boolean(core), authorised: Boolean(core), zones: [], zone: null, labels, queue: {status: 'unavailable', items: []}, details: {status: 'unavailable'}, amplifier: publicAmplifierState()};
+  const labels = {display: configured.displayName, now_playing: configured.nowPlayingName, queue: configured.queueName, browse: 'Browse'};
+  if (!zone) return {connected: Boolean(core), authorised: Boolean(core), zones: [], zone: null, labels, browser_enabled: configured.browserEnabled, queue: {status: 'unavailable', items: []}, details: {status: 'unavailable'}, amplifier: publicAmplifierState()};
   const output = (zone.outputs || []).find(item => item.volume) || (zone.outputs || [])[0] || null;
   return {
     connected: true,
@@ -114,7 +116,7 @@ function publicState() {
       can_seek: Boolean(zone.is_seek_allowed), output: output ? {id: output.output_id, volume: output.volume || null} : null
     },
     queue: {status: !configuredQueueEnabled() ? 'disabled' : (queueZoneId === zone.zone_id ? 'ready' : 'loading'), items: queueZoneId === zone.zone_id ? publicQueueItems(queueItems, queueHistory) : []},
-    labels, details, amplifier: publicAmplifierState()
+    labels, browser_enabled: configured.browserEnabled, details, amplifier: publicAmplifierState()
   };
 }
 
@@ -124,6 +126,7 @@ function broadcast() {
 }
 
 const bluos = new BluOSClient(configuredBluOS, () => broadcast());
+const browser = new BrowseManager(() => browseService, () => selectedZone());
 bluos.refreshConfig().catch(() => {});
 
 function mergeZones(command, data) {
@@ -208,7 +211,7 @@ function cachedImage(key, size, callback) {
 const roon = new RoonApi({
   extension_id: 'com.impala84.pi-bus-time-display',
   display_name: 'Pi Home Roon Controller',
-  display_version: '0.10.8',
+  display_version: '0.11.0',
   publisher: 'Pi Home',
   email: 'noreply@example.invalid',
   website: 'https://github.com/impala84/pi-home',
@@ -223,6 +226,7 @@ const roon = new RoonApi({
   },
   core_unpaired: () => {
     stopQueueSubscription();
+    browser.clear();
     core = transport = imageService = browseService = null;
     details = {status: 'unavailable'}; detailsKey = ''; detailsRequest += 1;
     zones.clear();
@@ -264,6 +268,10 @@ http.createServer(async (request, response) => {
   try {
     const url = new URL(request.url, 'http://localhost');
     if (request.method === 'GET' && url.pathname === '/api/state') { ensureQueueSubscription(); return json(response, 200, publicState()); }
+    if (request.method === 'GET' && url.pathname === '/api/browse') {
+      if (!configuredRuntime().browserEnabled) return json(response, 404, {error: 'Roon Browse is disabled'});
+      return json(response, 200, await browser.run(url.searchParams.get('session'), 'current'));
+    }
     if (request.method === 'GET' && url.pathname === '/api/bluos/players') return json(response, 200, {players: await discoverPlayers()});
     if (request.method === 'GET' && url.pathname === '/api/bluos/inputs') return json(response, 200, {connected: bluos.publicState().connected, inputs: bluos.publicState().inputs});
     if (request.method === 'GET' && url.pathname === '/api/events') {
@@ -287,6 +295,11 @@ http.createServer(async (request, response) => {
       if (url.pathname === '/api/bluos/volume') { await bluos.setVolume(data.value); return json(response, 200, {ok: true}); }
       if (url.pathname === '/api/bluos/mute') { await bluos.toggleMute(); return json(response, 200, {ok: true}); }
       if (!transport || !zone) return json(response, 409, {error: 'Roon is not connected'});
+      if (url.pathname === '/api/browse') {
+        if (!configuredRuntime().browserEnabled) return json(response, 404, {error: 'Roon Browse is disabled'});
+        const action = ['root', 'open', 'back', 'more', 'search', 'current'].includes(data.action) ? data.action : 'current';
+        return json(response, 200, await browser.run(data.session, action, data));
+      }
       if (url.pathname === '/api/control' && data.action === 'resume') resumeRoon(zone);
       else if (url.pathname === '/api/control' && ['previous', 'playpause', 'next'].includes(data.action)) transport.control(zone, data.action);
       else if (url.pathname === '/api/queue/play') {

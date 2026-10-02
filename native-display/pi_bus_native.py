@@ -45,6 +45,7 @@ button { border: 0; box-shadow: none; background-image: none; outline: none; }
 .roon-subnav { margin-top: 0; }.roon-subnav button { min-height: 29px; padding: 4px 13px 2px; border-radius: 0; border-top: 3px solid transparent; background: transparent; color: #68736f; font-size: 10px; font-weight: 750; letter-spacing: 1px; }.roon-subnav button.active { border-top-color: #5bcbd6; color: #f4f0e6; }
 .source-view { padding: 8px; }.source-title { font-size: 25px; font-weight: 700; }.source-volume { font-size: 104px; font-weight: 620; font-variant-numeric: tabular-nums; }.source-step { min-width: 92px; min-height: 92px; border-radius: 46px; background: #18211f; color: #f4f0e6; font-size: 45px; }.source-mute { min-width: 92px; min-height: 38px; border-radius: 8px; background: #18211f; color: #dfe4e1; font-size: 11px; font-weight: 750; }
 .queue-scroll { background: transparent; }.queue-scroll scrollbar { opacity: 0; min-width: 0; min-height: 0; }.queue-list { padding: 5px 8px 8px; }.queue-row { min-height: 66px; padding: 5px 9px; border-radius: 8px; background: transparent; color: #f4f0e6; }.queue-row:hover, .queue-row:active { background: #18211f; }.queue-row.current { background: #121e1c; border-left: 3px solid #5bcbd6; }.queue-row.previous { opacity: .5; }.queue-art { min-width: 56px; min-height: 56px; border-radius: 5px; background: #18211f; }.queue-title { color: #f4f0e6; font-size: 16px; font-weight: 650; }.queue-meta { color: #84908c; font-size: 12px; }.queue-duration { color: #84908c; font-size: 12px; font-variant-numeric: tabular-nums; }.queue-empty { color: #78837f; font-size: 15px; padding: 60px 0; }
+.browser-view { padding: 2px 8px 8px; }.browser-toolbar { padding: 3px 5px 7px; }.browser-heading { font-size: 20px; font-weight: 700; }.browser-message { color: #7f8b87; font-size: 11px; }.browser-search { min-height: 42px; border-radius: 8px; background: #111917; color: #f4f0e6; }.browser-row { min-height: 66px; padding: 5px 9px; border-radius: 8px; background: transparent; color: #f4f0e6; }.browser-row:hover, .browser-row:active { background: #18211f; }.browser-action { border-left: 3px solid #285f4d; }.browser-arrow { color: #78837f; font-size: 18px; }.browser-section { padding: 15px 8px 5px; color: #6ed9ae; font-size: 11px; font-weight: 750; letter-spacing: 1px; }.browser-more { min-height: 48px; margin: 8px; border-radius: 8px; background: #18211f; color: #dfe4e1; font-weight: 750; }
 .transport button { min-width: 50px; min-height: 50px; border-radius: 25px; padding: 0; background: #18211f; color: #e4e7e4; }.transport .play { min-width: 68px; min-height: 68px; border-radius: 34px; background: #285f4d; }
 .progress trough, .volume trough { min-height: 7px; border: 0; box-shadow: none; border-radius: 4px; background: #303a37; }.progress highlight, .volume highlight { border: 0; box-shadow: none; background: #6ed9ae; }.time { color: #87928e; font-size: 12px; }
 .sleep { background: #000; }.sleep-clock { font-size: 112px; font-weight: 550; }.settings-title { font-size: 32px; font-weight: 650; }
@@ -69,6 +70,7 @@ button { border: 0; box-shadow: none; background-image: none; outline: none; }
 .touch-landscape .roon-subnav button { min-height: 42px; padding: 2px 14px 4px; }
 .touch-landscape .source-volume { font-size: 220px; font-weight: 450; }.touch-landscape .source-step { min-width: 112px; min-height: 112px; border-radius: 56px; font-size: 58px; }.touch-landscape .source-mute { min-width: 160px; min-height: 62px; font-size: 20px; }
 .touch-landscape .time { font-size: 20px; }.touch-landscape .volume-number { font-size: 26px; }
+.touch-landscape .browser-heading { font-size: 25px; }.touch-landscape .browser-search { min-height: 48px; font-size: 17px; }.touch-landscape .browser-row { min-height: 78px; }.touch-landscape .browser-more { min-height: 56px; font-size: 16px; }
 .touch-landscape .settings-page { padding-top: 18px; padding-bottom: 18px; }.touch-landscape .settings-page button { padding: 8px 20px; }
 .touch-landscape .settings-page .settings-card { padding: 8px 10px; border: 0; background: transparent; }
 .touch-landscape .settings-page .setting-line { min-height: 72px; padding: 5px 18px; }.touch-landscape .settings-page .setting-line checkbutton label { margin-left: 16px; }
@@ -143,6 +145,10 @@ class Display(Gtk.Application):
         self.queue_thumbnail_order = []
         self.queue_pictures = {}
         self.queue_artwork_keys = []
+        self.browser_state = None
+        self.browser_loading = False
+        self.browser_pictures = {}
+        self.browser_artwork_keys = []
         self.last_interaction = time.monotonic()
         self.inactivity_sleeping = False
         self.sleep_entered_at = 0.0
@@ -248,7 +254,8 @@ class Display(Gtk.Application):
         header_overlay = Gtk.Overlay(); header_overlay.set_child(self.header(self.zone, self.roon_clock))
         subnav = Gtk.Box(spacing=12); subnav.add_css_class("roon-subnav"); subnav.set_halign(Gtk.Align.CENTER); subnav.set_valign(Gtk.Align.START); self.roon_subnav = subnav
         self.now_playing_tab = self.button("NOW PLAYING", self.show_roon_now, ""); self.now_playing_tab.add_css_class("active")
-        self.queue_tab = self.button("QUEUE", lambda *_: self.set_roon_view("queue"), ""); subnav.append(self.now_playing_tab); subnav.append(self.queue_tab)
+        self.queue_tab = self.button("QUEUE", lambda *_: self.set_roon_view("queue"), "")
+        self.browser_tab = self.button("BROWSE", self.show_browser, ""); subnav.append(self.now_playing_tab); subnav.append(self.queue_tab); subnav.append(self.browser_tab)
         header_overlay.add_overlay(subnav); page.append(header_overlay)
         self.roon_views = Gtk.Stack(transition_type=Gtk.StackTransitionType.NONE, transition_duration=0); self.roon_views.set_vexpand(True)
         self.roon_views.set_hhomogeneous(False); self.roon_views.set_vhomogeneous(False)
@@ -278,6 +285,15 @@ class Display(Gtk.Application):
         queue_scroll = Gtk.ScrolledWindow(); queue_scroll.add_css_class("queue-scroll"); queue_scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC); queue_scroll.set_kinetic_scrolling(True); queue_scroll.set_overlay_scrolling(True); queue_scroll.set_propagate_natural_height(False); queue_scroll.set_propagate_natural_width(False); queue_scroll.set_min_content_height(1); queue_scroll.set_size_request(-1, 1); queue_scroll.set_vexpand(True); queue_scroll.set_hexpand(True); queue_scroll.set_child(self.queue_list); self.queue_scroll = queue_scroll
         queue_scroll.get_vadjustment().connect("value-changed", self.load_visible_queue_artwork)
         self.roon_views.add_named(queue_scroll, "queue")
+        browser = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4); browser.add_css_class("browser-view"); browser.set_vexpand(True); browser.set_hexpand(True)
+        browser_toolbar = Gtk.Box(spacing=9); browser_toolbar.add_css_class("browser-toolbar")
+        self.browser_back = self.button("BACK", lambda *_: self.request_browser("back"), "utility"); self.browser_back.set_sensitive(False); browser_toolbar.append(self.browser_back)
+        browser_heading = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=1); browser_heading.set_hexpand(True); self.browser_title = self.label("Browse", "browser-heading"); self.browser_message = self.label("", "browser-message"); self.browser_message.set_ellipsize(Pango.EllipsizeMode.END); browser_heading.append(self.browser_title); browser_heading.append(self.browser_message); browser_toolbar.append(browser_heading)
+        self.browser_search = Gtk.Entry(); self.browser_search.add_css_class("browser-search"); self.browser_search.set_placeholder_text("Search Roon"); self.browser_search.set_size_request(230, -1); self.browser_search.connect("activate", self.search_browser); browser_toolbar.append(self.browser_search)
+        browser_toolbar.append(self.button("SEARCH", self.search_browser, "utility")); browser.append(browser_toolbar)
+        self.browser_list = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2); self.browser_list.add_css_class("queue-list")
+        browser_scroll = Gtk.ScrolledWindow(); browser_scroll.add_css_class("queue-scroll"); browser_scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC); browser_scroll.set_kinetic_scrolling(True); browser_scroll.set_overlay_scrolling(True); browser_scroll.set_propagate_natural_height(False); browser_scroll.set_propagate_natural_width(False); browser_scroll.set_min_content_height(1); browser_scroll.set_size_request(-1, 1); browser_scroll.set_vexpand(True); browser_scroll.set_hexpand(True); browser_scroll.set_child(self.browser_list); self.browser_scroll = browser_scroll
+        browser_scroll.get_vadjustment().connect("value-changed", self.load_visible_browser_artwork); browser.append(browser_scroll); self.roon_views.add_named(browser, "browse")
         detail_panel = Gtk.Box(spacing=24); detail_panel.add_css_class("detail-panel"); detail_panel.set_hexpand(True); detail_panel.set_vexpand(True)
         self.detail_artwork = Gtk.Picture(); self.detail_artwork.add_css_class("detail-artwork"); self.detail_artwork.set_size_request(420, 420); self.detail_artwork.set_content_fit(Gtk.ContentFit.COVER); self.detail_artwork.set_valign(Gtk.Align.CENTER)
         detail_artwork_button = Gtk.Button(); detail_artwork_button.add_css_class("detail-artwork-button"); detail_artwork_button.set_halign(Gtk.Align.CENTER); detail_artwork_button.set_valign(Gtk.Align.CENTER); detail_artwork_button.set_child(self.detail_artwork); detail_artwork_button.connect("clicked", lambda *_: self.set_roon_view("now")); detail_panel.append(detail_artwork_button)
@@ -428,6 +444,8 @@ class Display(Gtk.Application):
             self.controls.set_visible(config.get("roon_show_controls", True)); self.roon_clock.set_visible(config.get("roon_show_clock", True))
             self.roon_subnav.set_visible(True); self.queue_tab.set_visible(config.get("roon_show_queue", True))
             if not config.get("roon_show_queue", True) and self.roon_views.get_visible_child_name() == "queue": self.set_roon_view("now")
+            self.browser_tab.set_visible(config.get("roon_show_browser", True))
+            if not config.get("roon_show_browser", True) and self.roon_views.get_visible_child_name() == "browse": self.set_roon_view("now")
             show_sleep_clock = config.get("sleep_show_clock", False); self.sleep_clock.set_visible(show_sleep_clock); self.sleep_hint.set_visible(show_sleep_clock)
             for button in self.home_nav_buttons: button.set_visible(bool(config.get("home_assistant_enabled") and config.get("home_assistant_entities")))
         if system is not None:
@@ -606,7 +624,7 @@ class Display(Gtk.Application):
         self.render_bluos_inputs(amplifier, bool(zone))
         external = bool(amplifier.get("connected") and active_input)
         external_view = external and self.requested_audio_view == "source"
-        self.artwork_button.set_visible(not external_view); self.controls.set_visible(not external_view and self.settings_data.get("roon_show_controls", True)); self.progress.set_visible(not external_view); self.roon_times.set_visible(not external_view); self.roon_subnav.set_sensitive(True); self.queue_tab.set_sensitive(True)
+        self.artwork_button.set_visible(not external_view); self.controls.set_visible(not external_view and self.settings_data.get("roon_show_controls", True)); self.progress.set_visible(not external_view); self.roon_times.set_visible(not external_view); self.roon_subnav.set_sensitive(True); self.queue_tab.set_sensitive(True); self.browser_tab.set_sensitive(True)
         if external_view:
             player = amplifier.get("player") or {}; volume = amplifier.get("volume") or {}; value = volume.get("value")
             self.zone.set_text(player.get("name") or player.get("model") or "BLUOS"); self.source_title.set_text((active_input.get("name") or "External input").upper()); self.source_volume.set_text(str(round(value)) if value is not None else "—"); self.source_mute.set_sensitive(value is not None); self.source_mute.set_label("UNMUTE" if volume.get("muted") else "MUTE")
@@ -641,7 +659,7 @@ class Display(Gtk.Application):
             self.bluos_source_buttons = {}
             for input_id, name in signature:
                 button = self.button(name.upper(), lambda _button, value=input_id: self.select_bluos_input(value), ""); self.bluos_source_buttons[input_id] = button; self.roon_subnav.append(button)
-            self.roon_subnav.append(self.now_playing_tab); self.roon_subnav.append(self.queue_tab)
+            self.roon_subnav.append(self.now_playing_tab); self.roon_subnav.append(self.queue_tab); self.roon_subnav.append(self.browser_tab)
         active_id = str((amplifier.get("active_input") or {}).get("id") or "")
         for input_id, button in self.bluos_source_buttons.items():
             if self.requested_audio_view == "source" and input_id == active_id: button.add_css_class("active")
@@ -656,16 +674,66 @@ class Display(Gtk.Application):
         if value is not None: threading.Thread(target=post_json, args=(ROON + "/api/bluos/volume", {"value": round(float(value) + amount)}), daemon=True).start()
 
     def set_roon_view(self, name):
-        if name in {"now", "queue", "source"}: self.requested_audio_view = name
+        if name in {"now", "queue", "browse", "source"}: self.requested_audio_view = name
         self.detail_takeover.set_visible(name == "details")
         if name != "details": self.roon_views.set_visible_child_name(name)
-        self.now_playing_tab.remove_css_class("active"); self.queue_tab.remove_css_class("active")
+        self.now_playing_tab.remove_css_class("active"); self.queue_tab.remove_css_class("active"); self.browser_tab.remove_css_class("active")
         if name == "queue": self.queue_tab.add_css_class("active")
+        elif name == "browse": self.browser_tab.add_css_class("active")
         elif name == "now": self.now_playing_tab.add_css_class("active")
         if name == "queue": GLib.idle_add(self.scroll_queue_to_current)
 
     def show_roon_now(self, *_):
         self.set_roon_view("now")
+
+    def show_browser(self, *_):
+        self.set_roon_view("browse")
+        if self.browser_state is None: self.request_browser("current")
+
+    def search_browser(self, *_):
+        query = self.browser_search.get_text().strip()
+        if query: self.request_browser("search", query=query)
+
+    def request_browser(self, action, **payload):
+        if self.browser_loading: return
+        self.browser_loading = True; self.browser_message.set_text("Loading…")
+        threading.Thread(target=self._request_browser, args=(action, payload), daemon=True).start()
+
+    def _request_browser(self, action, payload):
+        if action == "current": result = get_json(f"{ROON}/api/browse?session=touch", timeout=3.0)
+        else: result = post_json(ROON + "/api/browse", {"session": "touch", "action": action, **payload}, timeout=4.0)
+        GLib.idle_add(self.render_browser, result or {"status": "ready", "title": "Browse", "items": [], "message": "Roon Browse did not respond.", "error": True})
+
+    def open_browser_item(self, _button, item_key):
+        if item_key: self.request_browser("open", item_key=item_key)
+
+    def render_browser(self, data):
+        self.browser_loading = False; self.browser_state = data; self.browser_title.set_text(data.get("title") or "Browse"); self.browser_back.set_sensitive(bool(data.get("can_back")))
+        self.browser_message.set_text(data.get("message") or data.get("subtitle") or "")
+        self.browser_pictures = {}; self.browser_artwork_keys = []
+        while child := self.browser_list.get_first_child(): self.browser_list.remove(child)
+        items = data.get("items") or []
+        if not items:
+            self.browser_list.append(self.label("Roon Browse is unavailable." if data.get("status") == "unavailable" else "Nothing is available here.", "queue-empty", .5))
+        for item in items:
+            if item.get("hint") == "header": self.browser_list.append(self.label(item.get("title") or "", "browser-section")); continue
+            row = Gtk.Box(spacing=12); row.set_hexpand(True)
+            picture = Gtk.Picture(); picture.add_css_class("queue-art"); picture.set_size_request(56, 56); picture.set_content_fit(Gtk.ContentFit.COVER); row.append(picture)
+            key = item.get("image_key"); self.browser_artwork_keys.append(key)
+            if key:
+                self.browser_pictures.setdefault(key, []).append(picture)
+                texture = self.queue_thumbnail_cache.get(key)
+                if texture: picture.set_paintable(texture)
+            copy = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2); copy.set_valign(Gtk.Align.CENTER); copy.set_hexpand(True)
+            title = self.label(item.get("title") or "Untitled", "queue-title"); title.set_ellipsize(Pango.EllipsizeMode.END); copy.append(title)
+            subtitle = self.label(item.get("subtitle") or "Roon", "queue-meta"); subtitle.set_ellipsize(Pango.EllipsizeMode.END); copy.append(subtitle); row.append(copy)
+            row.append(self.label("PLAY" if item.get("hint") == "action" else "›", "browser-arrow", 1))
+            button = Gtk.Button(); button.add_css_class("browser-row"); button.set_child(row); button.set_sensitive(bool(item.get("item_key")))
+            if item.get("hint") == "action": button.add_css_class("browser-action")
+            button.connect("clicked", self.open_browser_item, item.get("item_key")); self.browser_list.append(button)
+        if data.get("has_more"):
+            self.browser_list.append(self.button("LOAD MORE", lambda *_: self.request_browser("more"), "browser-more"))
+        GLib.idle_add(self.load_visible_browser_artwork); return False
 
     def render_details(self, details):
         signature = json.dumps(details, sort_keys=True, separators=(",", ":"), default=str)
@@ -741,6 +809,16 @@ class Display(Gtk.Application):
                 self.queue_thumbnail_pending.add(key); self.queue_thumbnail_jobs.put(key)
         return False
 
+    def load_visible_browser_artwork(self, *_):
+        adjustment = self.browser_scroll.get_vadjustment()
+        row_height = 100 if self.window.has_css_class("high-resolution") else 68
+        start = max(0, int(adjustment.get_value() / row_height) - 2)
+        count = max(8, int(adjustment.get_page_size() / row_height) + 5)
+        for key in self.browser_artwork_keys[start:start + count]:
+            if key and key not in self.queue_thumbnail_cache and key not in self.queue_thumbnail_pending:
+                self.queue_thumbnail_pending.add(key); self.queue_thumbnail_jobs.put(key)
+        return False
+
     def thumbnail_worker(self):
         while True:
             key = self.queue_thumbnail_jobs.get()
@@ -758,6 +836,7 @@ class Display(Gtk.Application):
         while len(self.queue_thumbnail_order) > 64:
             old = self.queue_thumbnail_order.pop(0); self.queue_thumbnail_cache.pop(old, None)
         for picture in self.queue_pictures.get(key, []): picture.set_paintable(texture)
+        for picture in self.browser_pictures.get(key, []): picture.set_paintable(texture)
         return False
 
     def play_queue_item(self, _button, queue_item_id):
