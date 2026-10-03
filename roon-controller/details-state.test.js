@@ -1,11 +1,34 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {playingMetadata, chooseItem, artistCandidates, chooseMusicBrainzGroup, chooseUniqueTitleGroup, musicBrainzFacts, parseBandcampPage, loadAlbumWriteup, loadMusicBrainzMetadata, loadDetails} = require('./details-state');
+const {loadArtistProfile, playingMetadata, chooseItem, artistCandidates, chooseMusicBrainzGroup, chooseUniqueTitleGroup, musicBrainzFacts, parseBandcampPage, loadAlbumWriteup, loadMusicBrainzMetadata, loadDetails} = require('./details-state');
+
+test('artist background follows only a unique exact MusicBrainz identity', async () => {
+  const id = '12345678-1234-1234-1234-123456789abc';
+  const calls = [];
+  const json = async path => {
+    calls.push(path);
+    return path.includes('?query=') ? {artists:[{name:'Radiohead',id}]} : {relations:[{url:{resource:'https://en.wikipedia.org/wiki/Radiohead'}}]};
+  };
+  const result = await loadArtistProfile('Radiohead', json, async()=>JSON.stringify({extract:'A British rock band.'}));
+  assert.equal(result.writeup, 'A British rock band.'); assert.equal(result.source,'Wikipedia');
+  assert.match(calls[1], /inc=url-rels/);
+  for (const artists of [[{name:'Other',id}], [{name:'Radiohead',id},{name:'Radiohead',id}]]) {
+    const result = await loadArtistProfile('Radiohead', async()=>({artists}), async()=>{throw Error('Must not request a biography')});
+    assert.equal(result.writeup,'');
+  }
+});
 
 test('playingMetadata reads three-line Roon metadata', () => {
   assert.deepEqual(playingMetadata({now_playing: {three_line: {line1: 'Track', line2: 'Artist', line3: 'Album'}, image_key: 'art'}}),
     {track: 'Track', artist: 'Artist', album: 'Album', image_key: 'art', key: 'artist|album'});
+});
+
+test('artist biography resolves the identity-linked Wikidata article', async () => {
+  const id = '12345678-1234-1234-1234-123456789abc';
+  const result = await loadArtistProfile('Radiohead', async path=>path.includes('?query=')?{artists:[{name:'Radiohead',id}]}:{relations:[{url:{resource:'https://www.wikidata.org/wiki/Q44190'}}]},
+    async url=>url.includes('Special:EntityData')?JSON.stringify({entities:{Q44190:{sitelinks:{enwiki:{title:'Radiohead'}}}}}):JSON.stringify({extract:'Radiohead biography.'}));
+  assert.equal(result.writeup,'Radiohead biography.'); assert.equal(result.source,'Wikipedia');
 });
 
 test('chooseItem prefers an exact title and ignores headers', () => {

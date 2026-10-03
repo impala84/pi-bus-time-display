@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.11.18 — 3 October 2026
+
+- Enlarge Surprise artwork and album/artist text, separate the reroll and play controls from the artwork, and add Surprise and Play Now captions.
+- Move the bus stop title alongside the clock, widen the route rows and enlarge three-route arrivals while preserving space for the bottom navigation.
+- Use a tighter section rail with an accent underline rather than rounded selected buttons.
+- Disable horizontal gallery scrolling and side overshoot; add swipe-right Back with a visible, non-overlapping fallback control.
+- Add an artist overview column with the selected Roon portrait and name plus asynchronously loaded, cached biographies matched through MusicBrainz and linked Wikipedia articles. Ambiguous names show no biography.
+
 ## 0.11.17 — 3 October 2026
 
 - Constrain native artwork grids to the physical display width so the clock and alphabetical scrubber remain on-screen.

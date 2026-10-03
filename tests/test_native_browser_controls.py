@@ -27,6 +27,24 @@ class Entry:
 
 
 class NativeBrowserControlsTests(unittest.TestCase):
+    def test_back_swipe_requires_rightward_horizontal_motion_and_back_destination(self):
+        swipe = native_method("browser_swipe_back")
+        calls = []
+        owner = SimpleNamespace(browser_state={"can_back":True}, request_browser=calls.append)
+        for x, y in ((800,0),(-800,0),(200,0),(800,600),(0,800)): swipe(owner,None,x,y)
+        self.assertEqual(calls, ["back"])
+        owner.browser_state = {"can_back":False}; swipe(owner,None,800,0)
+        self.assertEqual(calls, ["back"])
+
+    def test_late_artist_response_does_not_overwrite_another_artist(self):
+        texts = []
+        owner = SimpleNamespace(artist_profile_cache={}, browser_state={"artist_profile":{"name":"New"}}, artist_bio=SimpleNamespace(set_text=texts.append), artist_bio_source=SimpleNamespace(set_text=texts.append))
+        apply = native_method("apply_artist_profile")
+        apply(owner, "Old", {"writeup":"Old biography","source":"Wikipedia"})
+        self.assertEqual(texts, [])
+        apply(owner, "New", {"writeup":"New biography","source":"Wikipedia"})
+        self.assertEqual(texts, ["New biography", "Wikipedia"])
+
     def test_grid_minimums_fit_physical_monitor_without_using_expanded_content(self):
         metrics = native_method("browser_grid_metrics", {"Gdk": SimpleNamespace(Display=SimpleNamespace(get_default=lambda: display))})
         for width in (480, 720, 800, 1024, 1280):

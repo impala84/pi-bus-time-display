@@ -201,6 +201,18 @@ test('Play Now navigates only after successful playback, not action menus or err
   }
 });
 
+test('artist overview retains the selected portrait when returning from an album', async () => {
+  const service = {browse:(_options,cb)=>cb(false,{action:'list',list:{title:'Band',level:3,count:2}}),load:(_options,cb)=>cb(false,{items:[{title:'Play Artist',hint:'action',item_key:'play'}, {title:'Album',image_key:'album-cover',item_key:'album'}]})};
+  const manager = new BrowseManager(()=>service,()=>({zone_id:'zone'}));
+  manager.sessions.set('pihome-test', {hierarchy:'browse',section:'artists',section_root:true,level:2,items:[{title:'Band',image_key:'portrait',item_key:'band'}]});
+  manager.sections.set('pihome-test','artists');
+  const opened = await manager.run('test','open',{item_key:'band'});
+  assert.deepEqual(opened.artist_profile,{name:'Band',image_key:'portrait'});
+  const restored = manager.store('pihome-test','browse',{title:'Band',level:3},[{title:'Play Artist',hint:'action'},{title:'Album',image_key:'album-cover'}],'','album-cover');
+  assert.deepEqual(restored.artist_profile,{name:'Band',image_key:'portrait'});
+  manager.clear(); assert.equal(manager.artistContexts.size,0);
+});
+
 test('alphabet indexing respects Roon offsets and can load previous results', async () => {
   const titles = ["(What's the Story) Morning Glory?", ...Array.from({length: 35}, (_, i) => `A album ${i}`), 'The Beatles', 'Écho', 'Foxtrot', 'Tango', 'Zulu'];
   let loads = 0;

@@ -91,9 +91,10 @@ class BrowseManager {
     this.activeSessions = new Map();
     this.lastSurprises = new Map();
     this.surpriseOrigins = new Map();
+    this.artistContexts = new Map();
   }
 
-  clear() { this.sessions.clear(); this.pending.clear(); this.sections.clear(); this.alphabetIndexes.clear(); this.activeSessions.clear(); this.lastSurprises.clear(); this.surpriseOrigins.clear(); }
+  clear() { this.sessions.clear(); this.pending.clear(); this.sections.clear(); this.alphabetIndexes.clear(); this.activeSessions.clear(); this.lastSurprises.clear(); this.surpriseOrigins.clear(); this.artistContexts.clear(); }
 
   run(sessionName, command = 'current', data = {}) {
     const session = safeSession(sessionName);
@@ -143,6 +144,11 @@ class BrowseManager {
     if (opened?.shuffle_genre) return this.shuffleGenre(service, zone, session, state, options);
     const result = await request(service, 'browse', options);
     const next = await this.follow(service, session, hierarchy, result, opened?.image_key || null);
+    if (state?.section === 'artists' && state.section_root && opened && result.action === 'list' && !next.error) {
+      this.artistContexts.set(session + ':' + next.title, {name:opened.title,image_key:opened.image_key});
+      while (this.artistContexts.size > 64) this.artistContexts.delete(this.artistContexts.keys().next().value);
+      return this.save(session, {...next, artist_profile:{name:opened.title,image_key:opened.image_key}});
+    }
     if (opened?.action && /^play (now|album)$/i.test(opened.title) && !result.is_error && result.action !== 'list') return {...this.save(session, {...next, message: ''}), navigate: 'now'};
     return next;
   }
@@ -269,6 +275,7 @@ class BrowseManager {
       alpha_scrub: sectionRoot && ['albums', 'artists'].includes(section), can_back: !sectionRoot && (hierarchy !== 'browse' || Number(list?.level || 0) > 0),
       has_more: !filteredLibrary && presentation.layout !== 'home' && Number(loadedOffset || 0) + normalised.length < count,
       fallback_image_key: fallbackImageKey, message, error: false,
+      ...(normalised.some(item => /^play artist$/i.test(item.title)) && this.artistContexts.has(session + ':' + list.title) ? {artist_profile:this.artistContexts.get(session + ':' + list.title)} : {}),
       ...presentation
     });
   }

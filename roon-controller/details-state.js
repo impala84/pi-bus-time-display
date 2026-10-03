@@ -48,7 +48,7 @@ function musicBrainzJson(path) {
 
 function externalText(url) {
   const target = new URL(url);
-  const allowed = target.hostname === 'wikipedia.org' || target.hostname.endsWith('.wikipedia.org') || target.hostname === 'bandcamp.com' || target.hostname.endsWith('.bandcamp.com');
+  const allowed = target.hostname === 'wikipedia.org' || target.hostname.endsWith('.wikipedia.org') || target.hostname === 'bandcamp.com' || target.hostname.endsWith('.bandcamp.com') || (target.hostname === 'www.wikidata.org' && /^\/wiki\/Special:EntityData\/Q\d+\.json$/.test(target.pathname));
   if (!allowed || target.protocol !== 'https:') return Promise.reject(new Error('Unsupported metadata source'));
   return new Promise((resolve, reject) => {
     const request = https.get(target, {timeout: 3500, headers: {'Accept': 'text/html,application/json', 'User-Agent': 'PiHome/0.11.8 (https://github.com/impala84/pi-home)'}}, response => {
@@ -84,6 +84,28 @@ function parseBandcampPage(html) {
 
 function relationResources(...entities) {
   return entities.flatMap(entity => entity?.relations || []).map(relation => relation?.url?.resource).filter(Boolean);
+}
+
+async function loadArtistProfile(name, fetchJson = musicBrainzJson, fetchText = externalText) {
+  const empty = {name, writeup: '', source: ''};
+  const escaped = String(name || '').slice(0, 200).replace(/["\\]/g, ' ');
+  if (!escaped.trim()) return empty;
+  const search = await fetchJson('/ws/2/artist/?query=' + encodeURIComponent('artist:"' + escaped + '"') + '&fmt=json&limit=10');
+  const exact = (search.artists || []).filter(artist => clean(artist.name) === clean(name));
+  // Do not show the biography of an unrelated same-name artist.
+  if (exact.length !== 1 || !/^[a-f0-9-]{36}$/i.test(exact[0].id || '')) return empty;
+  const artist = await fetchJson('/ws/2/artist/' + exact[0].id + '?inc=url-rels&fmt=json');
+  const wikiData = relationResources(artist).find(resource=>/^https:\/\/www.wikidata.org\/wiki\/Q\d+$/.test(resource));
+  if (wikiData && !relationResources(artist).some(resource=>resource.includes('.wikipedia.org/wiki/'))) {
+    try {
+      const id = wikiData.split('/').pop();
+      const entity = JSON.parse(await fetchText('https://www.wikidata.org/wiki/Special:EntityData/' + id + '.json'));
+      const title = entity.entities?.[id]?.sitelinks?.enwiki?.title;
+      if (title) artist.relations.push({url:{resource:'https://en.wikipedia.org/wiki/' + encodeURIComponent(title)}});
+    } catch (_) {}
+  }
+  const result = await loadAlbumWriteup(artist, null, fetchText);
+  return {...empty, writeup: result.writeup, source: result.source};
 }
 
 async function loadAlbumWriteup(group, release, fetchText = externalText) {
@@ -252,4 +274,4 @@ async function loadDetails(service, zone, enrich = loadMusicBrainzMetadata) {
   return base;
 }
 
-module.exports = {playingMetadata, chooseItem, artistCandidates, chooseMusicBrainzGroup, chooseUniqueTitleGroup, musicBrainzFacts, parseBandcampPage, loadAlbumWriteup, loadMusicBrainzMetadata, loadDetails};
+module.exports = {loadArtistProfile, playingMetadata, chooseItem, artistCandidates, chooseMusicBrainzGroup, chooseUniqueTitleGroup, musicBrainzFacts, parseBandcampPage, loadAlbumWriteup, loadMusicBrainzMetadata, loadDetails};

@@ -303,9 +303,31 @@ function browserCard(item, layout, showLabels, section, showSubtitles = true) {
   button.setAttribute('aria-label', [item.title, item.subtitle].filter(Boolean).join(', ')); button.onclick = () => browseCommand('open', {item_key: item.item_key}); return button;
 }
 
+const artistProfiles = new Map();
+function renderArtistProfile(profile) {
+  const panel = $('browser-artist'); panel.replaceChildren(); panel.hidden = !profile;
+  $('browser-view').classList.toggle('artist-takeover', Boolean(profile));
+  if (!profile) return;
+  if (profile.image_key) { const image = document.createElement('img'); image.alt = profile.name; image.src = api('/api/image?key=' + encodeURIComponent(profile.image_key) + '&size=400'); panel.append(image); }
+  const title = document.createElement('h2'); title.textContent = profile.name; panel.append(title);
+  const bio = document.createElement('p'); bio.className = 'artist-bio'; panel.append(bio);
+  const source = document.createElement('small'); source.className = 'artist-source'; panel.append(source);
+  if (!artistProfiles.has(profile.name)) {
+    artistProfiles.set(profile.name, fetch(api('/api/artist?name=' + encodeURIComponent(profile.name))).then(r=>r.ok?r.json():{}).catch(()=>({})));
+    while (artistProfiles.size > 64) artistProfiles.delete(artistProfiles.keys().next().value);
+  }
+  artistProfiles.get(profile.name).then(result=>{
+    if (browserState?.artist_profile?.name !== profile.name || !bio.isConnected) return;
+    bio.textContent = result.writeup || 'Artist background is unavailable.'; source.textContent = result.source || '';
+  });
+}
+
 function renderBrowser(data) {
   browserRendering = true; browserState = data; browserLoading = false;
   $('browser-view').classList.toggle('surprise-takeover', Boolean(data.surprise_preview));
+  renderArtistProfile(data.artist_profile);
+  if (data.surprise_preview) $('browser-view').append($('browser-back'));
+  else document.querySelector('.browser-sidebar').prepend($('browser-back'));
   $('browser-back').hidden = !data.can_back; $('browser-back').disabled = !data.can_back; $('browser-loading-more').hidden = true;
   document.querySelectorAll('[data-browser-section]').forEach(button => button.classList.toggle('active', button.dataset.browserSection === (data.section || 'albums')));
   $('browser-search-open').classList.toggle('active', data.section === 'search');
@@ -326,7 +348,9 @@ function renderBrowser(data) {
     const stage = document.createElement('div'); stage.className = 'surprise-stage';
     const buttons = [];
     for (const [symbol, label, action] of [['↻', 'Surprise me again', 'surprise'], ['▶', 'Play this album', 'surprise_play']]) {
-      const button = document.createElement('button'); button.className = 'surprise-action'; button.textContent = symbol; button.title = label; button.setAttribute('aria-label', label); button.onclick = () => browseCommand(action); buttons.push(button);
+      const controls = document.createElement('div'); controls.className = 'surprise-control';
+      const button = document.createElement('button'); button.className = 'surprise-action'; button.textContent = symbol; button.title = label; button.setAttribute('aria-label', label); button.onclick = () => browseCommand(action);
+      const caption = document.createElement('span'); caption.textContent = action === 'surprise' ? 'Surprise' : 'Play Now'; controls.append(button, caption); buttons.push(controls);
     }
     stage.append(buttons[0], art, buttons[1]); preview.append(stage, title, artist); list.append(preview);
   } else (data.items || []).forEach(item => list.append(item.action ? browserRow(item) : (['home', 'menu', 'covers', 'tiles'].includes(data.layout) ? browserCard(item, data.layout, Boolean(data.show_labels), data.section, data.show_subtitles !== false) : browserRow(item))));
@@ -475,6 +499,18 @@ function scrubAtPointer(event) {
   const bounds = $('browser-scrubber').getBoundingClientRect();
   positionWebScrubber((event.clientY - bounds.top - 16) * 25 / Math.max(1, bounds.height - 32));
 }
+let browserSwipeStart = null;
+$('browser-scroll').addEventListener('touchstart', event => {
+  if (event.touches.length !== 1) { browserSwipeStart = null; return; }
+  browserSwipeStart = {x:event.touches[0].clientX,y:event.touches[0].clientY,time:Date.now()};
+}, {passive:true});
+$('browser-scroll').addEventListener('touchend', event => {
+  const start = browserSwipeStart; browserSwipeStart = null;
+  if (!start || !event.changedTouches.length || !browserState?.can_back) return;
+  const dx = event.changedTouches[0].clientX - start.x, dy = event.changedTouches[0].clientY - start.y;
+  if (dx > 90 && dx > Math.abs(dy) * 2 && Date.now() - start.time < 900) browseCommand('back');
+}, {passive:true});
+$('browser-scroll').addEventListener('touchcancel', ()=>{browserSwipeStart=null}, {passive:true});
 $('browser-scrub-range').onpointerdown = event => { event.preventDefault(); browserScrubDragging = true; event.target.setPointerCapture(event.pointerId); scrubAtPointer(event); };
 $('browser-scrub-range').onpointermove = event => { if (browserScrubDragging) scrubAtPointer(event); };
 $('browser-scrub-range').onpointerup = event => { if (!browserScrubDragging) return; scrubAtPointer(event); browserScrubDragging = false; browseCommand('jump', {letter: $('browser-scrub-letter').textContent}); };

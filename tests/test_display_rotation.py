@@ -6,6 +6,18 @@ ROOT = Path(__file__).parents[1]
 
 
 class DisplayRotationTests(unittest.TestCase):
+    def test_native_browse_is_vertical_only_and_back_is_not_an_overlay(self):
+        display = (ROOT / "native-display/pi_bus_native.py").read_text()
+        self.assertNotIn('browser.add_overlay(self.browser_back)', display)
+        self.assertNotIn('browser_scroll.set_policy(Gtk.PolicyType.EXTERNAL', display)
+        self.assertIn('swipe.connect("swipe", self.browser_swipe_back)', display)
+        self.assertIn('self.browser_artist_scroll.set_propagate_natural_height(False)', display)
+
+    def test_native_bus_title_shares_clock_header_and_saves_a_row(self):
+        display = (ROOT / "native-display/pi_bus_native.py").read_text()
+        self.assertIn('page.append(self.header(self.stop, self.bus_clock))', display)
+        self.assertNotIn('page.append(stop_row)', display)
+
     def test_system_uses_compact_accessible_tabs_instead_of_anchors(self):
         html = (ROOT / "src/pi_bus_time_display/static/admin.html").read_text()
         css = (ROOT / "src/pi_bus_time_display/static/admin.css").read_text()
@@ -105,7 +117,7 @@ class DisplayRotationTests(unittest.TestCase):
         self.assertIn(".browser-view.surprise-takeover .browser-list { display: block; }", css)
         self.assertIn("['▶', 'Play this album', 'surprise_play']", app)
         self.assertIn('self.browser_sidebar.set_visible(not data.get("surprise_preview"))', display)
-        self.assertIn('self.request_browser("surprise_play")', display)
+        self.assertIn('("Play Now", "media-playback-start-symbolic", "surprise_play")', display)
         self.assertIn("['↻', 'Surprise me again', 'surprise']", app)
         self.assertIn('self.button("SURPRISE!"', display)
         self.assertNotIn("Surprise Again", app)
@@ -141,7 +153,7 @@ class DisplayRotationTests(unittest.TestCase):
         self.assertIn("['home', 'menu', 'covers', 'tiles'].includes", web)
         self.assertIn('columns = 4', display)
         self.assertNotIn('self.browser_title', display)
-        self.assertIn('browser.add_overlay(self.browser_back)', display)
+        self.assertIn('browser_main.append(self.browser_back)', display)
         self.assertIn('cr.set_line_width(5)', display)
         self.assertIn('for _ in range(3): threading.Thread(target=self.thumbnail_worker', display)
         self.assertIn('def maybe_load_more_browser(self):', display)

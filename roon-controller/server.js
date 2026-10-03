@@ -9,7 +9,8 @@ const RoonApiImage = require('node-roon-api-image');
 const RoonApiStatus = require('node-roon-api-status');
 const RoonApiTransport = require('node-roon-api-transport');
 const {publicQueueItems, updateQueueState} = require('./queue-state');
-const {playingMetadata, loadDetails} = require('./details-state');
+const {playingMetadata, loadDetails, loadArtistProfile} = require('./details-state');
+const artistProfileCache = new Map();
 const {BluOSClient, discoverPlayers} = require('./bluos-client');
 const {BrowseManager} = require('./browse-state');
 
@@ -278,6 +279,16 @@ function serveStatic(request, response) {
 http.createServer(async (request, response) => {
   try {
     const url = new URL(request.url, 'http://localhost');
+    if (request.method === 'GET' && url.pathname === '/api/artist') {
+      const name = String(url.searchParams.get('name') || '').trim().slice(0, 200);
+      if (!name) return json(response, 400, {error:'Artist name required'});
+      if (!artistProfileCache.has(name)) {
+        const pending = loadArtistProfile(name).catch(()=>({name,writeup:'',source:''}));
+        artistProfileCache.set(name, pending);
+        while (artistProfileCache.size > 64) artistProfileCache.delete(artistProfileCache.keys().next().value);
+      }
+      return json(response, 200, await artistProfileCache.get(name));
+    }
     if (request.method === 'GET' && url.pathname === '/api/state') { ensureQueueSubscription(); return json(response, 200, publicState()); }
     if (request.method === 'GET' && url.pathname === '/api/browse') {
       if (!configuredRuntime().browserEnabled) return json(response, 404, {error: 'Roon Browse is disabled'});
