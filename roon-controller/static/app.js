@@ -231,7 +231,7 @@ function scrollQueueToCurrent() {
   if (current) current.scrollIntoView({block: 'start'});
 }
 
-function setMusicView(view) {
+function setMusicView(view, record = true) {
   musicView = view;
   const queue = view === 'queue';
   const browse = view === 'browse';
@@ -242,6 +242,7 @@ function setMusicView(view) {
   document.querySelectorAll('.source-input').forEach(button => button.classList.toggle('active', source && String(button.dataset.inputId) === String(state?.amplifier?.active_input?.id)));
   if (queue) requestAnimationFrame(scrollQueueToCurrent);
   if (browse && !browserState) browseCommand('section', {section: 'albums'});
+  if (record && location.hash !== `#${view}`) history.pushState(null, '', `#${view}`);
 }
 
 function browserRow(item) {
@@ -528,3 +529,10 @@ $('browser-scroll').addEventListener('wheel', event => { if (event.deltaY < 0 &&
 $('browser-scrub-range').onchange = event => browseCommand('jump', {letter: String.fromCharCode(65 + Number(event.target.value))});
 $('details-open').onclick = () => setMusicView('details');
 $('details-artwork-close').onclick = () => setMusicView('now');
+function restoreMusicRoute() {
+  const view = location.hash.slice(1);
+  setMusicView(['now', 'queue', 'browse', 'details', 'source'].includes(view) ? view : 'now', false);
+}
+window.addEventListener('popstate', restoreMusicRoute);
+window.addEventListener('hashchange', restoreMusicRoute);
+restoreMusicRoute();

@@ -720,3 +720,8 @@
 ## 0.1.0 — 28 September 2026
 
 - Initial Raspberry Pi bus display, web settings, kiosk service and Roon integration.
+# v0.11.33 — 4 October 2026
+
+- Web search preserves the selected theme background instead of covering the page in gray.
+- Shared Roon search shows up to five actual matches per category, plus View all, with independent category sessions for reliable opening and returning on web and native displays.
+- Web music views and settings tabs now have URL fragments, browser Back/Forward support, and settings sub-tab deep links.

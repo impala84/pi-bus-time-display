@@ -3,6 +3,39 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const {BrowseManager, browserLayout, formatDuration, libraryItems, publicItem, rootItems, safeSession, withAlbumArtist, withFallbackImage} = require('./browse-state');
 
+test('grouped search previews keep independent keys, show five matches, and return to groups', async () => {
+  const paths = new Map();
+  const service = {
+    browse(options, done) {
+      let path = options.pop_all ? '' : paths.get(options.multi_session_key) || '';
+      if (options.item_key) {
+        assert.ok(options.item_key.startsWith(options.multi_session_key + ':'), 'keys belong to the correct Roon session');
+        path = options.item_key.split(':')[1];
+      }
+      if (options.pop_levels) path = path.startsWith('album') ? 'Albums' : '';
+      paths.set(options.multi_session_key, path);
+      done(false, {action: 'list', list: {title: path || 'Search', level: !path ? 0 : path.startsWith('album') ? 2 : 1}});
+    },
+    load(options, done) {
+      const path = paths.get(options.multi_session_key);
+      const titles = !path ? ['Artists', 'Albums'] : path.startsWith('album') ? ['Play Album'] : Array.from({length: 8}, (_, i) => `${path === 'Albums' ? 'album' : 'artist'} ${i}`);
+      done(false, {list: {title: path || 'Search', level: !path ? 0 : path.startsWith('album') ? 2 : 1, count: titles.length}, items: titles.map(title => ({title, item_key: `${options.multi_session_key}:${title}`, ...(title === 'Play Album' ? {hint: 'action'} : {})}))});
+    }
+  };
+  const manager = new BrowseManager(() => service, () => ({zone_id: 'zone'}));
+  const root = await manager.run('group-test', 'search', {query: 'Example', source: 'all'});
+  assert.equal(root.layout, 'list');
+  assert.deepEqual(root.items.filter(item => item.hint === 'header').map(item => item.title), ['ARTISTS', 'ALBUMS']);
+  assert.equal(root.items.filter(item => /^album /.test(item.title)).length, 5);
+  const album = root.items.find(item => item.title === 'album 0');
+  assert.equal((await manager.run('group-test', 'open', {item_key: album.item_key})).title, 'album 0');
+  await manager.run('group-test', 'back');
+  assert.equal((await manager.run('group-test', 'back')).items[0].title, 'ARTISTS');
+  const all = root.items.find(item => item.title === 'View all albums');
+  assert.equal((await manager.run('group-test', 'open', {item_key: all.item_key})).items.length, 8);
+  assert.equal((await manager.run('group-test', 'back')).layout, 'list');
+});
+
 function fakeService() {
   const sessions = new Map();
   const levels = {

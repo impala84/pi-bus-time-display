@@ -355,7 +355,8 @@ body[data-theme="roon"] .music-subnav, body[data-theme="roon"] .web-nav, body[da
 .browser-view, .browser-view.surprise-takeover { padding-left: 25px; padding-right: 25px; }
 .browser-sidebar { padding-left: 0; }
 #browser-keyboard { display: none; }
-.browser-search-panel { padding: 24px; }
+.browser-search-panel, body[data-theme="roon"] .browser-search-panel { padding: 24px; background: transparent; }
+.browser-view:has(.browser-search-panel:not([hidden])) > :not(.browser-search-panel) { visibility: hidden; }
 .browser-search-panel form { max-width: 1100px; margin: 20px auto; align-items: stretch; }
 .browser-search-panel input { min-height: 72px; font-size: clamp(22px,2.6vw,32px); }
 .browser-search-panel form button { min-width: 100px; cursor: pointer; }

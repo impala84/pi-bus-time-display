@@ -104,6 +104,17 @@ class BrowseManager {
       if (command === 'surprise') return this.surprise(session);
       if (command === 'surprise_play') return this.playSurprise(session);
       let active = this.activeSessions.get(session) || session;
+      const preview = this.sessions.get(active)?.search_routes?.[data.item_key];
+      if (command === 'open' && preview) {
+        this.activeSessions.set(session, preview.session);
+        if (!preview.key) return this.sessions.get(preview.session);
+        return this._run(preview.session, 'open', {item_key: preview.key});
+      }
+      const origin = this.sessions.get(active)?.search_origin;
+      if (command === 'back' && origin && this.sessions.get(active).level <= origin.level) {
+        this.activeSessions.set(session, origin.session);
+        return this.sessions.get(origin.session);
+      }
       if (command === 'section' || command === 'root') {
         const section = ['albums', 'artists', 'genres', 'playlists'].includes(data.section) ? data.section : 'albums';
         active = `${session}-${section}`;
@@ -272,7 +283,40 @@ class BrowseManager {
     // The search hierarchy takes input on the root browse request. Opening
     // it without input returns "No Results", not an input_prompt item.
     const result = await request(service, 'browse', {hierarchy: 'search', multi_session_key: session, zone_or_output_id: zone.zone_id, pop_all: true, input: query});
-    return this.follow(service, session, 'search', result);
+    const root = await this.follow(service, session, 'search', result);
+    const categories = root.items.filter(item => /^(albums|artists|tracks|playlists|composers|works)$/i.test(item.title.trim()) && item.item_key);
+    if (!categories.length) return root;
+    const items = [], routes = {};
+    for (const [index, category] of categories.entries()) {
+      const child = `${session}-preview-${index}`;
+      this.sections.set(child, 'search');
+      try {
+        // Independent Roon sessions keep result keys valid while other groups load.
+        const fresh = await request(service, 'browse', {hierarchy: 'search', multi_session_key: child, zone_or_output_id: zone.zone_id, pop_all: true, input: query});
+        const freshRoot = await this.follow(service, child, 'search', fresh);
+        const match = freshRoot.items.find(item => item.title === category.title);
+        if (!match?.item_key) continue;
+        const opened = await request(service, 'browse', {hierarchy: 'search', multi_session_key: child, zone_or_output_id: zone.zone_id, item_key: match.item_key});
+        const group = await this.follow(service, child, 'search', opened);
+        if (group.error || !group.items.length) continue;
+        this.save(child, {...group, search_origin: {session, level: group.level}});
+        items.push({title: category.title.toUpperCase(), hint: 'header'});
+        for (const [position, item] of group.items.filter(item => item.hint !== 'header' && !item.action).slice(0, 5).entries()) {
+          const key = `preview-${index}-${position}`;
+          routes[key] = {session: child, key: item.item_key};
+          items.push({...item, item_key: item.item_key ? key : null});
+        }
+        const key = `preview-${index}-all`;
+        routes[key] = {session: child};
+        items.push({title: `View all ${category.title.toLowerCase()}`, subtitle: category.subtitle, item_key: key});
+      } catch (_) {
+        // Keep a usable category link if a catalogue cannot load its preview.
+        items.push(category);
+      }
+    }
+    const direct = root.items.filter(item => !categories.includes(item));
+    if (direct.length) items.unshift({title: 'TOP RESULTS', hint: 'header'}, ...direct);
+    return this.save(session, {...root, items, search_routes: routes, layout: 'list', show_labels: true, has_more: false, count: items.length});
   }
 
   searchUnavailable(session, message) {
@@ -361,7 +405,11 @@ class BrowseManager {
     return this.save(session, {...state, offset, items});
   }
 
-  save(session, state) { this.sessions.set(session, state); return state; }
+  save(session, state) {
+    const origin = this.sessions.get(session)?.search_origin;
+    if (origin && !state.search_origin) state = {...state, search_origin: origin};
+    this.sessions.set(session, state); return state;
+  }
 }
 
 module.exports = {BrowseManager, browserLayout, formatDuration, isActionItem, libraryItems, publicItem, rootItems, safeSession, withAlbumArtist, withFallbackImage};
