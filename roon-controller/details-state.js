@@ -1,6 +1,7 @@
 'use strict';
 
 const https = require('https');
+const {displayArtist} = require('./artist-name');
 
 let musicBrainzTail = Promise.resolve();
 let lastMusicBrainzRequest = 0;
@@ -9,9 +10,9 @@ function playingMetadata(zone) {
   const playing = zone?.now_playing || {};
   const lines = playing.three_line || playing.two_line || playing.one_line || {};
   return {
-    track: lines.line1 || '', artist: lines.line2 || '', album: lines.line3 || '',
+    track: lines.line1 || '', artist: displayArtist(playing), album: lines.line3 || '',
     image_key: playing.image_key || null,
-    key: [lines.line2, lines.line3].map(value => String(value || '').trim().toLowerCase()).join('|')
+    key: [displayArtist(playing), lines.line3].map(value => String(value || '').trim().toLowerCase()).join('|')
   };
 }
 

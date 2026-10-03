@@ -321,4 +321,22 @@ body[data-theme="roon"] { --bg: #151515; --panel: #242424; --ink: #f5f5f5; --mut
 body[data-theme="roon"] .browser-card-art, body[data-theme="roon"] .browser-action-art { background: #282828; }
 body[data-theme="roon"] .music-subnav button.active { border-color: var(--mint); }
 body[data-theme="roon"] .browser-sidebar button.active { color: var(--mint); background: transparent; border: 0; }
-body[data-theme="roon"] .browser-sidebar .browser-back { background: #292929; border-color: #555; }
+body[data-theme="roon"] .browser-sidebar .browser-back { background: #303030; border: 0; color: var(--mint); }
+.browser-sidebar { height: 100%; align-self: stretch; }
+.browser-sidebar .browser-back { margin-top: auto; align-self: flex-start; width: 80px; min-width: 0; min-height: 32px; height: 32px; padding: 4px 10px; border: 0; border-radius: 7px; background: #303030; color: var(--mint); }
+.queue-play-badge { background: transparent; border-radius: 0; color: var(--mint); }
+#browser-search-source { min-height: 44px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel); color: var(--ink); padding: 8px; font: inherit; }
+body[data-theme="roon"] .queue-row.current, body[data-theme="roon"] .queue-row:hover, body[data-theme="roon"] .queue-row:active { background: #292733; }
+body[data-theme="roon"] .transport button, body[data-theme="roon"] .source-step, body[data-theme="roon"] .source-mute, body[data-theme="roon"] .browser-search-panel, body[data-theme="roon"] .browser-keyboard button, body[data-theme="roon"] .browser-search-panel input { background: #292929; color: var(--ink); }
+body[data-theme="roon"] .transport .play { background: var(--mint); color: #151515; }
+body[data-theme="roon"] .timeline input, body[data-theme="roon"] input[type="range"] { accent-color: var(--mint); }
+body[data-theme="roon"] .music-subnav, body[data-theme="roon"] .web-nav, body[data-theme="roon"] .settings-cog { background: rgba(21,21,21,.96); }
+body[data-theme="roon"] .volume button { background: #292929; color: var(--ink); }
+body[data-theme="roon"] .browser-scrubber input::-webkit-slider-runnable-track { background: #45424b; }
+body[data-theme="roon"] .browser-scrubber input::-moz-range-track, body[data-theme="roon"] .browser-scrubber input::-moz-range-progress { background: #45424b; }
+@media(max-width:700px) and (orientation:portrait) {
+  .surprise-takeover .surprise-stage { grid-template-columns: 46px minmax(0,1fr) 46px; }
+  .surprise-takeover .surprise-art { width: 100%; }
+  #browser-search-form { flex-wrap: wrap; }
+  #browser-search-form input { min-width: 0; flex: 1 1 100%; }
+}

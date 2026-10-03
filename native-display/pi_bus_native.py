@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import select
 import struct
 import threading
@@ -124,6 +125,29 @@ CSS += b"""
 .browser-key { min-height: 44px; min-width: 40px; padding: 6px; background: #18211f; color: #f4f0e6; font-size: 20px; border-radius: 7px; }
 .queue-duration, .high-resolution .queue-duration { font-size: 26px; min-width: 72px; padding-right: 16px; }
 .queue-play-badge { min-width: 52px; min-height: 52px; border-radius: 26px; }
+.browser-view { padding-left: 0; }
+.browser-back, .touch-landscape .browser-back { min-width: 70px; min-height: 28px; padding: 4px 10px; margin-top: 8px; border: 0; border-radius: 7px; background: #303030; color: #6ed9ae; }
+.queue-play-badge { background: transparent; border-radius: 0; color: #6ed9ae; }
+.theme-roon .browser-back { background: #303030; border: 0; color: #817aeb; }
+.theme-roon .queue-play-badge { background: transparent; color: #817aeb; }
+.theme-roon .queue-row.current, .theme-roon .queue-row:hover, .theme-roon .queue-row:active { background: #292733; }
+.theme-roon .utility, .theme-roon .source-step, .theme-roon .source-mute, .theme-roon .transport button, .theme-roon .browser-key, .theme-roon .browser-search-entry { background: #292929; color: #ddd; }
+.theme-roon .transport .play, .theme-roon .settings-action { background: #7069df; color: #fff; }
+.theme-roon .settings-card, .theme-roon .home-tile { background: #232228; border-color: #44414c; }
+.theme-roon .setting-line, .theme-roon .settings-select { background: #202025; color: #eee; }
+.theme-roon check { background: #242329; border-color: #77727e; }
+.theme-roon check:checked { background: #817aeb; color: #151515; border-color: #817aeb; }
+.theme-roon .progress trough, .theme-roon .volume trough, .theme-roon .home-level trough { background: #45424b; }
+.theme-roon .progress highlight, .theme-roon .volume highlight, .theme-roon .home-level highlight { background: #817aeb; }
+.theme-roon .home-tile.on { background: #302b44; border-color: #817aeb; }
+.theme-roon .home-tile.on button, .theme-roon .boot-logo, .theme-roon .surprise-action { color: #817aeb; }
+.theme-roon .surprise-action, .theme-roon .queue-art { background: #292929; }
+.theme-roon .clock { color: #bbb; }
+.theme-roon .browser-tile-icon, .theme-roon .browser-home-icon, .theme-roon .browser-section { color: #817aeb; }
+.theme-roon .browser-home-card { background: #232228; }
+.theme-roon .roon-artist, .theme-roon .detail-artist, .theme-roon .surprise-artist, .theme-roon .surprise-caption, .theme-roon .queue-meta, .theme-roon .queue-duration, .theme-roon .muted, .theme-roon .home-state, .theme-roon .settings-diagnostic, .theme-roon .time, .theme-roon .browser-filter { color: #aaa; }
+.theme-roon .browser-filter.active { color: #817aeb; }
+.theme-roon .detail-takeover { background: rgba(21,21,21,.96); }
 """
 
 
@@ -341,10 +365,10 @@ class Display(Gtk.Application):
             button = self.button(section.upper(), lambda _button, value=section: self.request_browser("section", section=value), "browser-filter"); button.get_child().set_xalign(0); self.browser_section_buttons[section] = button; sidebar.append(button)
         self.browser_search_button = self.button("SEARCH", self.show_browser_search, "browser-filter"); self.browser_search_button.get_child().set_xalign(0); sidebar.append(self.browser_search_button)
         self.browser_surprise_button = self.button("SURPRISE!", lambda *_: self.request_browser("surprise"), "browser-filter"); self.browser_surprise_button.get_child().set_xalign(0); self.browser_surprise_button.add_css_class("browser-surprise"); sidebar.append(self.browser_surprise_button)
-        self.browser_back = self.button("‹ BACK", lambda *_: self.request_browser("back"), "browser-back"); self.browser_back.set_visible(False); self.browser_back.set_halign(Gtk.Align.START); self.browser_back.set_valign(Gtk.Align.START)
+        self.browser_back = self.button("BACK", lambda *_: self.request_browser("back"), "browser-back"); self.browser_back.set_visible(False); self.browser_back.set_halign(Gtk.Align.START); self.browser_back.set_valign(Gtk.Align.END)
         self.browser_sidebar = sidebar; browser_body.append(sidebar)
         browser_main = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2); browser_main.add_css_class("browser-main"); browser_main.set_vexpand(True); browser_main.set_hexpand(True)
-        sidebar.append(self.browser_back)
+        sidebar.set_vexpand(True); spacer = Gtk.Box(); spacer.set_vexpand(True); sidebar.append(spacer); sidebar.append(self.browser_back)
         self.browser_message = self.label("", "browser-message"); self.browser_message.set_ellipsize(Pango.EllipsizeMode.END); self.browser_message.set_visible(False); browser_main.append(self.browser_message)
         self.browser_list = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2); self.browser_list.add_css_class("queue-list")
         browser_scroll = Gtk.ScrolledWindow(); browser_scroll.add_css_class("queue-scroll"); browser_scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC); browser_scroll.set_kinetic_scrolling(True); browser_scroll.set_overlay_scrolling(True); browser_scroll.set_propagate_natural_height(False); browser_scroll.set_propagate_natural_width(False); browser_scroll.set_min_content_height(1); browser_scroll.set_size_request(-1, 1); browser_scroll.set_vexpand(True); browser_scroll.set_hexpand(True); browser_scroll.set_child(self.browser_list); self.browser_scroll = browser_scroll
@@ -361,6 +385,7 @@ class Display(Gtk.Application):
         content.append(self.browser_scrubber); browser_main.append(content); browser_body.append(browser_main)
         self.roon_views.add_named(browser, "browse")
         search_panel = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12); search_panel.add_css_class("browser-search-panel")
+        self.browser_search_source = Gtk.DropDown.new_from_strings(["Library", "TIDAL"]); self.browser_search_source.add_css_class("settings-select"); search_panel.append(self.browser_search_source)
         search_header = Gtk.Box(spacing=12); self.browser_search_entry = Gtk.Entry(); self.browser_search_entry.add_css_class("browser-search-entry"); self.browser_search_entry.set_placeholder_text("Search Roon"); self.browser_search_entry.set_hexpand(True); self.browser_search_entry.connect("activate", self.submit_browser_search); search_header.append(self.browser_search_entry); search_header.append(self.button("CANCEL", lambda *_: self.set_roon_view("browse"), "browser-key")); search_panel.append(search_header)
         for keys in ("QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM", "1234567890"):
             key_row = Gtk.Box(spacing=7); key_row.set_homogeneous(True)
@@ -402,7 +427,8 @@ class Display(Gtk.Application):
         card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14); card.add_css_class("settings-card"); card.set_vexpand(True)
         self.device_status = self.label("Checking system…", "muted", .5); card.append(self.device_status)
         self.touch_diagnostics = self.label("Loading diagnostics…", "settings-diagnostic", .5); self.touch_diagnostics.set_wrap(True); self.touch_diagnostics.set_justify(Gtk.Justification.CENTER); self.touch_diagnostics.set_margin_top(8); self.touch_diagnostics.set_margin_bottom(14); card.append(self.touch_diagnostics)
-        controls = Gtk.Box(spacing=28); controls.add_css_class("settings-controls"); controls.set_vexpand(True); controls.set_valign(Gtk.Align.CENTER)
+        theme_row = Gtk.Box(spacing=16); theme_row.append(self.label("THEME", "eyebrow")); self.touch_theme = Gtk.DropDown.new_from_strings(["Fresh Mint", "Roon"]); self.touch_theme.add_css_class("settings-select"); self.touch_theme.set_hexpand(True); self.touch_theme.connect("notify::selected", self.change_theme); theme_row.append(self.touch_theme); card.append(theme_row)
+        controls = Gtk.Box(spacing=28); controls.add_css_class("settings-controls"); controls.set_vexpand(True); controls.set_valign(Gtk.Align.START)
         daily = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16); daily.add_css_class("settings-column"); daily.set_size_request(430, -1); daily.append(self.label("DAILY CONTROLS", "eyebrow")); self.touch_daily = daily; controls.append(daily)
         display_column = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16); display_column.add_css_class("settings-column"); display_column.set_hexpand(True); display_column.append(self.label("DISPLAY", "eyebrow"))
         self.touch_profile = Gtk.DropDown.new_from_strings(["Profile · Original 800×480", "Profile · Touch 2 5-inch", "Profile · Touch 2 7-inch", "Profile · Touch 2 10-inch"]); self.touch_profile.add_css_class("settings-select"); display_column.append(self.touch_profile)
@@ -417,6 +443,32 @@ class Display(Gtk.Application):
         self.sleep_clock = self.label("--:--", "sleep-clock", .5); centre.append(self.sleep_clock); self.sleep_hint = self.label("TAP ANYWHERE TO WAKE", "eyebrow", .5); centre.append(self.sleep_hint); box.append(centre)
         wake_gesture = Gtk.GestureClick(); wake_gesture.set_button(0); wake_gesture.connect("pressed", self.sleep_gesture_pressed); box.add_controller(wake_gesture)
         return box
+
+    def apply_theme(self, theme):
+        theme = "roon" if theme == "roon" else "fresh-mint"
+        self.settings_data["display_theme"] = theme
+        if theme == "roon": self.window.add_css_class("theme-roon")
+        else: self.window.remove_css_class("theme-roon")
+        self.theme_updating = True
+        self.touch_theme.set_selected(1 if theme == "roon" else 0)
+        self.theme_updating = False
+        self.browser_scrubber.queue_draw()
+
+    def change_theme(self, *_):
+        if getattr(self, "theme_updating", False): return
+        selected = "roon" if self.touch_theme.get_selected() == 1 else "fresh-mint"
+        self.touch_theme.set_sensitive(False)
+        def save():
+            result = post_json(f"{BUS}/api/admin/config", {"section": "appearance", "display_theme": selected}, timeout=3)
+            GLib.idle_add(finish, result)
+        def finish(result):
+            self.touch_theme.set_sensitive(True)
+            if result and not result.get("error"):
+                self.apply_theme(selected); self.last_config_fetch = 0
+            else:
+                self.apply_theme(self.settings_data.get("display_theme")); self.device_status.set_text("Could not save theme. Please try again.")
+            return False
+        threading.Thread(target=save, daemon=True).start()
 
     def sleep_gesture_pressed(self, _gesture, _count, _x, _y):
         if time.monotonic() - self.sleep_entered_at >= .45: self.wake("sleep gesture")
@@ -516,10 +568,10 @@ class Display(Gtk.Application):
             print(f"Pi Home core refresh completed in {elapsed:.3f}s", flush=True)
 
     def apply(self, target, status, roon, config, system, device, image_key, image):
+        if status and "display_theme" in status and config is None: self.apply_theme(status["display_theme"])
         if config is not None:
             self.settings_data = config
-            if config.get("display_theme") == "roon": self.window.add_css_class("theme-roon")
-            else: self.window.remove_css_class("theme-roon")
+            self.apply_theme(config.get("display_theme"))
             for button in self.roon_nav_buttons: button.set_label(config.get("roon_display_name") or "Roon")
             self.now_playing_tab.set_label((config.get("roon_now_playing_name") or "Now Playing").upper())
             self.queue_tab.set_label((config.get("roon_queue_name") or "Queue").upper())
@@ -726,7 +778,7 @@ class Display(Gtk.Application):
             self.note_missing_artwork()
         else:
             self.image_misses = 0
-        self.zone.set_text(zone.get("name") or "ROON"); self.title.set_text(lines.get("line1") or "Nothing playing"); self.artist.set_text(" · ".join(filter(None, (lines.get("line2"), lines.get("line3")))) or "Roon")
+        self.zone.set_text(zone.get("name") or "ROON"); self.title.set_text(lines.get("line1") or "Nothing playing"); self.artist.set_text(playing.get("display_artist") or re.split(r"\s+/\s+|\s*;\s*", lines.get("line2") or "Roon")[0])
         play_icon = Gtk.Image.new_from_icon_name("media-playback-start-symbolic" if external else ("media-playback-pause-symbolic" if zone.get("state") == "playing" else "media-playback-start-symbolic")); play_icon.set_pixel_size(42); self.play.set_child(play_icon); self.prev.set_sensitive(not external and bool(zone.get("can_previous"))); self.next.set_sensitive(not external and bool(zone.get("can_next"))); self.play.set_sensitive(bool(zone.get("can_play") or zone.get("can_pause")))
         elapsed = int(zone.get("seek_position") or 0); length = int(playing.get("length") or 0); self.seek_updating = True; self.progress.set_range(0, max(1, length)); self.progress.set_value(min(elapsed, length) if length else 0); self.progress.set_sensitive(bool(zone.get("can_seek") and length)); self.seek_updating = False; self.elapsed.set_text(self.format_time(elapsed)); self.remaining.set_text("−" + self.format_time(max(0, length - elapsed)))
         output = zone.get("output") or {}; volume = output.get("volume") or {}; value = volume.get("value"); self.volume_updating = True; self.volume.set_sensitive(value is not None); self.volume.set_value(float(value or 0)); self.volume_value.set_text(str(value) if value is not None else "FIXED"); self.mute.set_sensitive(value is not None); self.mute.set_label("UNMUTE" if volume.get("is_muted") else "MUTE"); self.volume_updating = False
@@ -846,7 +898,8 @@ class Display(Gtk.Application):
         value = max(0, min(25, round(self.browser_scrub_scale.get_value())))
         center = 16 + max(1, height - 32) * value / 25
         x = width - 18
-        cr.set_source_rgb(.145, .192, .18); cr.set_line_width(5); cr.set_line_cap(1); cr.move_to(x, 16); cr.line_to(x, max(16, height - 16)); cr.stroke()
+        track = (.27, .26, .29) if getattr(self, "settings_data", {}).get("display_theme") == "roon" else (.145, .192, .18)
+        cr.set_source_rgb(*track); cr.set_line_width(5); cr.set_line_cap(1); cr.move_to(x, 16); cr.line_to(x, max(16, height - 16)); cr.stroke()
         accent = (.506, .478, .922) if getattr(self, "settings_data", {}).get("display_theme") == "roon" else (.431, .851, .682)
         cr.set_source_rgb(*accent); cr.arc(x, center, 9, 0, 6.283185307); cr.fill()
         cr.select_font_face("Inter", 0, 1); cr.set_font_size(18)
@@ -889,7 +942,7 @@ class Display(Gtk.Application):
 
     def submit_browser_search(self, *_):
         query = self.browser_search_entry.get_text().strip()
-        if query: self.set_roon_view("browse"); self.request_browser("search", query=query)
+        if query: self.set_roon_view("browse"); self.request_browser("search", query=query, source="tidal" if self.browser_search_source.get_selected() == 1 else "library")
 
     def commit_browser_scrub(self, letter):
         self.browser_scrub_timer = None; self.request_browser("jump", letter=letter); return False
@@ -981,10 +1034,13 @@ class Display(Gtk.Application):
         button = Gtk.Button(); button.add_css_class("browser-cover-card"); button.set_child(content); button.set_sensitive(bool(item.get("item_key"))); button.connect("clicked", self.open_browser_item, item.get("item_key")); return button
 
     def render_browser(self, data):
-        self.browser_rendering = True; self.browser_loading = True; self.browser_state = data; self.browser_back.set_visible(bool(data.get("can_back"))); self.browser_back.set_sensitive(bool(data.get("can_back"))); self.browser_scrubber.set_visible(bool(data.get("alpha_scrub")))
-        active_section = data.get("section") or "albums"
+        self.browser_rendering = True; self.browser_loading = True; self.browser_state = data; self.browser_back.set_visible(bool(data.get("can_back")) and not data.get("surprise_preview")); self.browser_back.set_sensitive(bool(data.get("can_back"))); self.browser_scrubber.set_visible(bool(data.get("alpha_scrub")))
+        active_section = "surprise" if data.get("surprise_preview") else (data.get("section") or "albums")
         self.browser_sidebar.set_visible(True)
         self.browser_surprise_button.set_visible(True); self.browser_surprise_button.set_label("SURPRISE!")
+        self.browser_surprise_button.get_child().set_xalign(0)
+        if active_section == "surprise": self.browser_surprise_button.add_css_class("active")
+        else: self.browser_surprise_button.remove_css_class("active")
         if active_section == "search": self.browser_search_button.add_css_class("active")
         else: self.browser_search_button.remove_css_class("active")
         for section, button in self.browser_section_buttons.items():

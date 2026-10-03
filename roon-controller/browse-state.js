@@ -92,9 +92,10 @@ class BrowseManager {
     this.lastSurprises = new Map();
     this.surpriseOrigins = new Map();
     this.artistContexts = new Map();
+    this.searchSources = new Map();
   }
 
-  clear() { this.sessions.clear(); this.pending.clear(); this.sections.clear(); this.alphabetIndexes.clear(); this.activeSessions.clear(); this.lastSurprises.clear(); this.surpriseOrigins.clear(); this.artistContexts.clear(); }
+  clear() { this.sessions.clear(); this.pending.clear(); this.sections.clear(); this.alphabetIndexes.clear(); this.activeSessions.clear(); this.lastSurprises.clear(); this.surpriseOrigins.clear(); this.artistContexts.clear(); this.searchSources.clear(); }
 
   run(sessionName, command = 'current', data = {}) {
     const session = safeSession(sessionName);
@@ -109,7 +110,7 @@ class BrowseManager {
         this.activeSessions.set(session, active);
         if (this.sessions.has(active)) return this.sessions.get(active);
       } else if (command === 'search') {
-        active = `${session}-search`; this.sections.set(active, 'search'); this.activeSessions.set(session, active);
+        active = `${session}-search-${data.source === 'tidal' ? 'tidal' : 'library'}`; this.sections.set(active, 'search'); this.activeSessions.set(session, active);
       } else if (command === 'back' && (this.sessions.get(active)?.surprise_preview || (this.sessions.get(active)?.hierarchy === 'search' && this.sessions.get(active)?.level === 0))) {
         active = this.sessions.get(active)?.surprise_preview ? (this.surpriseOrigins.get(session) || `${session}-albums`) : `${session}-albums`;
         this.activeSessions.set(session, active);
@@ -131,7 +132,7 @@ class BrowseManager {
     if (command === 'previous') return this.loadPrevious(service, session);
     if (command === 'jump') return this.jumpTo(service, session, String(data.letter || 'A'));
     if (command === 'section' || command === 'root' || (command === 'current' && !this.sessions.has(session))) return this.openSection(service, zone, session, String(data.section || 'albums'));
-    if (command === 'search') return this.search(service, zone, session, String(data.query || '').trim());
+    if (command === 'search') return this.search(service, zone, session, String(data.query || '').trim(), data.source);
     const state = this.sessions.get(session);
     if (command === 'back' && state?.hierarchy !== 'browse' && state?.level === 0) return this._run(session, 'root', {});
     const hierarchy = !state ? 'browse' : state.hierarchy;
@@ -243,12 +244,30 @@ class BrowseManager {
     return this.follow(service, session, 'browse', result);
   }
 
-  async search(service, zone, session, query) {
+  async search(service, zone, session, query, source = 'library') {
     if (!query) return this._run(session, 'root', {});
+    this.searchSources.set(session, source === 'tidal' ? 'tidal' : 'library');
+    this.save(session, {status: 'ready', hierarchy: source === 'tidal' ? 'browse' : 'search', level: 0, section: 'search', search_source: this.searchSources.get(session), title: source === 'tidal' ? 'TIDAL Search' : 'Library Search', items: [], can_back: false, has_more: false});
+    if (source === 'tidal') {
+      const options = {hierarchy: 'browse', multi_session_key: session, zone_or_output_id: zone.zone_id};
+      const root = await request(service, 'browse', {...options, pop_all: true});
+      const tidal = await this.openNamed(service, zone, session, root, 'tidal');
+      if (!tidal || tidal.is_error || tidal.action !== 'list') return this.searchUnavailable(session, 'TIDAL is not available in Roon. Check that your TIDAL account is connected in Roon Settings → Services.');
+      const menu = await request(service, 'load', {...options, level: tidal.list.level, offset: 0, count: 100});
+      const prompts = (menu.items || []).filter(item => item.input_prompt && /search/i.test(item.title));
+      const prompt = prompts.find(item => /^search$/i.test(item.title.trim())) || prompts[0];
+      if (!prompt?.item_key) return this.searchUnavailable(session, 'This Roon server does not expose TIDAL search to external controllers. Library search is still available.');
+      const result = await request(service, 'browse', {...options, item_key: prompt.item_key, input: query});
+      return this.follow(service, session, 'browse', result);
+    }
     // The search hierarchy takes input on the root browse request. Opening
     // it without input returns "No Results", not an input_prompt item.
     const result = await request(service, 'browse', {hierarchy: 'search', multi_session_key: session, zone_or_output_id: zone.zone_id, pop_all: true, input: query});
     return this.follow(service, session, 'search', result);
+  }
+
+  searchUnavailable(session, message) {
+    return this.save(session, {status: 'ready', hierarchy: 'browse', level: 0, section: 'search', search_source: 'tidal', title: 'TIDAL Search', items: [], can_back: false, has_more: false, message, error: true});
   }
 
   async follow(service, session, hierarchy, result, fallbackImageKey = null) {
@@ -278,7 +297,7 @@ class BrowseManager {
     return this.save(session, {
       status: 'ready', hierarchy, level, title: presentation.layout === 'home' ? 'Browse' : String(list?.title || (hierarchy === 'search' ? 'Search' : 'Browse')),
       subtitle: String(list?.subtitle || ''), count, offset: Number(loadedOffset || list?.display_offset || 0),
-      items: normalised, section, section_root: sectionRoot, breadcrumb: sectionRoot ? `LIBRARY / ${section.toUpperCase()}` : `${sectionTitle.toUpperCase()} / ${String(list?.title || '').toUpperCase()}`,
+      items: normalised, section, search_source: this.searchSources.get(session), section_root: sectionRoot, breadcrumb: sectionRoot ? `LIBRARY / ${section.toUpperCase()}` : `${sectionTitle.toUpperCase()} / ${String(list?.title || '').toUpperCase()}`,
       alpha_scrub: sectionRoot && ['albums', 'artists'].includes(section), can_back: !sectionRoot && (hierarchy !== 'browse' || Number(list?.level || 0) > 0),
       has_more: !filteredLibrary && presentation.layout !== 'home' && Number(loadedOffset || 0) + normalised.length < count,
       fallback_image_key: fallbackImageKey, message, error: false,

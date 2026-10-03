@@ -1,4 +1,5 @@
 'use strict';
+const {displayArtist} = require('./artist-name');
 
 function queueItemsFromMessage(command, message, previous = []) {
   const data = message || {};
@@ -43,7 +44,7 @@ function publicQueueItem(item) {
   return {
     queue_item_id: item.queue_item_id,
     title: lines.line1 || item.title || 'Untitled track',
-    artist: lines.line2 || item.artist || '',
+    artist: displayArtist(item),
     album: lines.line3 || item.album || '',
     length: Number(item.length) || null,
     image_key: item.image_key || null

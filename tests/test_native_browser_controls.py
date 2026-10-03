@@ -49,6 +49,36 @@ class NativeBrowserControlsTests(unittest.TestCase):
         self.assertIn('renderArtistProfile(data.artist_profile)', web)
         self.assertNotIn('Artist background is unavailable.', web)
 
+    def test_theme_updates_the_selector_without_triggering_a_save(self):
+        calls = []
+        owner = SimpleNamespace(settings_data={},window=SimpleNamespace(add_css_class=calls.append,remove_css_class=calls.append),browser_scrubber=SimpleNamespace(queue_draw=lambda:calls.append('draw')))
+        def select(value):
+            self.assertTrue(owner.theme_updating)
+            calls.append(value)
+        owner.touch_theme = SimpleNamespace(set_selected=select)
+        native_method('apply_theme')(owner, 'roon')
+        self.assertEqual(owner.settings_data['display_theme'], 'roon')
+        self.assertEqual(calls, ['theme-roon',1,'draw'])
+        self.assertFalse(owner.theme_updating)
+        native_method('change_theme')(SimpleNamespace(theme_updating=True))
+
+    def test_native_search_passes_the_selected_source(self):
+        for selected, expected in ((0,'library'),(1,'tidal')):
+            calls = []
+            owner = SimpleNamespace(browser_search_entry=SimpleNamespace(get_text=lambda:' Radiohead '),browser_search_source=SimpleNamespace(get_selected=lambda:selected),set_roon_view=lambda view:calls.append(view),request_browser=lambda action,**data:calls.append((action,data)))
+            native_method('submit_browser_search')(owner)
+            self.assertEqual(calls, ['browse',('search',{'query':'Radiohead','source':expected})])
+
+    def test_surprise_selection_and_bottom_back_are_present_in_both_interfaces(self):
+        code = SOURCE.read_text(encoding='utf-8')
+        self.assertIn('and not data.get("surprise_preview")', code)
+        self.assertIn('active_section = "surprise" if data.get("surprise_preview")',code)
+        self.assertIn('spacer.set_vexpand(True); sidebar.append(spacer); sidebar.append(self.browser_back)',code)
+        self.assertIn('self.button("BACK"', code)
+        web = (SOURCE.parents[1] / 'roon-controller/static/app.js').read_text(encoding='utf-8')
+        self.assertIn("const activeSection = data.surprise_preview ? 'surprise'", web)
+        self.assertIn('!data.can_back || Boolean(data.surprise_preview)',web)
+
     def test_grid_minimums_fit_physical_monitor_without_using_expanded_content(self):
         metrics = native_method("browser_grid_metrics", {"Gdk": SimpleNamespace(Display=SimpleNamespace(get_default=lambda: display))})
         for width in (480, 720, 800, 1024, 1280):

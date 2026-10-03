@@ -721,7 +721,7 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                 self.send_json(200, body)
                 return
             if self.path == "/api/home/status":
-                self.send_json(200, json.dumps({**state.home_data, "roon_display_name": state.config.roon_display_name}).encode())
+                self.send_json(200, json.dumps({**state.home_data, "roon_display_name": state.config.roon_display_name, "display_theme": state.config.display_theme}).encode())
                 return
             if self.path == "/api/device/controls":
                 if self.client_address[0] not in {"127.0.0.1", "::1"}:

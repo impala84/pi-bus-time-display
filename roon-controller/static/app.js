@@ -134,7 +134,7 @@ function render(next) {
   const lines = playing.three_line || playing.two_line || playing.one_line || {};
   $('zone').textContent = zone.name;
   setScrollingText($('title'), lines.line1 || 'Nothing playing');
-  setScrollingText($('artist'), [lines.line2, lines.line3].filter(Boolean).join(' · ') || 'Roon');
+  setScrollingText($('artist'), playing.display_artist || String(lines.line2 || 'Roon').split(/\s+\/\s+|\s*;\s*/)[0]);
   if (playing.image_key) {
     const url = api(`/api/image?key=${encodeURIComponent(playing.image_key)}`);
     if ($('art').src !== location.origin + url) $('art').src = url;
@@ -317,9 +317,11 @@ function renderBrowser(data) {
   $('browser-view').classList.toggle('surprise-takeover', Boolean(data.surprise_preview));
   renderArtistProfile(data.artist_profile);
   document.querySelector('.browser-sidebar').append($('browser-back'));
-  $('browser-back').hidden = !data.can_back; $('browser-back').disabled = !data.can_back; $('browser-loading-more').hidden = true;
-  document.querySelectorAll('[data-browser-section]').forEach(button => button.classList.toggle('active', button.dataset.browserSection === (data.section || 'albums')));
-  $('browser-search-open').classList.toggle('active', data.section === 'search');
+  $('browser-back').hidden = !data.can_back || Boolean(data.surprise_preview); $('browser-back').disabled = !data.can_back; $('browser-loading-more').hidden = true;
+  const activeSection = data.surprise_preview ? 'surprise' : (data.section || 'albums');
+  document.querySelectorAll('[data-browser-section]').forEach(button => button.classList.toggle('active', button.dataset.browserSection === activeSection));
+  $('browser-search-open').classList.toggle('active', activeSection === 'search');
+  $('browser-surprise').classList.toggle('active', activeSection === 'surprise');
   $('browser-surprise').hidden = false;
   $('browser-surprise').textContent = 'SURPRISE!';
   $('browser-scrubber').hidden = !data.alpha_scrub;
@@ -464,7 +466,7 @@ $('browser-search-open').onclick = () => { $('browser-search-panel').hidden = fa
 $('browser-search-cancel').onclick = () => { $('browser-search-panel').hidden = true; };
 $('browser-search-form').onsubmit = event => {
   event.preventDefault(); const query = $('browser-search-input').value.trim();
-  if (query) { $('browser-search-panel').hidden = true; browseCommand('search', {query}); }
+  if (query) { $('browser-search-panel').hidden = true; browseCommand('search', {query, source: $('browser-search-source').value}); }
 };
 for (const keys of ['qwertyuiop', 'asdfghjkl', 'zxcvbnm', '1234567890', ['SPACE', '⌫', 'CLEAR']]) {
   const row = document.createElement('div'); row.className = 'browser-keyboard-row';

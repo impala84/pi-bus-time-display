@@ -9,6 +9,7 @@ const RoonApiImage = require('node-roon-api-image');
 const RoonApiStatus = require('node-roon-api-status');
 const RoonApiTransport = require('node-roon-api-transport');
 const {publicQueueItems, updateQueueState} = require('./queue-state');
+const {displayArtist} = require('./artist-name');
 const {playingMetadata, loadDetails, loadArtistProfile} = require('./details-state');
 const artistProfileCache = new Map();
 const {BluOSClient, discoverPlayers} = require('./bluos-client');
@@ -113,7 +114,7 @@ function publicState() {
     zones: [...zones.values()].map(item => ({id: item.zone_id, name: item.display_name})),
     zone: {
       id: zone.zone_id, name: zone.display_name, state: zone.state,
-      now_playing: zone.now_playing || null,
+      now_playing: zone.now_playing ? {...zone.now_playing, display_artist: displayArtist(zone.now_playing)} : null,
       seek_position: zone.seek_position ?? zone.now_playing?.seek_position ?? 0,
       can_previous: Boolean(zone.is_previous_allowed), can_next: Boolean(zone.is_next_allowed),
       can_play: Boolean(zone.is_play_allowed), can_pause: Boolean(zone.is_pause_allowed),

@@ -1,4 +1,5 @@
 'use strict';
+const {leadArtist, displayArtist} = require('./artist-name');
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
@@ -47,4 +48,11 @@ test('accepts incremental queue changes without disturbing order', () => {
 
 test('clears state on unsubscribe', () => {
   assert.deepEqual(queueItemsFromMessage('Unsubscribed', {}, [{queue_item_id: 1}]), []);
+});
+test('lead artists hide contributor lists without damaging real artist names', () => {
+  assert.equal(leadArtist('Adele / Oren Waters / Carmen Carter'), 'Adele');
+  assert.equal(leadArtist('AC/DC'), 'AC/DC');
+  assert.equal(leadArtist('Earth, Wind & Fire'), 'Earth, Wind & Fire');
+  assert.equal(leadArtist('Artist featuring Guest'), 'Artist');
+  assert.equal(displayArtist({album_artist:'Adele',three_line:{line2:'Contributor / Guest'}}), 'Adele');
 });

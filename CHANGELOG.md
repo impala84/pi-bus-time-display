@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.11.21 — 3 October 2026
+
+- Add Library / TIDAL search selection on native and web displays. Discover Roon's TIDAL search prompt dynamically, retain its browse session for result navigation and playback, and report clearly when the service or search prompt is unavailable. TIDAL requires a connected subscription in Roon.
+- Highlight Surprise itself and hide its redundant Back button. Align the browse rail with the zone heading and move a smaller, borderless grey Back button to the bottom-left, with theme-coloured text.
+- Show the lead artist instead of the full contributor list in Now Playing and Queue, preserving artist names such as AC/DC and Earth, Wind & Fire. Keep the artist portrait and name panel.
+- Add a touchscreen theme selector above Daily Controls and move the controls upward. Synchronise the selected theme across touchscreen, web settings, Roon, Bus Times and Home, including checkboxes, action buttons, playback controls and queue highlights. Keep bus route colours unchanged.
+- Remove the circle behind the current-track play marker. Use the active theme's accent for the triangle and neutral or violet-tinted surfaces for the Roon palette.
+
 ## 0.11.20 — 3 October 2026
 
 - Restore the artist portrait and name column on native and web displays. Remove only the biography and its unavailable-information message; retain all other v0.11.19 changes.

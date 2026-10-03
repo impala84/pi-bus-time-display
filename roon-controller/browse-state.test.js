@@ -87,6 +87,51 @@ test('search results retain the hierarchy and zone when opened for playback', as
   assert.ok(calls.filter(call => call.input).every(call => call.pop_all && !call.item_key));
 });
 
+test('TIDAL search discovers its prompt and retains fresh keys through playback and pagination', async () => {
+  const paths = new Map(), calls = [];
+  const lists = {
+    root: [{title:'TIDAL',item_key:'tidal-root'}],
+    tidal: [{title:'Search',item_key:'tidal-prompt',input_prompt:{prompt:'Search'}}],
+    results: Array.from({length:31}, (_,i)=>({title:'TIDAL Album '+i,item_key:'tidal-album-'+i,image_key:'cover'})),
+    album: [{title:'Play Album',item_key:'tidal-play',hint:'action_list'}],
+    actions: [{title:'Play Now',item_key:'tidal-now',hint:'action'}]
+  };
+  const service = {
+    browse(options, cb) {
+      calls.push(options);
+      assert.equal(options.hierarchy,'browse'); assert.equal(options.zone_or_output_id,'zone');
+      let path = options.pop_all ? 'root' : paths.get(options.multi_session_key);
+      if(options.item_key==='tidal-root') path='tidal';
+      if(options.item_key==='tidal-prompt') {assert.equal(options.input,'Radiohead'); path='results';}
+      if(options.item_key==='tidal-album-0') path='album';
+      if(options.item_key==='tidal-play') path='actions';
+      if(options.item_key==='tidal-now') return cb(false,{action:'none'});
+      paths.set(options.multi_session_key,path);
+      cb(false,{action:'list',list:{level:2,title:path,count:lists[path].length}});
+    },
+    load(options,cb) {
+      const path=paths.get(options.multi_session_key), items=lists[path];
+      cb(false,{offset:options.offset,list:{level:2,title:path,count:items.length},items:items.slice(options.offset,options.offset+options.count)});
+    }
+  };
+  const manager = new BrowseManager(()=>service,()=>({zone_id:'zone'}));
+  const results=await manager.run('phone','search',{query:'Radiohead',source:'tidal'});
+  assert.equal(results.search_source,'tidal'); assert.equal(results.section,'search'); assert.equal(results.items.length,30);
+  const more=await manager.run('phone','more'); assert.equal(more.items.length,31);
+  await manager.run('phone','open',{item_key:results.items[0].item_key});
+  const played=await manager.run('phone','open',{item_key:'tidal-play'});
+  assert.equal(played.navigate,'now'); assert.equal(calls.at(-1).item_key,'tidal-now');
+});
+
+test('missing TIDAL connection reports the limitation without presenting library results as TIDAL', async () => {
+  const manager = new BrowseManager(()=>fakeService(),()=>({zone_id:'zone'}));
+  const result=await manager.run('phone','search',{query:'Blue',source:'tidal'});
+  assert.equal(result.error,true); assert.equal(result.search_source,'tidal');
+  assert.deepEqual(result.items,[]); assert.match(result.message,/TIDAL is not available/);
+  const library=await manager.run('phone','search',{query:'Blue',source:'library'});
+  assert.equal(library.items[0].title,'Blue Train'); assert.equal(library.search_source,'library');
+});
+
 test('browser root removes TIDAL and keeps the remaining destinations in order', () => {
   const items = ['My Live Radio', 'TIDAL', 'Genres', 'Library', 'Playlists'].map(title => ({title, item_key: title}));
   assert.deepEqual(rootItems(items).map(item => item.title), ['Library', 'Playlists', 'Genres']);
