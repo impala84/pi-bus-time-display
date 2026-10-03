@@ -119,7 +119,7 @@ CSS += b"""
 .touch-landscape .browser-cover-art { min-width: 0; min-height: 0; }
 .browser-cover-card { min-height: 0; padding: 3px; }
 .browser-cover-card:hover, .browser-cover-card:active, .browser-home-card:hover, .browser-row:hover, .browser-row:active { background: transparent; box-shadow: none; outline: none; transform: none; transition: none; }
-.browser-search-entry:focus, .browser-search-entry:focus-within { outline: none; box-shadow: none; border-color: transparent; }
+.browser-search-entry, .browser-search-entry:focus, .browser-search-entry:focus-within, .browser-search-entry text:focus { outline: none; box-shadow: none; border: 0; }
 .browser-key.browser-search-submit { background: #6ed9ae; color: #111; font-weight: 750; }
 .theme-roon .browser-key.browser-search-submit { background: #817aeb; color: #111; }
 .browser-section { font-size: 17px; padding-bottom: 12px; }
@@ -396,6 +396,9 @@ class Display(Gtk.Application):
         content = Gtk.Box(spacing=2); content.set_vexpand(True); content.set_hexpand(True)
         self.browser_artist_panel = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12); self.browser_artist_panel.add_css_class("artist-profile"); self.browser_artist_panel.set_visible(False)
         self.browser_artist_scroll = Gtk.ScrolledWindow(); self.browser_artist_scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC); self.browser_artist_scroll.set_propagate_natural_height(False); self.browser_artist_scroll.set_min_content_height(1); self.browser_artist_scroll.set_size_request(-1, 1); self.browser_artist_scroll.set_child(self.browser_artist_panel); self.browser_artist_scroll.set_visible(False); content.append(self.browser_artist_scroll); content.append(browser_scroll)
+        # Independent result scrollers must not be nested in the ordinary
+        # browser viewport: that viewport measures them at minimum height.
+        self.browser_search_columns = Gtk.Box(spacing=18); self.browser_search_columns.set_homogeneous(True); self.browser_search_columns.set_hexpand(True); self.browser_search_columns.set_vexpand(True); self.browser_search_columns.set_visible(False); content.append(self.browser_search_columns)
         self.browser_scrubber = Gtk.DrawingArea(); self.browser_scrubber.add_css_class("browser-scrubber"); self.browser_scrubber.set_size_request(74, -1); self.browser_scrubber.set_vexpand(True); self.browser_scrubber.set_visible(False); self.browser_scrubber.set_draw_func(self.draw_browser_scrubber)
         self.browser_scrub_scale = Gtk.Adjustment(value=0, lower=0, upper=25, step_increment=1); self.browser_scrub_scale.connect("value-changed", self.browser_scrub_changed)
         scrub_gesture = Gtk.GestureDrag.new(); scrub_gesture.connect("drag-begin", self.browser_scrub_begin); scrub_gesture.connect("drag-update", self.browser_scrub_drag); scrub_gesture.connect("drag-end", self.browser_scrub_end); self.browser_scrubber.add_controller(scrub_gesture)
@@ -903,6 +906,7 @@ class Display(Gtk.Application):
 
     def request_browser(self, action, **payload):
         if action == "search":
+            self.browser_search_columns.set_visible(False); self.browser_scroll.set_visible(True)
             while child := self.browser_list.get_first_child(): self.browser_list.remove(child)
             self.browser_list.set_orientation(Gtk.Orientation.VERTICAL)
             self.browser_list.append(self.label("Searching…", "browser-section"))
@@ -1127,7 +1131,10 @@ class Display(Gtk.Application):
         while child := self.browser_list.get_first_child(): self.browser_list.remove(child)
         items = data.get("items") or []
         grouped_search = bool(data.get("search_routes"))
-        self.browser_list.set_orientation(Gtk.Orientation.HORIZONTAL if grouped_search else Gtk.Orientation.VERTICAL)
+        self.browser_list.set_orientation(Gtk.Orientation.VERTICAL)
+        while child := self.browser_search_columns.get_first_child(): self.browser_search_columns.remove(child)
+        self.browser_search_columns.set_visible(grouped_search)
+        self.browser_scroll.set_visible(not grouped_search)
         self.browser_list.set_homogeneous(False)
         self.browser_list.set_vexpand(grouped_search)
         self.browser_scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.NEVER if grouped_search else Gtk.PolicyType.AUTOMATIC)
@@ -1175,16 +1182,15 @@ class Display(Gtk.Application):
         else:
             columns = []
             if grouped_search:
-                self.browser_list.set_homogeneous(True)
                 for _ in range(2):
                     column = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2); column.add_css_class("search-column")
-                    scroll = Gtk.ScrolledWindow(); scroll.add_css_class("queue-scroll"); scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC); scroll.set_kinetic_scrolling(True); scroll.set_hexpand(True); scroll.set_vexpand(True); scroll.set_propagate_natural_width(False); scroll.set_min_content_width(1); scroll.set_size_request(1, 1); scroll.set_child(column); scroll.get_vadjustment().connect("value-changed", lambda *_: self.load_visible_browser_artwork()); self.browser_list.append(scroll); columns.append(column)
+                    scroll = Gtk.ScrolledWindow(); scroll.add_css_class("queue-scroll"); scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC); scroll.set_kinetic_scrolling(True); scroll.set_hexpand(True); scroll.set_vexpand(True); scroll.set_propagate_natural_width(False); scroll.set_propagate_natural_height(False); scroll.set_min_content_width(1); scroll.set_size_request(1, 1); scroll.set_child(column); scroll.get_vadjustment().connect("value-changed", lambda *_: self.load_visible_browser_artwork()); self.browser_search_columns.append(scroll); columns.append(column)
             else: self.browser_list.set_homogeneous(False)
             group_index = -1; group_count = 0; target = self.browser_list
             for item in items:
                 if item.get("hint") == "header":
                     group_index += 1; group_count = 0
-                    target = columns[group_index % 2] if columns else self.browser_list
+                    target = columns[1 if item.get("title") in {"ALBUMS", "TRACKS"} else 0] if columns else self.browser_list
                     target.append(self.label(item.get("title") or "", "browser-section")); continue
                 if columns and not item.get("title", "").startswith("View all "):
                     group_count += 1
@@ -1345,6 +1351,13 @@ class Display(Gtk.Application):
 
     def load_visible_browser_artwork(self, *_):
         adjustment = self.browser_scroll.get_vadjustment()
+        if self.browser_state and self.browser_state.get("search_routes"):
+            # Grouped previews are bounded (four rows per group). Load all
+            # their artwork rather than consulting the hidden single scroller.
+            for key in self.browser_artwork_keys:
+                if key and key not in self.queue_thumbnail_cache and key not in self.queue_thumbnail_pending:
+                    self.queue_thumbnail_pending.add(key); self.queue_thumbnail_jobs.put(key)
+            return False
         cards = getattr(self, "browser_cards", [])
         if cards:
             keys = []

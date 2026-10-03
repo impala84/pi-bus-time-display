@@ -360,7 +360,10 @@ body[data-theme="roon"] .browser-art.action-icon { background: #292929; }
 .web-nav a[hidden] { display: none !important; }
 .web-nav:has(a[hidden]) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .search-loading { color: var(--ink); font-size: 24px; padding: 24px 0; }
-.browser-list.search-groups { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; gap: 28px; }
+.browser-list.search-groups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 28px; }
+.search-column { min-width: 0; }
+.search-group + .search-group { margin-top: 28px; }
+.browser-search-panel input, .browser-search-panel input:focus, .browser-search-panel input:focus-visible { outline: none; box-shadow: none; border-color: transparent; }
 .search-group { min-width: 0; }
 .search-group .browser-section { margin: 0 0 20px; }
 .search-group .browser-row { width: 100%; min-width: 0; margin-bottom: 14px; }

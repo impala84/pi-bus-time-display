@@ -18,7 +18,7 @@ test('grouped search previews keep independent keys, show five matches, and retu
     },
     load(options, done) {
       const path = paths.get(options.multi_session_key);
-      const titles = !path ? ['Artists', 'Albums'] : path.startsWith('album') ? ['Play Album'] : Array.from({length: 8}, (_, i) => `${path === 'Albums' ? 'album' : 'artist'} ${i}`);
+      const titles = !path ? ['Works', 'Artists', 'Composers', 'Albums', 'Playlists'] : path.startsWith('album') ? ['Play Album'] : Array.from({length: 8}, (_, i) => `${path === 'Albums' ? 'album' : 'artist'} ${i}`);
       done(false, {list: {title: path || 'Search', level: !path ? 0 : path.startsWith('album') ? 2 : 1, count: titles.length}, items: titles.map(title => ({title, item_key: `${options.multi_session_key}:${title}`, ...(title === 'Play Album' ? {hint: 'action'} : {})}))});
     }
   };
@@ -39,6 +39,33 @@ test('grouped search previews keep independent keys, show five matches, and retu
   const safe = await manager.run('group-test', 'route', {query: 'Example', steps: [{title: 'album 0'}, {title: 'Play Album'}]});
   assert.match(safe.message, /no longer available/);
   assert.equal(safe.title, 'album 0', 'history must not trigger playback');
+});
+
+test('search album wrappers open the tracks directly and Back skips the wrapper without playing', async () => {
+  const paths = new Map(); let played = false;
+  const service = {
+    browse(options, done) {
+      let stack = options.pop_all ? ['Search'] : [...(paths.get(options.multi_session_key) || ['Search'])];
+      if (options.pop_levels) stack.splice(-options.pop_levels);
+      if (options.item_key === 'albums') stack.push('Albums');
+      if (options.item_key === 'album-hit') stack.push('Preview');
+      if (options.item_key === 'album-details') stack.push('Tracks');
+      if (options.item_key === 'play') played = true;
+      paths.set(options.multi_session_key, stack);
+      done(false, {action: 'list', list: {title: stack.at(-1), level: stack.length - 1}});
+    },
+    load(options, done) {
+      const stack = paths.get(options.multi_session_key), title = stack.at(-1);
+      const items = title === 'Search' ? [{title:'Albums',item_key:'albums'}] : title === 'Albums' ? [{title:'Example',item_key:'album-hit',image_key:'cover'}] : title === 'Preview' ? [{title:'Example',item_key:'album-details',image_key:'cover'}] : [{title:'Play Album',hint:'action',item_key:'play'},{title:'Song',item_key:'song'}];
+      done(false, {list:{title,level:stack.length-1,count:items.length},items});
+    }
+  };
+  const manager = new BrowseManager(() => service, () => ({zone_id:'zone'}));
+  const results = await manager.run('wrapper', 'search', {query:'Example'});
+  const album = await manager.run('wrapper', 'open', {item_key:results.items.find(item => item.title === 'Example').item_key});
+  assert.equal(album.title, 'Tracks'); assert.equal(album.skipped_album_preview, true); assert.equal(played, false);
+  assert.equal((await manager.run('wrapper', 'back')).title, 'Albums');
+  assert.equal((await manager.run('wrapper', 'back')).items[0].title, 'ALBUMS');
 });
 
 function fakeService() {

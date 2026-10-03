@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.11.35 — 4 October 2026
+
+- Give native search results two directly allocated scroll areas instead of nesting them inside the ordinary browser viewport; load all bounded preview artwork independently of that hidden viewport.
+- Simplify search to Top Results and Artists in the left column, Albums and Tracks in the right. Remove Works, Composers and Playlists from search previews on both interfaces.
+- Open search album results directly into their track list when Roon returns a redundant single-album preview, and skip that preview on Back without triggering playback.
+- Remove the search-field focus outline on desktop, mobile and native touchscreen.
+
 ## 0.11.34 — 4 October 2026
 
 - Give Browse sections, queries and result drill-downs distinct URLs with safe Back/Forward restoration using fresh Roon keys rather than replaying playback actions.

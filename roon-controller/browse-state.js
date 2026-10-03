@@ -150,7 +150,7 @@ class BrowseManager {
     const hierarchy = !state ? 'browse' : state.hierarchy;
     const options = {hierarchy, multi_session_key: session, zone_or_output_id: zone.zone_id};
     if (!state) options.pop_all = true;
-    else if (command === 'back') options.pop_levels = 1;
+    else if (command === 'back') options.pop_levels = state?.skipped_album_preview ? 2 : 1;
     else if (command === 'open' && data.item_key) options.item_key = String(data.item_key);
     else return state || this._run(session, 'root', {});
     const opened = command === 'open' ? state?.items?.find(item => String(item.item_key) === String(data.item_key)) : null;
@@ -170,7 +170,17 @@ class BrowseManager {
         playbackCompleted = true;
       }
     }
-    const next = await this.follow(service, session, hierarchy, result, opened?.image_key || (opened?.action ? state?.fallback_image_key : null) || result.list?.image_key || null);
+    let next = await this.follow(service, session, hierarchy, result, opened?.image_key || (opened?.action ? state?.fallback_image_key : null) || result.list?.image_key || null);
+    // Search can return a one-album wrapper before the actual track list.
+    // Follow only an exact, non-action album match; never auto-run Play Album.
+    if (command === 'open' && hierarchy === 'search' && /^albums$/i.test(state?.title || '') && opened && !opened.action && !next.error && next.items?.length === 1) {
+      const child = next.items[0];
+      if (!child.action && child.item_key && child.title === opened.title) {
+        const tracks = await request(service, 'browse', {...options, item_key: child.item_key});
+        next = await this.follow(service, session, hierarchy, tracks, child.image_key);
+        next = this.save(session, {...next, skipped_album_preview: true});
+      }
+    }
     if (state?.section === 'artists' && state.section_root && opened && result.action === 'list' && !next.error) {
       this.artistContexts.set(session + ':' + next.title, {name:opened.title,image_key:opened.image_key});
       while (this.artistContexts.size > 64) this.artistContexts.delete(this.artistContexts.keys().next().value);
@@ -324,7 +334,9 @@ class BrowseManager {
     // it without input returns "No Results", not an input_prompt item.
     const result = await request(service, 'browse', {hierarchy: 'search', multi_session_key: session, zone_or_output_id: zone.zone_id, pop_all: true, input: query});
     const root = await this.follow(service, session, 'search', result);
-    const categories = root.items.filter(item => /^(albums|artists|tracks|playlists|composers|works)$/i.test(item.title.trim()) && item.item_key);
+    const categoryOrder = ['artists', 'albums', 'tracks'];
+    const allCategories = root.items.filter(item => /^(albums|artists|tracks|playlists|composers|works)$/i.test(item.title.trim()) && item.item_key);
+    const categories = allCategories.filter(item => categoryOrder.includes(item.title.trim().toLowerCase())).sort((a, b) => categoryOrder.indexOf(a.title.trim().toLowerCase()) - categoryOrder.indexOf(b.title.trim().toLowerCase()));
     if (!categories.length) return root;
     const groups = await Promise.all(categories.map(async (category, index) => {
       const items = [], routes = {};
@@ -356,7 +368,7 @@ class BrowseManager {
       return {items, routes};
     }));
     const items = groups.flatMap(group => group.items), routes = Object.assign({}, ...groups.map(group => group.routes));
-    const direct = root.items.filter(item => !categories.includes(item));
+    const direct = root.items.filter(item => !allCategories.includes(item));
     if (direct.length) items.unshift({title: 'TOP RESULTS', hint: 'header'}, ...direct);
     return this.save(session, {...root, items, search_routes: routes, layout: 'list', show_labels: true, has_more: false, count: items.length});
   }

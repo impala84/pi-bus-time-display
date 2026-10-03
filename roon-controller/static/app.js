@@ -383,8 +383,10 @@ function renderBrowser(data) {
     stage.append(buttons[0], art, buttons[1]); preview.append(stage, title, artist); list.append(preview);
   } else if (data.search_routes) {
     list.classList.add('search-groups'); let group;
+    const columns = [document.createElement('div'), document.createElement('div')];
+    columns.forEach(column => { column.className = 'search-column'; list.append(column); });
     for (const item of data.items || []) {
-      if (item.hint === 'header' || !group) { group = document.createElement('section'); group.className = 'search-group'; list.append(group); }
+      if (item.hint === 'header' || !group) { group = document.createElement('section'); group.className = 'search-group'; columns[/^(ALBUMS|TRACKS)$/.test(item.title) ? 1 : 0].append(group); }
       group.append(browserRow(item));
     }
   } else (data.items || []).filter(item => item !== artistPlay).forEach(item => list.append(item.action ? browserRow(item) : (['home', 'menu', 'covers', 'tiles'].includes(data.layout) ? browserCard(item, data.layout, Boolean(data.show_labels), data.section, data.show_subtitles !== false) : browserRow(item))));

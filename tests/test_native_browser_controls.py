@@ -30,6 +30,20 @@ class Entry:
 
 
 class NativeBrowserControlsTests(unittest.TestCase):
+    def test_grouped_results_have_separate_scrollers_not_nested_in_browser_viewport(self):
+        code = SOURCE.read_text(encoding="utf-8")
+        self.assertIn('content.append(self.browser_search_columns)', code)
+        self.assertIn('self.browser_search_columns.append(scroll)', code)
+        self.assertNotIn('self.browser_list.append(scroll)', code)
+        self.assertIn('columns[1 if item.get("title") in {"ALBUMS", "TRACKS"} else 0]', code)
+
+    def test_grouped_artwork_does_not_use_hidden_single_scroller_window(self):
+        jobs = Mock()
+        owner = SimpleNamespace(browser_scroll=SimpleNamespace(get_vadjustment=lambda: None), browser_state={"search_routes":{"key":{}}}, browser_artwork_keys=['a','b'], queue_thumbnail_cache={}, queue_thumbnail_pending=set(), queue_thumbnail_jobs=SimpleNamespace(put=jobs))
+        native_method("load_visible_browser_artwork")(owner)
+        self.assertEqual(owner.queue_thumbnail_pending, {'a','b'})
+        self.assertEqual(jobs.call_count, 2)
+
     def test_pending_search_skips_old_page_response(self):
         owner = SimpleNamespace(browser_pending_request=("search", {"query": "Oasis"}), browser_loading=True, request_browser=Mock(), render_browser=Mock(), set_roon_view=Mock())
         native_method("apply_browser_response")(owner, {"title": "Genres", "items": []})
