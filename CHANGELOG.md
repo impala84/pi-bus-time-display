@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.11.28 — 4 October 2026
+
+- Remove navigation and settings-cog backplates in both web themes and provide hand-pointer cursors on the top menu.
+- Align browse navigation and alphabet scrubber with consistent outer margins; remove the repeated amplifier name on external-input screens.
+- Show neutral artist silhouettes or record icons for missing and failed browse artwork, including the artist profile.
+
 ## 0.11.27 — 3 October 2026
 
 - Fix mobile portrait bus cards: put each route number beside the arrivals, reduce spacing and typography, and keep all arrival times inside their cards.

@@ -200,7 +200,7 @@ h1 {
 .details-tracks strong { color: var(--ink); font-size: 14px; }.details-tracks small { color: var(--muted); }
 #now-view { padding-top: max(64px, 3vw); }
 .source-view { position: fixed; inset: 92px 24px 102px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
-.source-view h1 { white-space: normal; }
+.source-view h1 { white-space: normal; flex-shrink: 0; }
 .source-view #source-subtitle { margin: 0 0 52px; color: var(--muted); font-size: clamp(17px,2.2vw,28px); }
 .source-volume { display: grid; grid-template-columns: 96px minmax(150px,240px) 96px; align-items: center; justify-content: center; gap: clamp(20px,4vw,50px); }
 .source-volume output { font-size: clamp(88px,16vw,170px); font-weight: 620; font-variant-numeric: tabular-nums; text-align: center; }
@@ -335,7 +335,24 @@ body[data-theme="roon"] .queue-row.current, body[data-theme="roon"] .queue-row:h
 body[data-theme="roon"] .transport button, body[data-theme="roon"] .source-step, body[data-theme="roon"] .source-mute, body[data-theme="roon"] .browser-search-panel, body[data-theme="roon"] .browser-keyboard button, body[data-theme="roon"] .browser-search-panel input { background: #292929; color: var(--ink); }
 body[data-theme="roon"] .transport .play { background: var(--mint); color: #151515; }
 body[data-theme="roon"] .timeline input, body[data-theme="roon"] input[type="range"] { accent-color: var(--mint); }
-body[data-theme="roon"] .music-subnav, body[data-theme="roon"] .web-nav, body[data-theme="roon"] .settings-cog { background: rgba(21,21,21,.96); }
+.music-subnav, .web-nav, .settings-cog,
+body[data-theme="roon"] .music-subnav, body[data-theme="roon"] .web-nav, body[data-theme="roon"] .settings-cog { background: transparent; }
+.music-subnav button, .settings-cog, .web-nav a { cursor: pointer; }
+.music-subnav button:disabled { cursor: default; }
+.browser-view, .browser-view.surprise-takeover { padding-left: 25px; padding-right: 25px; }
+.browser-sidebar { padding-left: 0; }
+.browser-scrubber { min-width: 0; }
+.browser-scrubber::before { right: 6.5px; }
+.browser-scrub-dot { right: 0; }
+.browser-scrubber output { right: 23px; }
+.missing-artwork { width: 48%; height: 48%; fill: none; stroke: #777; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
+.artist-profile-art { width: 100%; aspect-ratio: 1; display: grid; place-items: center; overflow: hidden; border-radius: 10px; background: var(--panel); }
+.artist-profile-art img { width: 100%; height: 100%; object-fit: cover; }
+@media(max-width:700px) and (orientation:portrait) {
+  .browser-view, .browser-view.surprise-takeover { padding-left: 19px; padding-right: 19px; }
+  .artist-takeover .artist-profile-art { width: 100px; float: left; margin: 0 12px 8px 0; }
+  .artist-takeover .artist-profile-art img { margin: 0; }
+}
 body[data-theme="roon"] .volume button { background: #292929; color: var(--ink); }
 body[data-theme="roon"] .browser-scrubber input::-webkit-slider-runnable-track { background: #45424b; }
 body[data-theme="roon"] .browser-scrubber input::-moz-range-track, body[data-theme="roon"] .browser-scrubber input::-moz-range-progress { background: #45424b; }

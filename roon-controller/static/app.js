@@ -178,7 +178,8 @@ function renderAmplifier(amplifier, zone) {
   const active = amplifier.active_input;
   $('now-tab').classList.toggle('active', musicView === 'now'); $('queue-tab').classList.toggle('active', musicView === 'queue'); $('browse-tab').classList.toggle('active', musicView === 'browse');
   $('source-title').textContent = active?.name || 'External input';
-  $('source-subtitle').textContent = [amplifier.player?.name || amplifier.player?.model, amplifier.playback?.format].filter(Boolean).join(' · ') || amplifier.status || 'BluOS amplifier';
+  $('source-subtitle').textContent = amplifier.playback?.format || '';
+  $('source-subtitle').hidden = !$('source-subtitle').textContent;
   const volume = amplifier.volume;
   $('amp-volume-panel').hidden = !volume;
   if (volume) { $('amp-volume-value').textContent = Math.round(volume.value ?? 0); $('amp-mute').textContent = volume.muted ? 'UNMUTE' : 'MUTE'; }
@@ -285,11 +286,28 @@ function browserTileSymbol(title, section) {
   return String(title || '?').trim().charAt(0).toUpperCase() || '?';
 }
 
+function missingArtwork(artist = false) {
+  const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  icon.setAttribute('viewBox', '0 0 100 100'); icon.setAttribute('aria-hidden', 'true'); icon.classList.add('missing-artwork');
+  icon.innerHTML = artist
+    ? '<circle cx="50" cy="34" r="15"/><path d="M22 83v-9a28 28 0 0 1 56 0v9"/>'
+    : '<circle cx="50" cy="50" r="31"/><circle cx="50" cy="50" r="8"/>';
+  return icon;
+}
+
+function browseArtwork(container, key, size, artist = false) {
+  const fallback = () => container.replaceChildren(missingArtwork(artist));
+  if (!key) { fallback(); return; }
+  const image = document.createElement('img'); image.loading = 'lazy'; image.alt = '';
+  image.onerror = fallback;
+  image.src = api(`/api/image?key=${encodeURIComponent(key)}&size=${size}`); container.append(image);
+}
+
 function browserCard(item, layout, showLabels, section, showSubtitles = true) {
   const button = document.createElement('button'); button.className = `browser-card ${layout}`; button.disabled = !item.item_key;
   if (layout === 'covers' || layout === 'tiles') {
     const artwork = document.createElement('span'); artwork.className = 'browser-card-art';
-    if (item.image_key) { const image = document.createElement('img'); image.loading = 'lazy'; image.alt = ''; image.src = api(`/api/image?key=${encodeURIComponent(item.image_key)}&size=320`); artwork.append(image); }
+    if (layout === 'covers' || item.image_key) browseArtwork(artwork, item.image_key, 320, section === 'artists');
     else if (layout === 'tiles') { const icon = document.createElement('span'); icon.className = 'browser-tile-icon'; icon.textContent = browserTileSymbol(item.title, section); artwork.append(icon); }
     button.append(artwork);
   } else {
@@ -308,7 +326,8 @@ function renderArtistProfile(profile, playAction) {
   const panel = $('browser-artist'); panel.replaceChildren(); panel.hidden = !profile;
   $('browser-view').classList.toggle('artist-takeover', Boolean(profile));
   if (!profile) return;
-  if (profile.image_key) { const image = document.createElement('img'); image.alt = profile.name; image.src = api('/api/image?key=' + encodeURIComponent(profile.image_key) + '&size=400'); panel.append(image); }
+  const artwork = document.createElement('div'); artwork.className = 'artist-profile-art';
+  browseArtwork(artwork, profile.image_key, 400, true); panel.append(artwork);
   const title = document.createElement('h2'); title.textContent = profile.name; panel.append(title);
   if (playAction) {
     const play = document.createElement('button'); play.className = 'artist-play'; play.textContent = '▶  Play Artist';

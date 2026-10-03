@@ -5,4 +5,4 @@
 body[data-theme="roon"]{--bg:#151515;--panel:#232228;--line:#45424b;--ink:#f5f5f5;--muted:#aaa;--mint:#817aeb;background:linear-gradient(120deg,#242338,#181818 60%,#251c22)}
 body[data-theme="roon"] .entity.on{background:#302b44;border-color:var(--mint)}
 body[data-theme="roon"] .entity.on svg{color:var(--mint)}
-body[data-theme="roon"] .settings-cog,body[data-theme="roon"] .web-nav{background:rgba(21,21,21,.96)}
+.settings-cog,.web-nav,body[data-theme="roon"] .settings-cog,body[data-theme="roon"] .web-nav{background:transparent;border:0;cursor:pointer}
