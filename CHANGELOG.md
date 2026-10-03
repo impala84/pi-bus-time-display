@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.11.24 — 3 October 2026
+
+- Make ARTIST ALBUMS uppercase and slightly larger (16px) on the native and web displays, without changing album rows or other headings.
+
 ## 0.11.23 — 3 October 2026
 
 - Keep artist album rows and square thumbnails at a consistent size instead of expanding with available space or artwork dimensions.

@@ -135,6 +135,7 @@ CSS += b"""
 .settings-select label { color: #fff; }
 .artist-play { padding: 12px 18px; border: 0; border-radius: 7px; background: #303030; color: #6ed9ae; font-size: 18px; font-weight: 650; }
 .theme-roon .artist-play { background: #292929; color: #817aeb; }
+.artist-albums-heading { font-size: 16px; font-weight: 750; }
 .theme-roon .queue-play-badge { background: transparent; color: #817aeb; }
 .theme-roon .queue-row.current, .theme-roon .queue-row:hover, .theme-roon .queue-row:active { background: #292733; }
 .theme-roon .utility, .theme-roon .source-step, .theme-roon .source-mute, .theme-roon .transport button, .theme-roon .browser-key, .theme-roon .browser-search-entry { background: #292929; color: #ddd; }
@@ -1068,7 +1069,7 @@ class Display(Gtk.Application):
         while child := self.browser_list.get_first_child(): self.browser_list.remove(child)
         items = data.get("items") or []
         if data.get("artist_profile"):
-            self.browser_list.append(self.label("Artist albums", "browser-section"))
+            heading = self.label("ARTIST ALBUMS", "browser-section"); heading.add_css_class("artist-albums-heading"); self.browser_list.append(heading)
             items = [item for item in items if item is not artist_play]
         self.browser_list.set_valign(Gtk.Align.START if data.get("layout") == "list" else Gtk.Align.FILL)
         if not items:

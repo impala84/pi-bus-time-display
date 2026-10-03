@@ -53,7 +53,8 @@ class NativeBrowserControlsTests(unittest.TestCase):
         code = SOURCE.read_text(encoding='utf-8')
         self.assertIn('art_slot.set_max_content_height(84)', code)
         self.assertIn('art_slot.set_max_content_width(84)', code)
-        self.assertIn('"Artist albums", "browser-section"', code)
+        self.assertIn('"ARTIST ALBUMS", "browser-section"', code)
+        self.assertIn('.artist-albums-heading { font-size: 16px;', code)
         self.assertIn('play.set_halign(Gtk.Align.CENTER); panel.append(play)', code)
 
     def test_theme_updates_the_selector_without_triggering_a_save(self):

@@ -333,7 +333,7 @@ function renderBrowser(data) {
   $('browser-message').hidden = !data.message; $('browser-message').textContent = data.message || ''; $('browser-message').classList.toggle('error', Boolean(data.error));
   const list = $('browser-list'); list.replaceChildren(); list.className = `browser-list layout-${data.layout || 'list'}`;
   list.classList.toggle('genre-grid', data.layout === 'tiles' && data.section === 'genres');
-  if (data.artist_profile) { const heading = document.createElement('h3'); heading.className = 'browser-section'; heading.textContent = 'Artist albums'; list.append(heading); }
+  if (data.artist_profile) { const heading = document.createElement('h3'); heading.className = 'browser-section artist-albums-heading'; heading.textContent = 'ARTIST ALBUMS'; list.append(heading); }
   if (data.status === 'unavailable') { const empty = document.createElement('p'); empty.className = 'queue-empty'; empty.textContent = 'Roon Browse is unavailable.'; list.append(empty); browserRendering = false; return; }
   if (data.surprise_preview && data.items?.length) {
     const album = data.items[0]; const preview = document.createElement('div'); preview.className = 'surprise-preview';
