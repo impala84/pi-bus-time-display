@@ -310,7 +310,7 @@ function renderBrowser(data) {
   document.querySelectorAll('[data-browser-section]').forEach(button => button.classList.toggle('active', button.dataset.browserSection === (data.section || 'albums')));
   $('browser-search-open').classList.toggle('active', data.section === 'search');
   $('browser-surprise').hidden = data.section !== 'albums';
-  $('browser-surprise').textContent = data.surprise_album ? 'SURPRISE AGAIN' : 'SURPRISE ME';
+  $('browser-surprise').textContent = 'SURPRISE!';
   $('browser-scrubber').hidden = !data.alpha_scrub;
   $('browser-message').hidden = !data.message; $('browser-message').textContent = data.message || ''; $('browser-message').classList.toggle('error', Boolean(data.error));
   const list = $('browser-list'); list.replaceChildren(); list.className = `browser-list layout-${data.layout || 'list'}`;
@@ -324,7 +324,7 @@ function renderBrowser(data) {
     const title = document.createElement('h2'); title.textContent = album.title;
     const artist = document.createElement('p'); artist.textContent = album.subtitle || '';
     const controls = document.createElement('div'); controls.className = 'surprise-controls';
-    for (const [label, action] of [['▶ Play Album', 'surprise_play'], ['Surprise Again', 'surprise']]) {
+    for (const [label, action] of [['▶ Play Album', 'surprise_play'], ['Surprise!', 'surprise']]) {
       const button = document.createElement('button'); button.textContent = label; button.onclick = () => browseCommand(action); controls.append(button);
     }
     preview.append(art, title, artist, controls); list.append(preview);

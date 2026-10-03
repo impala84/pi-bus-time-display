@@ -89,6 +89,10 @@ class DisplayRotationTests(unittest.TestCase):
         self.assertIn("['▶ Play Album', 'surprise_play']", app)
         self.assertIn('self.browser_sidebar.set_visible(not data.get("surprise_preview"))', display)
         self.assertIn('self.request_browser("surprise_play")', display)
+        self.assertIn("['Surprise!', 'surprise']", app)
+        self.assertIn('self.button("SURPRISE!"', display)
+        self.assertNotIn("Surprise Again", app)
+        self.assertNotIn("SURPRISE\\nME", display)
 
     def test_roon_browser_reuses_protected_scroll_layout(self):
         display = (ROOT / "native-display" / "pi_bus_native.py").read_text(encoding="utf-8")

@@ -316,7 +316,7 @@ class Display(Gtk.Application):
         for section in ("albums", "artists", "genres", "playlists"):
             button = self.button(section.upper(), lambda _button, value=section: self.request_browser("section", section=value), "browser-filter"); self.browser_section_buttons[section] = button; sidebar.append(button)
         self.browser_search_button = self.button("SEARCH", self.show_browser_search, "browser-filter"); sidebar.append(self.browser_search_button)
-        self.browser_surprise_button = self.button("SURPRISE\nME", lambda *_: self.request_browser("surprise"), "browser-filter"); self.browser_surprise_button.add_css_class("browser-surprise"); sidebar.append(self.browser_surprise_button)
+        self.browser_surprise_button = self.button("SURPRISE!", lambda *_: self.request_browser("surprise"), "browser-filter"); self.browser_surprise_button.add_css_class("browser-surprise"); sidebar.append(self.browser_surprise_button)
         self.browser_back = self.button("BACK", lambda *_: self.request_browser("back"), "browser-back"); self.browser_back.set_visible(False); self.browser_back.set_halign(Gtk.Align.END); self.browser_back.set_valign(Gtk.Align.START); browser.add_overlay(self.browser_back)
         self.browser_sidebar = sidebar; browser_body.append(sidebar)
         browser_main = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2); browser_main.add_css_class("browser-main"); browser_main.set_vexpand(True); browser_main.set_hexpand(True)
@@ -917,7 +917,7 @@ class Display(Gtk.Application):
         self.browser_rendering = True; self.browser_loading = True; self.browser_state = data; self.browser_back.set_visible(bool(data.get("can_back"))); self.browser_back.set_sensitive(bool(data.get("can_back"))); self.browser_scrubber.set_visible(bool(data.get("alpha_scrub")))
         active_section = data.get("section") or "albums"
         self.browser_sidebar.set_visible(not data.get("surprise_preview"))
-        self.browser_surprise_button.set_visible(active_section == "albums"); self.browser_surprise_button.set_label("SURPRISE\nAGAIN" if data.get("surprise_album") else "SURPRISE\nME")
+        self.browser_surprise_button.set_visible(active_section == "albums"); self.browser_surprise_button.set_label("SURPRISE!")
         if active_section == "search": self.browser_search_button.add_css_class("active")
         else: self.browser_search_button.remove_css_class("active")
         for section, button in self.browser_section_buttons.items():
@@ -946,7 +946,7 @@ class Display(Gtk.Application):
             preview.append(self.label(album.get("subtitle") or "", "queue-meta", .5))
             controls = Gtk.Box(spacing=12); controls.set_halign(Gtk.Align.CENTER)
             controls.append(self.button("▶ Play Album", lambda *_: self.request_browser("surprise_play"), "browser-filter"))
-            controls.append(self.button("Surprise Again", lambda *_: self.request_browser("surprise"), "browser-filter")); preview.append(controls); self.browser_list.append(preview)
+            controls.append(self.button("Surprise!", lambda *_: self.request_browser("surprise"), "browser-filter")); preview.append(controls); self.browser_list.append(preview)
         elif items and layout in {"home", "menu"}:
             grid = Gtk.Grid(column_spacing=12, row_spacing=12); grid.add_css_class("browser-home-grid"); grid.set_column_homogeneous(True); grid.set_row_homogeneous(True); columns = 4
             for index, item in enumerate(item for item in items if item.get("hint") != "header"): grid.attach(self.browser_menu_card(item, layout == "menu"), index % columns, index // columns, 1, 1)

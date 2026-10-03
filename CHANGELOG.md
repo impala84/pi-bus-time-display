@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.11.16 — 3 October 2026
+
+- Install the required Python GI Cairo bridge on upgrades as well as fresh installations, fixing the missing gi._gi_cairo startup crash.
+- Verify GTK/Cairo imports before restarting services, and check that the touchscreen stays active without restarting before reporting update success.
+- Add regression coverage keeping installer graphics dependencies in sync with the updater.
+- Rename the sidebar and album-preview reroll controls to Surprise! on both web and touchscreen.
+
 ## 0.11.15 — 3 October 2026
 
 - Match Surprise Me / Again to the other mobile sidebar labels and centre the top navigation in the space beside Settings.

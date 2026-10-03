@@ -66,7 +66,7 @@ if [[ ${PI_HOME_UPDATE_REEXECUTED:-0} != 1 ]]; then
   exec /usr/bin/env bash "${app_dir}/scripts/pi-bus-update"
 fi
 
-required_packages=(python3-gi gir1.2-gtk-4.0 fonts-inter avahi-utils wlr-randr)
+required_packages=(python3-gi python3-gi-cairo gir1.2-gtk-4.0 fonts-inter avahi-utils wlr-randr)
 missing_packages=()
 for package in "${required_packages[@]}"; do
   if ! dpkg-query -W -f='${Status}' "${package}" 2>/dev/null | grep -q '^install ok installed$'; then
@@ -82,6 +82,10 @@ else
   progress "System components are already ready."
 fi
 install -d -o morningbus -g morningbus /var/lib/pi-bus-time-display/roon
+
+update_stage="checking touchscreen graphics dependencies"
+progress "Checking touchscreen graphics dependencies…"
+python3 -c 'import gi; gi.require_version("Gtk", "4.0"); gi.require_foreign("cairo"); from gi.repository import Gtk, Gdk, Gio, GLib, Pango'
 
 progress "Installing Pi Home application files…"
 update_stage="installing the Python application"
@@ -161,6 +165,17 @@ wait_for_url "Roon controller" "http://127.0.0.1:8766/api/state" "pi-bus-roon-co
 if systemctl is-enabled --quiet pi-bus-native.service; then
   progress "Restarting the touchscreen…"
   systemctl restart pi-bus-native.service
+  update_stage="verifying touchscreen startup"
+  restart_count=$(systemctl show pi-bus-native.service --property=NRestarts --value)
+  for attempt in {1..5}; do
+    sleep 1
+    if ! systemctl is-active --quiet pi-bus-native.service || [[ $(systemctl show pi-bus-native.service --property=NRestarts --value) != "${restart_count}" ]]; then
+      echo "The touchscreen did not stay running after the update. Recent service log:"
+      journalctl -u pi-bus-native.service -n 40 --no-pager
+      exit 1
+    fi
+  done
+  progress "Touchscreen is running."
 fi
 
 progress "Complete — all Pi Home services are responding."
