@@ -50,6 +50,7 @@ function configuredRuntime() {
       zoneName: process.env.ROON_ZONE_NAME || stringValue('roon_zone_name'),
       displayName: stringValue('roon_display_name') || 'Roon',
       displayTheme: stringValue('display_theme') === 'roon' ? 'roon' : 'fresh-mint',
+      busEnabled: text.match(/^bus_enabled\s*=\s*(true|false)/m)?.[1] !== 'false',
       nowPlayingName: stringValue('roon_now_playing_name') || 'Now Playing',
       queueName: stringValue('roon_queue_name') || 'Queue',
       queueEnabled: text.match(/^roon_show_queue\s*=\s*(true|false)/m)?.[1] !== 'false',
@@ -106,6 +107,7 @@ function publicState() {
   const zone = selectedZone();
   const labels = {display: configured.displayName, now_playing: configured.nowPlayingName, queue: configured.queueName, browse: 'Browse'};
   labels.display_theme = configured.displayTheme || 'fresh-mint';
+  labels.bus_enabled = configured.busEnabled !== false;
   if (!zone) return {connected: Boolean(core), authorised: Boolean(core), zones: [], zone: null, labels, browser_enabled: configured.browserEnabled, queue: {status: 'unavailable', items: []}, details: {status: 'unavailable'}, amplifier: publicAmplifierState()};
   const output = (zone.outputs || []).find(item => item.volume) || (zone.outputs || [])[0] || null;
   return {
@@ -322,7 +324,7 @@ http.createServer(async (request, response) => {
       if (!transport || !zone) return json(response, 409, {error: 'Roon is not connected'});
       if (url.pathname === '/api/browse') {
         if (!configuredRuntime().browserEnabled) return json(response, 404, {error: 'Roon Browse is disabled'});
-        const action = ['root', 'open', 'back', 'more', 'previous', 'jump', 'section', 'search', 'surprise', 'surprise_play', 'current'].includes(data.action) ? data.action : 'current';
+        const action = ['root', 'open', 'back', 'more', 'previous', 'jump', 'section', 'search', 'surprise', 'surprise_play', 'current', 'route'].includes(data.action) ? data.action : 'current';
         return json(response, 200, await browser.run(data.session, action, data));
       }
       if (url.pathname === '/api/control' && data.action === 'resume') resumeRoon(zone);

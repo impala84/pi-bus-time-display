@@ -11,7 +11,7 @@ const updateHistory=[];
 const sectionFields={
   appearance:['display_theme'],
   automation:['morning_start','morning_end','auto_switch_to_roon','roon_idle_return_minutes','sleep_when_roon_idle','daytime_inactivity_minutes','sleep_start','sleep_end','outside_hours_wake_minutes','sleep_show_clock'],
-  bus:['bus_stop_code','bus_stop_name','services','walking_minutes','poll_seconds','lta_account_key'],
+  bus:['bus_enabled','bus_stop_code','bus_stop_name','services','walking_minutes','poll_seconds','lta_account_key'],
   roon:['roon_display_name','roon_now_playing_name','roon_queue_name','roon_zone_name','roon_show_controls','roon_show_clock','roon_show_queue','roon_show_browser','bluos_enabled','bluos_player_address','bluos_visible_inputs','bluos_input_names'],
   home:['home_assistant_enabled','home_assistant_url','home_assistant_token','home_assistant_entities'],
   logging:['openobserve_enabled','openobserve_url','openobserve_org','openobserve_stream','openobserve_username','openobserve_password'],
@@ -22,7 +22,7 @@ function pinBanner(text){if(text==='Display settings applied. Reboot now.')retur
 function currentSaveSection(){if(activeTab==='display')return'appearance';if(activeTab==='automation')return'automation';if(activeTab==='services')return activeService;if(activeTab==='system')return'logging';return null}
 function updateSaveBar(){const dirty=dirtySections.size>0;saveBar.hidden=!dirty&&!pinnedBanner&&!bannerMessage;saveBar.classList.toggle('saved',!dirty);document.getElementById('save-settings').disabled=!dirty;saveState.textContent=bannerMessage||pinnedBanner||(dirtySections.size===1?'Unsaved changes':`${dirtySections.size} sections have unsaved changes`)}
 function markDirty(){const section=currentSaveSection();if(!section)return;dirtySections.add(section);updateSaveBar()}
-function showMode(mode){document.querySelectorAll('[data-mode]').forEach(button=>button.classList.toggle('active',button.dataset.mode===mode))}
+function showMode(mode){document.querySelectorAll('[data-mode]').forEach(button=>{button.classList.toggle('active',button.dataset.mode===mode);if(button.dataset.mode==='bus')button.hidden=!form.elements.bus_enabled.checked})}
 let restoringRoute=false;
 function recordAdminRoute(){if(restoringRoute)return;const sub=activeTab==='services'?activeService:activeTab==='system'?(document.querySelector('[data-system-panel]:not([hidden])')?.dataset.systemPanel||'system-device'):'';const hash='#'+[activeTab,sub].filter(Boolean).map(encodeURIComponent).join('/');if(location.hash!==hash)history.pushState(null,'',hash)}
 function showTab(name){activeTab=name;document.querySelectorAll('[data-panel]').forEach(panel=>panel.hidden=panel.dataset.panel!==name);document.querySelectorAll('[data-tab]').forEach(button=>{const selected=button.dataset.tab===name;button.setAttribute('aria-selected',String(selected))});updateSaveBar();recordAdminRoute();if(name==='system')loadSystem();}

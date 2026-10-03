@@ -10,6 +10,20 @@ from pi_bus_time_display.server import State, active_wifi_ssid, automatic_displa
 
 
 class DisplayModeTests(unittest.TestCase):
+    def test_bus_disabled_persists_and_automatic_stays_on_music(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "config.toml"
+            mode = Path(directory) / "mode"
+            write_config(path, Config(bus_enabled=False))
+            config = load_config(path)
+            self.assertFalse(config.bus_enabled)
+            state = State(config, Path(directory))
+            self.assertFalse(state.snapshot()["bus_enabled"])
+            noon = datetime(2026, 10, 4, 12, tzinfo=ZoneInfo(config.timezone))
+            self.assertEqual(automatic_display_target(state, mode, {"zone": {"state": "paused"}}, noon), "http://127.0.0.1:8766/")
+            self.assertEqual(display_target(config, mode, {"zone": {"state": "paused"}}, noon), "http://127.0.0.1:8766/")
+            self.assertTrue(Config().bus_enabled)
+
     def test_display_theme_round_trip_and_validation(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "config.toml"

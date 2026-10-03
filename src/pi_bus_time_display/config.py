@@ -8,6 +8,7 @@ from pathlib import Path
 
 @dataclass(frozen=True)
 class Config:
+    bus_enabled: bool = True
     bus_stop_code: str = "83249"
     bus_stop_name: str = "Flamingo Valley · Siglap Rd"
     services: tuple[str, ...] = ()

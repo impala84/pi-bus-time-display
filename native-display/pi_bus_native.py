@@ -118,7 +118,13 @@ CSS += b"""
 .browser-cover-art { min-width: 0; min-height: 0; }
 .touch-landscape .browser-cover-art { min-width: 0; min-height: 0; }
 .browser-cover-card { min-height: 0; padding: 3px; }
-.browser-cover-card:hover, .browser-cover-card:active, .browser-home-card:hover, .browser-row:hover { background: transparent; box-shadow: none; outline: none; transform: none; transition: none; }
+.browser-cover-card:hover, .browser-cover-card:active, .browser-home-card:hover, .browser-row:hover, .browser-row:active { background: transparent; box-shadow: none; outline: none; transform: none; transition: none; }
+.browser-search-entry:focus, .browser-search-entry:focus-within { outline: none; box-shadow: none; border-color: transparent; }
+.browser-key.browser-search-submit { background: #6ed9ae; color: #111; font-weight: 750; }
+.theme-roon .browser-key.browser-search-submit { background: #817aeb; color: #111; }
+.browser-section { font-size: 17px; padding-bottom: 12px; }
+.search-column { padding: 0 10px; }
+.theme-roon .browser-row:active, .theme-roon .browser-row:hover { background: transparent; }
 .browser-scrubber { padding: 0; }
 .browser-surprise { font-size: 14px; }
 .surprise-action { min-width: 72px; min-height: 72px; padding: 8px; border-radius: 12px; background: #18211f; color: #6ed9ae; }
@@ -208,6 +214,7 @@ class Display(Gtk.Application):
         self.home_signature = None
         self.home_nav_buttons = []
         self.roon_nav_buttons = []
+        self.bus_nav_buttons = []
         self.home_value_timeouts = {}
         self.brightness_updating = False
         self.brightness_timeout = None
@@ -312,6 +319,7 @@ class Display(Gtk.Application):
         row = Gtk.Box(spacing=8); row.add_css_class("nav")
         now = self.button("Roon", lambda *_: self.set_mode("roon"), ""); self.roon_nav_buttons.append(now)
         bus = self.button("Bus Times", lambda *_: self.set_mode("bus"), "")
+        self.bus_nav_buttons.append(bus)
         home = self.button("Home", lambda *_: self.set_mode("home"), ""); self.home_nav_buttons.append(home)
         {"roon": now, "bus": bus, "home": home}.get(active, bus).add_css_class("active")
         for button in (now, bus, home): button.set_hexpand(True); row.append(button)
@@ -401,7 +409,7 @@ class Display(Gtk.Application):
             search_panel.append(key_row)
         keyboard_actions = Gtk.Box(spacing=10); keyboard_actions.set_homogeneous(True)
         for title, value in (("SPACE", " "), ("⌫", "BACKSPACE"), ("CLEAR", "CLEAR")): keyboard_actions.append(self.button(title, lambda _button, value=value: self.browser_keyboard_key(value), "browser-key"))
-        keyboard_actions.append(self.button("SEARCH", self.submit_browser_search, "browser-key")); search_panel.append(keyboard_actions); self.roon_views.add_named(search_panel, "search")
+        search_submit = self.button("SEARCH", self.submit_browser_search, "browser-key"); search_submit.add_css_class("browser-search-submit"); keyboard_actions.append(search_submit); search_panel.append(keyboard_actions); self.roon_views.add_named(search_panel, "search")
         detail_panel = Gtk.Box(spacing=24); detail_panel.add_css_class("detail-panel"); detail_panel.set_hexpand(True); detail_panel.set_vexpand(True)
         self.detail_artwork = Gtk.Picture(); self.detail_artwork.add_css_class("detail-artwork"); self.detail_artwork.set_size_request(420, 420); self.detail_artwork.set_content_fit(Gtk.ContentFit.COVER); self.detail_artwork.set_valign(Gtk.Align.CENTER)
         detail_artwork_button = Gtk.Button(); detail_artwork_button.add_css_class("detail-artwork-button"); detail_artwork_button.set_halign(Gtk.Align.CENTER); detail_artwork_button.set_valign(Gtk.Align.CENTER); detail_artwork_button.set_child(self.detail_artwork); detail_artwork_button.connect("clicked", lambda *_: self.set_roon_view("now")); detail_panel.append(detail_artwork_button)
@@ -604,6 +612,7 @@ class Display(Gtk.Application):
         if config is not None:
             self.settings_data = config
             self.apply_theme(config.get("display_theme"))
+            for button in self.bus_nav_buttons: button.set_visible(config.get("bus_enabled", True))
             for button in self.roon_nav_buttons: button.set_label(config.get("roon_display_name") or "Roon")
             self.now_playing_tab.set_label((config.get("roon_now_playing_name") or "Now Playing").upper())
             self.queue_tab.set_label((config.get("roon_queue_name") or "Queue").upper())
@@ -893,6 +902,13 @@ class Display(Gtk.Application):
             play.set_halign(Gtk.Align.CENTER); panel.append(play)
 
     def request_browser(self, action, **payload):
+        if action == "search":
+            while child := self.browser_list.get_first_child(): self.browser_list.remove(child)
+            self.browser_list.set_orientation(Gtk.Orientation.VERTICAL)
+            self.browser_list.append(self.label("Searching…", "browser-section"))
+            self.browser_artist_scroll.set_visible(False); self.browser_scrubber.set_visible(False)
+            self.browser_search_button.add_css_class("active")
+            for button in self.browser_section_buttons.values(): button.remove_css_class("active")
         if self.browser_loading:
             if action in {"jump", "section", "search"}: self.browser_pending_request = (action, payload)
             return
@@ -916,6 +932,11 @@ class Display(Gtk.Application):
         GLib.idle_add(self.apply_browser_response, result or {"status": "ready", "title": "Browse", "items": [], "message": "Roon Browse did not respond.", "error": True})
 
     def apply_browser_response(self, data):
+        pending = getattr(self, "browser_pending_request", None)
+        if pending:
+            self.browser_pending_request = None; self.browser_loading = False
+            self.request_browser(pending[0], **pending[1])
+            return False
         self.render_browser(data)
         if data.get("navigate") == "now" and not data.get("error"): self.set_roon_view("now")
         return False
@@ -1105,6 +1126,11 @@ class Display(Gtk.Application):
         self.render_artist_profile(data.get("artist_profile"), artist_play)
         while child := self.browser_list.get_first_child(): self.browser_list.remove(child)
         items = data.get("items") or []
+        grouped_search = bool(data.get("search_routes"))
+        self.browser_list.set_orientation(Gtk.Orientation.HORIZONTAL if grouped_search else Gtk.Orientation.VERTICAL)
+        self.browser_list.set_homogeneous(False)
+        self.browser_list.set_vexpand(grouped_search)
+        self.browser_scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.NEVER if grouped_search else Gtk.PolicyType.AUTOMATIC)
         if data.get("artist_profile"):
             heading = self.label("ARTIST ALBUMS", "browser-section"); heading.add_css_class("artist-albums-heading"); self.browser_list.append(heading)
             items = [item for item in items if item is not artist_play]
@@ -1147,8 +1173,22 @@ class Display(Gtk.Application):
                 card = self.browser_cover_card(item, bool(data.get("show_labels")), tile_kind); self.browser_cards.append((card, item)); grid.attach(card, index % columns, index // columns, 1, 1)
             self.browser_list.append(grid)
         else:
+            columns = []
+            if grouped_search:
+                self.browser_list.set_homogeneous(True)
+                for _ in range(2):
+                    column = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2); column.add_css_class("search-column")
+                    scroll = Gtk.ScrolledWindow(); scroll.add_css_class("queue-scroll"); scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC); scroll.set_kinetic_scrolling(True); scroll.set_hexpand(True); scroll.set_vexpand(True); scroll.set_propagate_natural_width(False); scroll.set_min_content_width(1); scroll.set_size_request(1, 1); scroll.set_child(column); scroll.get_vadjustment().connect("value-changed", lambda *_: self.load_visible_browser_artwork()); self.browser_list.append(scroll); columns.append(column)
+            else: self.browser_list.set_homogeneous(False)
+            group_index = -1; group_count = 0; target = self.browser_list
             for item in items:
-                if item.get("hint") == "header": self.browser_list.append(self.label(item.get("title") or "", "browser-section")); continue
+                if item.get("hint") == "header":
+                    group_index += 1; group_count = 0
+                    target = columns[group_index % 2] if columns else self.browser_list
+                    target.append(self.label(item.get("title") or "", "browser-section")); continue
+                if columns and not item.get("title", "").startswith("View all "):
+                    group_count += 1
+                    if group_count > 4: continue
                 row = Gtk.Box(spacing=14); row.set_hexpand(True)
                 key = item.get("image_key")
                 if item.get("action"):
@@ -1156,6 +1196,7 @@ class Display(Gtk.Application):
                     action_frame = Gtk.CenterBox(); action_frame.add_css_class("browser-action-icon"); action_frame.set_size_request(84, 84); action_frame.set_hexpand(False); action_frame.set_halign(Gtk.Align.START); action_frame.set_valign(Gtk.Align.CENTER); action_frame.set_center_widget(action_icon); row.append(action_frame)
                 else:
                     picture = Gtk.Picture(); picture.add_css_class("queue-art"); picture.set_can_shrink(True); picture.set_content_fit(Gtk.ContentFit.COVER)
+                    self.set_browser_placeholder(picture, item.get("result_type") == "artists")
                     # A fixed viewport prevents the texture's natural dimensions
                     # or the number of rows from enlarging album thumbnails.
                     art_slot = Gtk.ScrolledWindow(); art_slot.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.NEVER); art_slot.set_propagate_natural_width(False); art_slot.set_propagate_natural_height(False); art_slot.set_min_content_width(84); art_slot.set_max_content_width(84); art_slot.set_min_content_height(84); art_slot.set_max_content_height(84); art_slot.set_size_request(84, 84); art_slot.set_halign(Gtk.Align.START); art_slot.set_valign(Gtk.Align.CENTER); art_slot.set_child(picture); row.append(art_slot)
@@ -1171,7 +1212,7 @@ class Display(Gtk.Application):
                 button = Gtk.Button(); button.add_css_class("browser-row"); button.set_child(row); button.set_sensitive(bool(item.get("item_key")))
                 button.set_vexpand(False); button.set_valign(Gtk.Align.START)
                 if item.get("action"): button.add_css_class("browser-action")
-                button.connect("clicked", self.open_browser_item, item.get("item_key")); self.browser_list.append(button)
+                button.connect("clicked", self.open_browser_item, item.get("item_key")); target.append(button)
         GLib.timeout_add(100, self.load_visible_browser_artwork)
         GLib.timeout_add(60, self.finish_browser_render)
         return False

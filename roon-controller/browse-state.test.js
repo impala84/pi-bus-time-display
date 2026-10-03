@@ -34,6 +34,11 @@ test('grouped search previews keep independent keys, show five matches, and retu
   const all = root.items.find(item => item.title === 'View all albums');
   assert.equal((await manager.run('group-test', 'open', {item_key: all.item_key})).items.length, 8);
   assert.equal((await manager.run('group-test', 'back')).layout, 'list');
+  const restored = await manager.run('group-test', 'route', {query: 'Example', steps: [{title: 'album 0', occurrence: 0}]});
+  assert.equal(restored.title, 'album 0');
+  const safe = await manager.run('group-test', 'route', {query: 'Example', steps: [{title: 'album 0'}, {title: 'Play Album'}]});
+  assert.match(safe.message, /no longer available/);
+  assert.equal(safe.title, 'album 0', 'history must not trigger playback');
 });
 
 function fakeService() {

@@ -30,6 +30,13 @@ class Entry:
 
 
 class NativeBrowserControlsTests(unittest.TestCase):
+    def test_pending_search_skips_old_page_response(self):
+        owner = SimpleNamespace(browser_pending_request=("search", {"query": "Oasis"}), browser_loading=True, request_browser=Mock(), render_browser=Mock(), set_roon_view=Mock())
+        native_method("apply_browser_response")(owner, {"title": "Genres", "items": []})
+        owner.render_browser.assert_not_called()
+        owner.request_browser.assert_called_once_with("search", query="Oasis")
+        self.assertFalse(owner.browser_loading)
+
     def test_native_placeholder_uses_local_artist_and_album_assets(self):
         method = native_method("set_browser_placeholder", {"Path": Path, "__file__": str(SOURCE)})
         picture = SimpleNamespace(set_filename=Mock())

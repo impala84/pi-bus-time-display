@@ -11,6 +11,8 @@ let inputSignature = '';
 let lastActiveInput = '';
 let browserState = null;
 let browserLoading = false;
+let browserPlan = {section: 'albums', steps: []};
+let lastRestoredHash = '';
 let browserRendering = false;
 let browserPendingRequest = null;
 let browserPreviousHeight = null;
@@ -106,6 +108,7 @@ function render(next) {
   const zone = next.zone;
   const amplifier = next.amplifier || {};
   const activeInput = String(amplifier.active_input?.id || '');
+  $('bus-link').hidden = next.labels?.bus_enabled === false;
   if (activeInput !== lastActiveInput) {
     if (activeInput) musicView = 'source';
     else if (lastActiveInput && musicView === 'source') musicView = 'now';
@@ -241,8 +244,8 @@ function setMusicView(view, record = true) {
   $('now-tab').classList.toggle('active', view === 'now'); $('queue-tab').classList.toggle('active', queue); $('browse-tab').classList.toggle('active', browse);
   document.querySelectorAll('.source-input').forEach(button => button.classList.toggle('active', source && String(button.dataset.inputId) === String(state?.amplifier?.active_input?.id)));
   if (queue) requestAnimationFrame(scrollQueueToCurrent);
-  if (browse && !browserState) browseCommand('section', {section: 'albums'});
-  if (record && location.hash !== `#${view}`) history.pushState(null, '', `#${view}`);
+  if (browse && !browserState && !location.hash.startsWith('#browse/')) browseCommand('section', {section: 'albums'});
+  if (record && !(view === 'browse' && location.hash.startsWith('#browse/')) && location.hash !== `#${view}`) history.pushState(null, '', `#${view}`);
 }
 
 function browserRow(item) {
@@ -252,7 +255,11 @@ function browserRow(item) {
   const button = document.createElement('button'); button.className = `browser-row${item.action ? ' action' : ''}`; button.disabled = !item.item_key;
   const artwork = document.createElement('span'); artwork.className = `browser-art${item.action ? ' action-icon' : ''}`;
   if (item.action) artwork.append(browserActionIcon(item.title));
-  else if (item.image_key) { const image = document.createElement('img'); image.loading = 'lazy'; image.alt = ''; image.src = api(`/api/image?key=${encodeURIComponent(item.image_key)}&size=128`); artwork.append(image); }
+  else {
+    const fallback = () => artwork.replaceChildren(missingArtwork(item.result_type === 'artists' || /\d+ albums?$/i.test(item.subtitle || '')));
+    fallback();
+    if (item.image_key) { const image = document.createElement('img'); image.loading = 'lazy'; image.alt = ''; image.onerror = fallback; image.src = api(`/api/image?key=${encodeURIComponent(item.image_key)}&size=128`); artwork.replaceChildren(image); }
+  }
   const copy = document.createElement('span'); copy.className = 'browser-copy'; const title = document.createElement('strong'); title.textContent = item.title || 'Untitled'; copy.append(title);
   if (item.subtitle) { const subtitle = document.createElement('small'); subtitle.textContent = item.subtitle; copy.append(subtitle); }
   const arrow = document.createElement('span'); arrow.className = 'browser-arrow'; arrow.textContent = item.duration || '';
@@ -374,6 +381,12 @@ function renderBrowser(data) {
       const caption = document.createElement('span'); caption.textContent = action === 'surprise' ? 'Surprise' : 'Play Now'; controls.append(button, caption); buttons.push(controls);
     }
     stage.append(buttons[0], art, buttons[1]); preview.append(stage, title, artist); list.append(preview);
+  } else if (data.search_routes) {
+    list.classList.add('search-groups'); let group;
+    for (const item of data.items || []) {
+      if (item.hint === 'header' || !group) { group = document.createElement('section'); group.className = 'search-group'; list.append(group); }
+      group.append(browserRow(item));
+    }
   } else (data.items || []).filter(item => item !== artistPlay).forEach(item => list.append(item.action ? browserRow(item) : (['home', 'menu', 'covers', 'tiles'].includes(data.layout) ? browserCard(item, data.layout, Boolean(data.show_labels), data.section, data.show_subtitles !== false) : browserRow(item))));
   if (!(data.items || []).length) { const empty = document.createElement('p'); empty.className = 'queue-empty'; empty.textContent = 'Nothing is available here.'; list.append(empty); }
   requestAnimationFrame(() => {
@@ -410,7 +423,11 @@ function maybeLoadMore() {
 }
 
 async function browseCommand(action, data = {}) {
-  if (browserLoading || browserRendering) { if (['jump', 'section', 'search'].includes(action)) browserPendingRequest = {action, data}; return; }
+  if (action === 'search' || action === 'route') showBrowseLoading(data.query ? `Searching for “${data.query}”…` : 'Loading page…');
+  if (browserLoading || browserRendering) { if (['jump', 'section', 'search', 'route'].includes(action)) browserPendingRequest = {action, data}; return; }
+  const opened = action === 'open' ? browserState?.items?.find(item => item.item_key === data.item_key) : null;
+  if (action !== 'route') recordBrowseRoute(action, data, opened);
+  if (['section', 'open', 'back'].includes(action) && !opened?.action) showBrowseLoading('Loading page…');
   browserLoading = true;
   if (action === 'surprise' && !browserState?.surprise_preview) browserSectionScrolls.set(browserState?.section || 'albums', $('browser-scroll').scrollTop);
   if (['section', 'search'].includes(action)) {
@@ -424,8 +441,42 @@ async function browseCommand(action, data = {}) {
   try {
     const options = action === 'current' ? {method: 'GET', cache: 'no-store'} : {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({session: browserSession, action, ...data})};
     const url = action === 'current' ? api(`/api/browse?session=${encodeURIComponent(browserSession)}`) : api('/api/browse');
-    const response = await fetch(url, options); const result = await response.json(); if (!response.ok) throw new Error(result.error || 'Browse failed'); renderBrowser(result); if (result.navigate === 'now') setMusicView('now');
-  } catch (error) { browserLoading = false; renderBrowser({...(browserState || {}), status: 'ready', title: browserState?.title || 'Browse', items: browserState?.items || [], message: error.message, error: true}); }
+    const response = await fetch(url, options); const result = await response.json(); if (!response.ok) throw new Error(result.error || 'Browse failed');
+    if (browserPendingRequest) { browserLoading = false; const pending = browserPendingRequest; browserPendingRequest = null; browseCommand(pending.action, pending.data); return; }
+    renderBrowser(result); if (result.navigate === 'now') setMusicView('now');
+  } catch (error) {
+    browserLoading = false;
+    if (browserPendingRequest) { const pending = browserPendingRequest; browserPendingRequest = null; browseCommand(pending.action, pending.data); return; }
+    renderBrowser({...(browserState || {}), status: 'ready', title: browserState?.title || 'Browse', items: browserState?.items || [], message: error.message, error: true});
+  }
+}
+
+function browseHash(plan) {
+  const params = new URLSearchParams();
+  if (plan.query) params.set('query', plan.query);
+  if (plan.steps?.length) params.set('path', JSON.stringify(plan.steps));
+  return `#browse/${plan.query ? 'search' : plan.section || 'albums'}${params.size ? '?' + params : ''}`;
+}
+function recordBrowseRoute(action, data, opened) {
+  if (action === 'section' || action === 'root') browserPlan = {section: data.section || 'albums', steps: []};
+  else if (action === 'search') browserPlan = {section: 'search', query: data.query, steps: []};
+  else if (action === 'surprise') browserPlan = {section: 'surprise', steps: []};
+  else if (action === 'open' && opened && !opened.action) {
+    const occurrence = (browserState.items || []).filter(item => item.title === opened.title && !item.action).indexOf(opened);
+    browserPlan = {...browserPlan, steps: [...browserPlan.steps, {title: opened.title, occurrence, offset: Number(browserState.offset || 0) + browserState.items.indexOf(opened)}]};
+  } else if (action === 'back') browserPlan = browserPlan.steps.length ? {...browserPlan, steps: browserPlan.steps.slice(0, -1)} : {section: 'albums', steps: []};
+  else return;
+  const hash = browseHash(browserPlan); lastRestoredHash = hash;
+  if (location.hash !== hash) history.pushState(null, '', hash);
+}
+function showBrowseLoading(message) {
+  $('browser-search-panel').hidden = true;
+  $('browser-artist').hidden = true; $('browser-scrubber').hidden = true;
+  const list = $('browser-list'); list.className = 'browser-list'; list.replaceChildren();
+  const status = document.createElement('p'); status.className = 'search-loading'; status.setAttribute('role', 'status'); status.textContent = message; list.append(status);
+  $('browser-message').hidden = true;
+  $('browser-search-open').classList.toggle('active', Boolean(browserPlan.query));
+  document.querySelectorAll('[data-browser-section]').forEach(button => button.classList.toggle('active', !browserPlan.query && button.dataset.browserSection === browserPlan.section));
 }
 
 function renderDetails(info) {
@@ -492,10 +543,10 @@ $('queue-tab').onclick = () => setMusicView('queue');
 $('browse-tab').onclick = () => setMusicView('browse');
 $('browser-back').onclick = () => browseCommand('back');
 $('browser-surprise').onclick = () => browseCommand('surprise');
-$('browser-search-open').onclick = () => { $('browser-search-panel').hidden = false; $('browser-search-input').focus(); };
+$('browser-search-open').onclick = () => { if (location.hash !== '#browse/search') history.pushState(null, '', '#browse/search'); lastRestoredHash = '#browse/search'; $('browser-search-panel').hidden = false; $('browser-search-input').focus(); };
 $('browser-search-input').placeholder = 'Search your library and TIDAL';
 $('browser-search-input').setAttribute('enterkeyhint', 'search');
-$('browser-search-cancel').onclick = () => { $('browser-search-panel').hidden = true; $('browser-search-open').focus(); };
+$('browser-search-cancel').onclick = () => { $('browser-search-panel').hidden = true; if (location.hash === '#browse/search') history.back(); $('browser-search-open').focus(); };
 $('browser-search-panel').onkeydown = event => { if (event.key === 'Escape') { event.preventDefault(); $('browser-search-cancel').click(); } };
 $('browser-search-form').onsubmit = event => {
   event.preventDefault(); const query = $('browser-search-input').value.trim();
@@ -530,8 +581,18 @@ $('browser-scrub-range').onchange = event => browseCommand('jump', {letter: Stri
 $('details-open').onclick = () => setMusicView('details');
 $('details-artwork-close').onclick = () => setMusicView('now');
 function restoreMusicRoute() {
-  const view = location.hash.slice(1);
+  if (lastRestoredHash === location.hash) return;
+  lastRestoredHash = location.hash;
+  const [route, queryString = ''] = location.hash.slice(1).split('?');
+  const [view, section] = route.split('/');
   setMusicView(['now', 'queue', 'browse', 'details', 'source'].includes(view) ? view : 'now', false);
+  if (view === 'browse' && section) {
+    const params = new URLSearchParams(queryString); const query = params.get('query') || '';
+    if (section === 'search' && !query) { $('browser-search-panel').hidden = false; $('browser-search-input').focus(); return; }
+    let steps = []; try { steps = JSON.parse(params.get('path') || '[]'); } catch (_) {}
+    browserPlan = {section, query, steps: Array.isArray(steps) ? steps : []};
+    browseCommand('route', browserPlan);
+  } else $('browser-search-panel').hidden = true;
 }
 window.addEventListener('popstate', restoreMusicRoute);
 window.addEventListener('hashchange', restoreMusicRoute);

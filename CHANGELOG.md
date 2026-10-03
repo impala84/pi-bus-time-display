@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.11.34 — 4 October 2026
+
+- Give Browse sections, queries and result drill-downs distinct URLs with safe Back/Forward restoration using fresh Roon keys rather than replaying playback actions.
+- Show search loading immediately, skip stale responses, and load independent category previews in parallel.
+- Show desktop results in three columns, with neutral missing-artwork icons; use two independently scrolling touchscreen columns with four previews per group and larger headings.
+- Remove pressed-row tint and native search focus decoration; accent the touchscreen Search button in the selected theme.
+- Add Services → Bus → Show Bus Times, enabled by default. Disabling it hides bus navigation, stops arrival polling, and prevents automatic bus-page selection for music-only installations.
+
+## 0.11.33 — 4 October 2026
+
+- Web search preserves the selected theme background instead of covering the page in gray.
+- Shared Roon search shows up to five actual matches per category, plus View all, with independent category sessions for reliable opening and returning on web and native displays.
+- Web music views and settings tabs now have URL fragments, browser Back/Forward support, and settings sub-tab deep links.
+
 ## 0.11.32 — 4 October 2026
 
 - Simplify desktop and mobile web search to a large input with Search and Cancel, using the device keyboard instead of a custom on-screen keyboard.
@@ -720,8 +734,3 @@
 ## 0.1.0 — 28 September 2026
 
 - Initial Raspberry Pi bus display, web settings, kiosk service and Roon integration.
-# v0.11.33 — 4 October 2026
-
-- Web search preserves the selected theme background instead of covering the page in gray.
-- Shared Roon search shows up to five actual matches per category, plus View all, with independent category sessions for reliable opening and returning on web and native displays.
-- Web music views and settings tabs now have URL fragments, browser Back/Forward support, and settings sub-tab deep links.

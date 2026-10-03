@@ -101,6 +101,7 @@ class BrowseManager {
     const session = safeSession(sessionName);
     const previous = this.pending.get(session) || Promise.resolve();
     const current = previous.catch(() => {}).then(() => {
+      if (command === 'route') return this.restoreRoute(session, data);
       if (command === 'surprise') return this.surprise(session);
       if (command === 'surprise_play') return this.playSurprise(session);
       let active = this.activeSessions.get(session) || session;
@@ -177,6 +178,45 @@ class BrowseManager {
     }
     if (opened?.action && /^play(?: (now|album|from here))?$/i.test(opened.title.trim()) && !result.is_error && (playbackCompleted || result.action !== 'list')) return {...this.save(session, {...next, message: ''}), navigate: 'now'};
     return next;
+  }
+
+  async restoreRoute(session, data) {
+    if (data.section === 'surprise') return this.surprise(session);
+    let active = `${session}-route`;
+    this.activeSessions.set(session, active);
+    this.sessions.delete(active);
+    const section = ['albums', 'artists', 'genres', 'playlists'].includes(data.section) ? data.section : 'albums';
+    let state;
+    if (data.query) {
+      this.sections.set(active, 'search');
+      state = await this._run(active, 'search', {query: String(data.query).slice(0, 500), source: 'all'});
+    } else state = await this._run(active, 'root', {section});
+    // URLs store labels, not Roon's short-lived item keys. Resolve fresh keys
+    // at each level and never replay playback actions from browser history.
+    for (const step of (Array.isArray(data.steps) ? data.steps : []).slice(0, 20)) {
+      if (!step || typeof step.title !== 'string') continue;
+      if (!state.search_routes && Number.isFinite(step.offset) && step.offset > PAGE_SIZE && state.count > step.offset) {
+        const offset = Math.max(0, Math.floor(step.offset) - 15);
+        const loaded = await request(this.service(), 'load', {hierarchy: state.hierarchy, multi_session_key: active, level: state.level, offset, count: PAGE_SIZE});
+        state = this.store(active, state.hierarchy, loaded.list, loaded.items || [], '', state.fallback_image_key, offset);
+      }
+      let matches = state.items?.filter(item => item.title === step.title && !item.action) || [];
+      while (matches.length <= Number(step.occurrence || 0) && state.has_more) {
+        const previousLength = state.items.length;
+        state = await this._run(active, 'more', {});
+        if (state.items.length <= previousLength) break;
+        matches = state.items.filter(item => item.title === step.title && !item.action);
+      }
+      const item = matches[Number(step.occurrence || 0)];
+      if (!item?.item_key) return {...state, message: 'This result is no longer available. Showing its parent page.'};
+      const preview = state.search_routes?.[item.item_key];
+      if (preview) {
+        active = preview.session;
+        state = preview.key ? await this._run(active, 'open', {item_key: preview.key}) : this.sessions.get(active);
+      } else state = await this._run(active, 'open', {item_key: item.item_key});
+      this.activeSessions.set(session, active);
+    }
+    return state;
   }
 
   async shuffleGenre(service, zone, session, state, options) {
@@ -286,8 +326,8 @@ class BrowseManager {
     const root = await this.follow(service, session, 'search', result);
     const categories = root.items.filter(item => /^(albums|artists|tracks|playlists|composers|works)$/i.test(item.title.trim()) && item.item_key);
     if (!categories.length) return root;
-    const items = [], routes = {};
-    for (const [index, category] of categories.entries()) {
+    const groups = await Promise.all(categories.map(async (category, index) => {
+      const items = [], routes = {};
       const child = `${session}-preview-${index}`;
       this.sections.set(child, 'search');
       try {
@@ -295,16 +335,16 @@ class BrowseManager {
         const fresh = await request(service, 'browse', {hierarchy: 'search', multi_session_key: child, zone_or_output_id: zone.zone_id, pop_all: true, input: query});
         const freshRoot = await this.follow(service, child, 'search', fresh);
         const match = freshRoot.items.find(item => item.title === category.title);
-        if (!match?.item_key) continue;
+        if (!match?.item_key) return {items: [category], routes};
         const opened = await request(service, 'browse', {hierarchy: 'search', multi_session_key: child, zone_or_output_id: zone.zone_id, item_key: match.item_key});
         const group = await this.follow(service, child, 'search', opened);
-        if (group.error || !group.items.length) continue;
+        if (group.error || !group.items.length) return {items: group.error ? [category] : [], routes};
         this.save(child, {...group, search_origin: {session, level: group.level}});
         items.push({title: category.title.toUpperCase(), hint: 'header'});
         for (const [position, item] of group.items.filter(item => item.hint !== 'header' && !item.action).slice(0, 5).entries()) {
           const key = `preview-${index}-${position}`;
           routes[key] = {session: child, key: item.item_key};
-          items.push({...item, item_key: item.item_key ? key : null});
+          items.push({...item, result_type: category.title.toLowerCase(), item_key: item.item_key ? key : null});
         }
         const key = `preview-${index}-all`;
         routes[key] = {session: child};
@@ -313,7 +353,9 @@ class BrowseManager {
         // Keep a usable category link if a catalogue cannot load its preview.
         items.push(category);
       }
-    }
+      return {items, routes};
+    }));
+    const items = groups.flatMap(group => group.items), routes = Object.assign({}, ...groups.map(group => group.routes));
     const direct = root.items.filter(item => !categories.includes(item));
     if (direct.length) items.unshift({title: 'TOP RESULTS', hint: 'header'}, ...direct);
     return this.save(session, {...root, items, search_routes: routes, layout: 'list', show_labels: true, has_more: false, count: items.length});

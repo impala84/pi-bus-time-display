@@ -64,6 +64,7 @@ class State:
             "roon_display_url": self.config.roon_display_url,
             "roon_display_name": self.config.roon_display_name,
             "display_theme": self.config.display_theme,
+            "bus_enabled": self.config.bus_enabled,
             "stale": bool(self.last_success and (now - self.last_success).total_seconds() > self.config.stale_after_seconds),
         })
         if self.config.services:
@@ -152,6 +153,9 @@ def poll(state: State, stop: threading.Event, events: OpenObserveLogger | None =
     last_status: str | None = None
     while not stop.is_set():
         config = state.config
+        if not config.bus_enabled:
+            stop.wait(2)
+            continue
         timezone = ZoneInfo(config.timezone)
         now = datetime.now(timezone)
         try:
@@ -267,6 +271,7 @@ def write_config(path: Path, config: Config) -> None:
         f"roon_zone_name = {json.dumps(config.roon_zone_name)}",
         f"roon_display_name = {json.dumps(config.roon_display_name)}",
         f"display_theme = {json.dumps(config.display_theme)}",
+        f"bus_enabled = {str(config.bus_enabled).lower()}",
         f"roon_now_playing_name = {json.dumps(config.roon_now_playing_name)}",
         f"roon_queue_name = {json.dumps(config.roon_queue_name)}",
         f"sleep_when_roon_idle = {str(config.sleep_when_roon_idle).lower()}",
@@ -367,6 +372,9 @@ def display_target(
         return "/sleep.html"
     if mode == "home":
         return "/home"
+    if not config.bus_enabled and mode == "bus":
+        if roon is _CHECK_ROON: roon = roon_status()
+        return "http://127.0.0.1:8766/" if roon is not None else "/roon-unavailable.html"
     if mode in {"roon", "auto"} and roon is _CHECK_ROON:
         roon = roon_status()
     if mode == "roon":
@@ -375,6 +383,9 @@ def display_target(
         now = now or datetime.now(ZoneInfo(config.timezone))
         if within_sleep_window(config, now):
             return "/sleep.html"
+        if not config.bus_enabled:
+            if config.sleep_when_roon_idle and ((roon or {}).get("zone") or {}).get("state") != "playing": return "/sleep.html"
+            return "http://127.0.0.1:8766/" if roon is not None else "/roon-unavailable.html"
         if not within_window(config, now):
             if roon is None:
                 return "/roon-unavailable.html"
@@ -403,7 +414,7 @@ def automatic_display_target(state: State, mode_path: Path, roon: dict | None, n
             state.manual_mode_period = scheduled_period(state.config, set_at)
         if scheduled_period(state.config, now) == state.manual_mode_period:
             if mode == "sleep" and monotonic < state.awake_until:
-                return "http://127.0.0.1:8766/" if state.awake_view == "roon" and roon is not None else "/"
+                return "http://127.0.0.1:8766/" if (state.awake_view == "roon" or not state.config.bus_enabled) and roon is not None else "/" if state.config.bus_enabled else "/roon-unavailable.html"
             return display_target(state.config, mode_path, roon, now)
         mode_path.write_text("auto\n", encoding="utf-8")
         state.manual_mode_signature = None
@@ -422,9 +433,12 @@ def automatic_display_target(state: State, mode_path: Path, roon: dict | None, n
     if zone_state == "playing" or (state.config.auto_switch_to_roon and playback_recent):
         return "http://127.0.0.1:8766/" if roon is not None else "/roon-unavailable.html"
     if monotonic < state.awake_until:
-        return "http://127.0.0.1:8766/" if state.awake_view == "roon" and roon is not None else "/"
+        return "http://127.0.0.1:8766/" if (state.awake_view == "roon" or not state.config.bus_enabled) and roon is not None else "/" if state.config.bus_enabled else "/roon-unavailable.html"
     if within_sleep_window(state.config, now):
         return "/sleep.html"
+    if not state.config.bus_enabled:
+        if state.config.sleep_when_roon_idle: return "/sleep.html"
+        return "http://127.0.0.1:8766/" if roon is not None else "/roon-unavailable.html"
     if state.config.auto_switch_to_roon:
         return "/"
     if within_window(state.config, now):
@@ -654,6 +668,8 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
             super().end_headers()
 
         def do_GET(self):
+            if self.path in {"/", "/index.html"} and not state.config.bus_enabled:
+                self.send_response(302); self.send_header("Location", "/roon/"); self.end_headers(); return
             if self.path == "/home":
                 self.send_response(302)
                 self.send_header("Location", "/home.html")
@@ -706,6 +722,7 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                     "roon_zone_name": config.roon_zone_name,
                     "roon_display_name": config.roon_display_name,
                     "display_theme": config.display_theme,
+                    "bus_enabled": config.bus_enabled,
                     "roon_now_playing_name": config.roon_now_playing_name,
                     "roon_queue_name": config.roon_queue_name,
                     "sleep_when_roon_idle": config.sleep_when_roon_idle,
@@ -1035,6 +1052,7 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                     roon_zone_name=str(data.get("roon_zone_name", current.roon_zone_name)).strip(),
                     roon_display_name=str(data.get("roon_display_name", current.roon_display_name)).strip() or "Roon",
                     display_theme=str(data.get("display_theme", current.display_theme)),
+                    bus_enabled=bool(data.get("bus_enabled", current.bus_enabled)),
                     roon_now_playing_name=str(data.get("roon_now_playing_name", current.roon_now_playing_name)).strip() or "Now Playing",
                     roon_queue_name=str(data.get("roon_queue_name", current.roon_queue_name)).strip() or "Queue",
                     sleep_when_roon_idle=bool(data.get("sleep_when_roon_idle", current.sleep_when_roon_idle)),

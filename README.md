@@ -1,5 +1,7 @@
 # Pi Home
 
+For a music-only installation, switch off **Services → Bus → Show Bus Times** in Settings. Bus Times stays enabled by default; disabling it hides bus navigation, stops LTA polling, and keeps automatic navigation on Roon instead of the bus page. The equivalent configuration option is `bus_enabled = false`.
+
 A single-card Raspberry Pi home dashboard that combines **Roon Bridge**, Roon Now Playing, Singapore bus arrivals and selected Home Assistant controls on the official touchscreen.
 
 Planned display automation, multi-service layouts, Touch Display 2 support and performance work are tracked in the [roadmap](ROADMAP.md).
@@ -57,7 +59,7 @@ After the initial installation, update the appliance with one command:
 sudo pi-bus-update
 ```
 
-The updater follows the supported `main` branch, preserves any local checkout differences in a recoverable Git stash, reinstalls the application, reapplies saved display/input orientation, refreshes and verifies its services, then restarts the native touchscreen without rebooting the Pi. Already-installed operating-system components are not downloaded again. Touch Display 2 orientation updates its hardware touch overlay and requests one reboot only when that boot configuration actually changes. Updates can be started from the protected web System section or the restricted touchscreen Settings screen. Your settings and secrets remain untouched in `/etc/pi-bus-time-display/`. Both interfaces show live installation stages while an update is running. Releases use semantic versions, shown in Settings and recorded in [CHANGELOG.md](CHANGELOG.md). The current release is **v0.11.33**.
+The updater follows the supported `main` branch, preserves any local checkout differences in a recoverable Git stash, reinstalls the application, reapplies saved display/input orientation, refreshes and verifies its services, then restarts the native touchscreen without rebooting the Pi. Already-installed operating-system components are not downloaded again. Touch Display 2 orientation updates its hardware touch overlay and requests one reboot only when that boot configuration actually changes. Updates can be started from the protected web System section or the restricted touchscreen Settings screen. Your settings and secrets remain untouched in `/etc/pi-bus-time-display/`. Both interfaces show live installation stages while an update is running. Releases use semantic versions, shown in Settings and recorded in [CHANGELOG.md](CHANGELOG.md). The current release is **v0.11.34**.
 
 Display brightness is shared between touchscreen Settings and web Settings → System. It is applied through Linux's hardware backlight interface, persisted across reboots and limited to 10–100% so the panel cannot accidentally become unusable. The System page also reports the real `netdata.service` state when Netdata is installed and can enable/start or disable/stop that single service through Pi Home's existing fixed-action privileged broker; no general sudo access is granted. The same page can turn the Raspberry Pi ACT/PWR status lights on or off; they default to off, persist across reboots, and are reapplied by a one-shot boot service rather than a resident process.
 

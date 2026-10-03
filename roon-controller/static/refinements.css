@@ -355,6 +355,21 @@ body[data-theme="roon"] .music-subnav, body[data-theme="roon"] .web-nav, body[da
 .browser-view, .browser-view.surprise-takeover { padding-left: 25px; padding-right: 25px; }
 .browser-sidebar { padding-left: 0; }
 #browser-keyboard { display: none; }
+.browser-row:active { background: transparent; }
+body[data-theme="roon"] .browser-art.action-icon { background: #292929; }
+.web-nav a[hidden] { display: none !important; }
+.web-nav:has(a[hidden]) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.search-loading { color: var(--ink); font-size: 24px; padding: 24px 0; }
+.browser-list.search-groups { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; gap: 28px; }
+.search-group { min-width: 0; }
+.search-group .browser-section { margin: 0 0 20px; }
+.search-group .browser-row { width: 100%; min-width: 0; margin-bottom: 14px; }
+.search-group .browser-art { flex: 0 0 64px; width: 64px; height: 64px; }
+.search-group .browser-copy { min-width: 0; }
+.search-group .browser-copy strong { white-space: normal; font-size: 18px; }
+.browser-art .missing-artwork { width: 100%; height: 100%; }
+@media(max-width:1000px) { .browser-list.search-groups { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media(max-width:700px) { .browser-list.search-groups { grid-template-columns: minmax(0,1fr); } }
 .browser-search-panel, body[data-theme="roon"] .browser-search-panel { padding: 24px; background: transparent; }
 .browser-view:has(.browser-search-panel:not([hidden])) > :not(.browser-search-panel) { visibility: hidden; }
 .browser-search-panel form { max-width: 1100px; margin: 20px auto; align-items: stretch; }
