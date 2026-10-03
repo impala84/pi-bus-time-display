@@ -792,23 +792,6 @@ class Display(Gtk.Application):
         else: square.set_child(self.label("♫", "browser-tile-icon", .5))
         name = profile.get("name", "")
         title = self.label(name, "artist-name", .5); title.set_wrap(True); title.set_max_width_chars(20); panel.append(title)
-        self.artist_bio = self.label("", "artist-bio"); self.artist_bio.set_wrap(True); self.artist_bio.set_max_width_chars(25); self.artist_bio.set_lines(12); self.artist_bio.set_ellipsize(Pango.EllipsizeMode.END); panel.append(self.artist_bio)
-        self.artist_bio_source = self.label("", "artist-source"); panel.append(self.artist_bio_source)
-        if not hasattr(self, "artist_profile_cache"): self.artist_profile_cache = {}
-        if name in self.artist_profile_cache:
-            self.apply_artist_profile(name, self.artist_profile_cache[name]); return
-        def load():
-            result = get_json(ROON + "/api/artist?" + urlencode({"name": name}), timeout=15.0) or {}
-            GLib.idle_add(self.apply_artist_profile, name, result)
-        threading.Thread(target=load, daemon=True).start()
-
-    def apply_artist_profile(self, name, result):
-        self.artist_profile_cache[name] = result
-        if len(self.artist_profile_cache) > 64: self.artist_profile_cache.pop(next(iter(self.artist_profile_cache)))
-        if ((self.browser_state or {}).get("artist_profile") or {}).get("name") == name:
-            self.artist_bio.set_text(result.get("writeup") or "Artist background is unavailable.")
-            self.artist_bio_source.set_text(result.get("source") or "")
-        return False
 
     def request_browser(self, action, **payload):
         if self.browser_loading:
@@ -1009,8 +992,7 @@ class Display(Gtk.Application):
             else: button.remove_css_class("active")
         message = data.get("message") or ""; self.browser_message.set_text(message); self.browser_message.set_visible(bool(message))
         self.browser_pictures = {}; self.browser_artwork_keys = []; self.browser_cards = []
-        # Keep the full browsing width until artist information is reliable.
-        self.render_artist_profile(None)
+        self.render_artist_profile(data.get("artist_profile"))
         while child := self.browser_list.get_first_child(): self.browser_list.remove(child)
         items = data.get("items") or []
         if not items:

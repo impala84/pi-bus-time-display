@@ -304,29 +304,18 @@ function browserCard(item, layout, showLabels, section, showSubtitles = true) {
   button.setAttribute('aria-label', [item.title, item.subtitle].filter(Boolean).join(', ')); button.onclick = () => browseCommand('open', {item_key: item.item_key}); return button;
 }
 
-const artistProfiles = new Map();
 function renderArtistProfile(profile) {
   const panel = $('browser-artist'); panel.replaceChildren(); panel.hidden = !profile;
   $('browser-view').classList.toggle('artist-takeover', Boolean(profile));
   if (!profile) return;
   if (profile.image_key) { const image = document.createElement('img'); image.alt = profile.name; image.src = api('/api/image?key=' + encodeURIComponent(profile.image_key) + '&size=400'); panel.append(image); }
   const title = document.createElement('h2'); title.textContent = profile.name; panel.append(title);
-  const bio = document.createElement('p'); bio.className = 'artist-bio'; panel.append(bio);
-  const source = document.createElement('small'); source.className = 'artist-source'; panel.append(source);
-  if (!artistProfiles.has(profile.name)) {
-    artistProfiles.set(profile.name, fetch(api('/api/artist?name=' + encodeURIComponent(profile.name))).then(r=>r.ok?r.json():{}).catch(()=>({})));
-    while (artistProfiles.size > 64) artistProfiles.delete(artistProfiles.keys().next().value);
-  }
-  artistProfiles.get(profile.name).then(result=>{
-    if (browserState?.artist_profile?.name !== profile.name || !bio.isConnected) return;
-    bio.textContent = result.writeup || 'Artist background is unavailable.'; source.textContent = result.source || '';
-  });
 }
 
 function renderBrowser(data) {
   browserRendering = true; browserState = data; browserLoading = false;
   $('browser-view').classList.toggle('surprise-takeover', Boolean(data.surprise_preview));
-  renderArtistProfile(null);
+  renderArtistProfile(data.artist_profile);
   document.querySelector('.browser-sidebar').append($('browser-back'));
   $('browser-back').hidden = !data.can_back; $('browser-back').disabled = !data.can_back; $('browser-loading-more').hidden = true;
   document.querySelectorAll('[data-browser-section]').forEach(button => button.classList.toggle('active', button.dataset.browserSection === (data.section || 'albums')));

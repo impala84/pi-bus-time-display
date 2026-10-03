@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.11.20 — 3 October 2026
+
+- Restore the artist portrait and name column on native and web displays. Remove only the biography and its unavailable-information message; retain all other v0.11.19 changes.
+
 ## 0.11.19 — 3 October 2026
 
 - Left-align the browse section names and highlight the selected text in the accent colour, with no underline or filled button.

@@ -36,14 +36,18 @@ class NativeBrowserControlsTests(unittest.TestCase):
         owner.browser_state = {"can_back":False}; swipe(owner,None,800,0)
         self.assertEqual(calls, ["back"])
 
-    def test_late_artist_response_does_not_overwrite_another_artist(self):
-        texts = []
-        owner = SimpleNamespace(artist_profile_cache={}, browser_state={"artist_profile":{"name":"New"}}, artist_bio=SimpleNamespace(set_text=texts.append), artist_bio_source=SimpleNamespace(set_text=texts.append))
-        apply = native_method("apply_artist_profile")
-        apply(owner, "Old", {"writeup":"Old biography","source":"Wikipedia"})
-        self.assertEqual(texts, [])
-        apply(owner, "New", {"writeup":"New biography","source":"Wikipedia"})
-        self.assertEqual(texts, ["New biography", "Wikipedia"])
+    def test_artist_panel_keeps_portrait_and_name_without_biography(self):
+        tree = ast.parse(SOURCE.read_text(encoding="utf-8"))
+        method = next(node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef) and node.name == "render_artist_profile")
+        code = ast.unparse(method)
+        self.assertIn('Gtk.Picture()', code)
+        self.assertIn("'artist-name'", code)
+        self.assertNotIn('artist_bio', code)
+        self.assertNotIn('get_json', code)
+        self.assertIn('self.render_artist_profile(data.get("artist_profile"))', SOURCE.read_text(encoding="utf-8"))
+        web = (SOURCE.parents[1] / "roon-controller" / "static" / "app.js").read_text(encoding="utf-8")
+        self.assertIn('renderArtistProfile(data.artist_profile)', web)
+        self.assertNotIn('Artist background is unavailable.', web)
 
     def test_grid_minimums_fit_physical_monitor_without_using_expanded_content(self):
         metrics = native_method("browser_grid_metrics", {"Gdk": SimpleNamespace(Display=SimpleNamespace(get_default=lambda: display))})
