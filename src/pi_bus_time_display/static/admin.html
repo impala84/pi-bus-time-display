@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#0b1110">
   <title>Pi Home · Settings</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/admin.css?v=1117">
+  <link rel="stylesheet" href="/admin.css?v=1119">
 </head>
 <body><main>
   <header class="masthead"><div><p><a href="#overview" data-jump="overview" class="brand-home">PI HOME <span id="version"></span></a></p><h1>Settings</h1></div><div class="masthead-actions"><button class="global-update" type="button" data-action="update">Check for updates</button><a href="/">View display</a></div></header>
@@ -29,8 +29,9 @@
         <button type="button" class="summary-card" data-jump="system" data-jump-target="system-maintenance"><span>Software update</span><strong id="overview-update">Checking…</strong></button>
       </div>
     </section>
-    <section id="panel-display" data-panel="display" hidden>
+    <section id="panel-display" data-panel="display" data-save="appearance" hidden>
       <div class="section-heading"><div><p class="kicker">TOUCHSCREEN</p><h2>Display</h2></div></div>
+      <h3>Appearance</h3><label>Display style<select name="display_theme"><option value="fresh-mint">Fresh Mint</option><option value="roon">Roon</option></select></label><small>Fresh Mint keeps the existing look. Roon uses charcoal surfaces and a violet accent. Save changes to apply; no reboot needed.</small>
       <h3>Brightness</h3><label>Display brightness <output id="brightness-value">100%</output><input id="display-brightness" type="range" min="10" max="100" step="1" value="100"></label><small>Applies immediately. The 10% minimum keeps the touchscreen visible.</small>
       <h3>Screen hardware</h3><label>Display profile<select id="display-profile"><option value="original">Original Touch Display · 800×480</option><option value="touch2-5">Touch Display 2 · 5-inch · 720×1280</option><option value="touch2-7">Touch Display 2 · 7-inch · 720×1280</option><option value="touch2-10">Touch Display 2 · 10-inch · 1200×1920</option></select></label><label>Orientation<select id="display-orientation"><option value="normal">Normal</option><option value="90">90° clockwise</option><option value="180">180°</option><option value="270">270° clockwise</option></select></label><button class="secondary" type="button" id="save-display">Apply display settings</button><small>Touch Display 2 orientation includes hardware touch calibration and requires one reboot.</small>
       <h3>Sections shown</h3><p class="intro">Roon and Bus Times are always available. Enable Home and the Roon Queue from their service settings.</p><div class="shortcut-row"><button type="button" class="secondary" data-service="roon">Roon display options</button><button type="button" class="secondary" data-service="home">Home display options</button></div>
@@ -65,4 +66,4 @@
     <div class="save-bar" id="save-bar" hidden><button class="banner-reboot" type="button" data-action="reboot" data-confirm="Reboot the Raspberry Pi now?">Reboot</button><span id="save-state">Unsaved changes</span><button id="save-settings" type="submit">Save changes</button></div>
   </form>
   <div id="toast" role="status" aria-live="polite"></div>
-</main><script src="/admin.js?v=1117"></script></body></html>
+</main><script src="/admin.js?v=1119"></script></body></html>

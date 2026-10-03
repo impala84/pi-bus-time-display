@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.11.19 — 3 October 2026
+
+- Left-align the browse section names and highlight the selected text in the accent colour, with no underline or filled button.
+- Put a rounded gray Back button below the left menu, restoring the full artwork browsing height; recognise native rightward Back gestures by distance rather than velocity.
+- Complete Roon's nested Play Album → Play Now action and switch to Now Playing after successful playback, without the small playing notification.
+- Remove the unreliable artist biography column so unavailable information no longer takes up browsing space.
+- Restore separate white bus-stop names and gray stop codes in the top row, and give the clock a lighter, brighter-gray cut.
+- Add Display → Appearance → Display style: Fresh Mint (default) or a Roon-inspired charcoal/violet palette. Changes apply without rebooting and preserve the bus route colours.
+
 ## 0.11.18 — 3 October 2026
 
 - Enlarge Surprise artwork and album/artist text, separate the reroll and play controls from the artwork, and add Surprise and Play Now captions.

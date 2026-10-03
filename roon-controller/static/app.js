@@ -90,6 +90,7 @@ async function post(path, data) {
 
 function render(next) {
   state = next;
+  document.body.dataset.theme = next.labels?.display_theme === 'roon' ? 'roon' : 'fresh-mint';
   const labels = next.labels || {};
   $('roon-link').textContent = labels.display || 'Roon';
   setNavLabel($('now-tab'), labels.now_playing || 'Now Playing');
@@ -325,9 +326,8 @@ function renderArtistProfile(profile) {
 function renderBrowser(data) {
   browserRendering = true; browserState = data; browserLoading = false;
   $('browser-view').classList.toggle('surprise-takeover', Boolean(data.surprise_preview));
-  renderArtistProfile(data.artist_profile);
-  if (data.surprise_preview) $('browser-view').append($('browser-back'));
-  else document.querySelector('.browser-sidebar').prepend($('browser-back'));
+  renderArtistProfile(null);
+  document.querySelector('.browser-sidebar').append($('browser-back'));
   $('browser-back').hidden = !data.can_back; $('browser-back').disabled = !data.can_back; $('browser-loading-more').hidden = true;
   document.querySelectorAll('[data-browser-section]').forEach(button => button.classList.toggle('active', button.dataset.browserSection === (data.section || 'albums')));
   $('browser-search-open').classList.toggle('active', data.section === 'search');

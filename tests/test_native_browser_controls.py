@@ -31,7 +31,7 @@ class NativeBrowserControlsTests(unittest.TestCase):
         swipe = native_method("browser_swipe_back")
         calls = []
         owner = SimpleNamespace(browser_state={"can_back":True}, request_browser=calls.append)
-        for x, y in ((800,0),(-800,0),(200,0),(800,600),(0,800)): swipe(owner,None,x,y)
+        for x, y in ((150,0),(-150,0),(60,0),(150,120),(0,150)): swipe(owner,None,x,y)
         self.assertEqual(calls, ["back"])
         owner.browser_state = {"can_back":False}; swipe(owner,None,800,0)
         self.assertEqual(calls, ["back"])

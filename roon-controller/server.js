@@ -48,6 +48,7 @@ function configuredRuntime() {
     runtimeConfig = {
       zoneName: process.env.ROON_ZONE_NAME || stringValue('roon_zone_name'),
       displayName: stringValue('roon_display_name') || 'Roon',
+      displayTheme: stringValue('display_theme') === 'roon' ? 'roon' : 'fresh-mint',
       nowPlayingName: stringValue('roon_now_playing_name') || 'Now Playing',
       queueName: stringValue('roon_queue_name') || 'Queue',
       queueEnabled: text.match(/^roon_show_queue\s*=\s*(true|false)/m)?.[1] !== 'false',
@@ -103,6 +104,7 @@ function publicState() {
   const configured = configuredRuntime();
   const zone = selectedZone();
   const labels = {display: configured.displayName, now_playing: configured.nowPlayingName, queue: configured.queueName, browse: 'Browse'};
+  labels.display_theme = configured.displayTheme || 'fresh-mint';
   if (!zone) return {connected: Boolean(core), authorised: Boolean(core), zones: [], zone: null, labels, browser_enabled: configured.browserEnabled, queue: {status: 'unavailable', items: []}, details: {status: 'unavailable'}, amplifier: publicAmplifierState()};
   const output = (zone.outputs || []).find(item => item.volume) || (zone.outputs || [])[0] || null;
   return {

@@ -61,6 +61,7 @@ class State:
             "window_active": within_window(self.config, now),
             "roon_display_url": self.config.roon_display_url,
             "roon_display_name": self.config.roon_display_name,
+            "display_theme": self.config.display_theme,
             "stale": bool(self.last_success and (now - self.last_success).total_seconds() > self.config.stale_after_seconds),
         })
         if self.config.services:
@@ -228,6 +229,7 @@ def write_config(path: Path, config: Config) -> None:
         f"roon_display_url = {json.dumps(config.roon_display_url)}",
         f"roon_zone_name = {json.dumps(config.roon_zone_name)}",
         f"roon_display_name = {json.dumps(config.roon_display_name)}",
+        f"display_theme = {json.dumps(config.display_theme)}",
         f"roon_now_playing_name = {json.dumps(config.roon_now_playing_name)}",
         f"roon_queue_name = {json.dumps(config.roon_queue_name)}",
         f"sleep_when_roon_idle = {str(config.sleep_when_roon_idle).lower()}",
@@ -666,6 +668,7 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                     "sleep_end": config.sleep_end, "roon_display_url": config.roon_display_url,
                     "roon_zone_name": config.roon_zone_name,
                     "roon_display_name": config.roon_display_name,
+                    "display_theme": config.display_theme,
                     "roon_now_playing_name": config.roon_now_playing_name,
                     "roon_queue_name": config.roon_queue_name,
                     "sleep_when_roon_idle": config.sleep_when_roon_idle,
@@ -960,6 +963,7 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                     timezone=current.timezone, roon_display_url=current.roon_display_url,
                     roon_zone_name=str(data.get("roon_zone_name", current.roon_zone_name)).strip(),
                     roon_display_name=str(data.get("roon_display_name", current.roon_display_name)).strip() or "Roon",
+                    display_theme=str(data.get("display_theme", current.display_theme)),
                     roon_now_playing_name=str(data.get("roon_now_playing_name", current.roon_now_playing_name)).strip() or "Now Playing",
                     roon_queue_name=str(data.get("roon_queue_name", current.roon_queue_name)).strip() or "Queue",
                     sleep_when_roon_idle=bool(data.get("sleep_when_roon_idle", current.sleep_when_roon_idle)),
@@ -988,6 +992,8 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                 )
                 if not candidate.bus_stop_code.isdigit() or len(candidate.bus_stop_code) != 5:
                     raise ValueError("Bus stop code must be five digits")
+                if candidate.display_theme not in {"fresh-mint", "roon"}:
+                    raise ValueError("Choose Fresh Mint or Roon for the display style")
                 if len(candidate.roon_display_name) > 16:
                     raise ValueError("Roon display name must be 16 characters or fewer")
                 if len(candidate.roon_now_playing_name) > 16 or len(candidate.roon_queue_name) > 16:

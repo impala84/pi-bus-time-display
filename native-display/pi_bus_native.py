@@ -85,9 +85,20 @@ button { border: 0; box-shadow: none; background-image: none; outline: none; }
 
 
 CSS += b"""
-.browser-filter, .touch-landscape .browser-filter { min-height: 44px; padding: 5px 10px; border-radius: 0; border-bottom: 3px solid transparent; background: transparent; }
-.browser-filter.active, .touch-landscape .browser-filter.active { background: transparent; border-bottom-color: #6ed9ae; }
-.browser-back, .touch-landscape .browser-back { min-width: 70px; min-height: 34px; margin: 0; padding: 3px 8px; background: transparent; border-radius: 0; color: #6ed9ae; }
+.clock { font-weight: 300; color: #b4bfba; }
+.stop { color: #f5f1e8; }.stop-code { color: #777; }
+.browser-filter, .touch-landscape .browser-filter { min-height: 44px; padding: 5px 0; border-radius: 0; border: 0; background: transparent; }
+.browser-filter.active, .touch-landscape .browser-filter.active { background: transparent; border: 0; color: #6ed9ae; }
+.browser-back, .touch-landscape .browser-back { min-width: 90px; min-height: 42px; margin: 12px 0 0; padding: 5px 12px; background: #242b28; border: 1px solid #4a514e; border-radius: 10px; color: #d5dcd8; }
+.theme-roon, .theme-roon .page { background: #151515; color: #f5f5f5; }
+.theme-roon .roon-page { background: linear-gradient(120deg, #242338, #181818 60%, #251c22); }
+.theme-roon .browser-filter.active, .theme-roon .touch-landscape .browser-filter.active { color: #817aeb; }
+.theme-roon .browser-filter, .theme-roon .browser-filter.active { background: transparent; border: 0; }
+.theme-roon .browser-cover-art, .theme-roon .browser-action-icon, .theme-roon .surprise-action { background: #282828; color: #817aeb; }
+.theme-roon .nav button.active, .theme-roon .roon-subnav button.active { border-color: #817aeb; }
+.theme-roon .transport .play, .theme-roon scale highlight { background: #7069df; color: #fff; }
+.theme-roon .eyebrow, .theme-roon .details-tag { color: #817aeb; }
+.theme-roon .browser-back { background: #292929; border-color: #555; color: #ddd; }
 .queue-scroll overshoot.left, .queue-scroll overshoot.right { background: transparent; box-shadow: none; }
 .bus-page, .touch-landscape .bus-page { padding-top: 8px; padding-left: 20px; padding-right: 20px; }
 .bus-page .service { min-height: 0; padding-top: 6px; padding-bottom: 6px; }
@@ -98,7 +109,7 @@ CSS += b"""
 .touch-landscape .surprise-title { font-size: 34px; }.touch-landscape .surprise-artist { font-size: 25px; }
 .artist-profile { padding: 12px 22px 8px 12px; }.artist-name { font-size: 27px; font-weight: 750; }.artist-bio { color: #b6c0bc; font-size: 17px; }.artist-source { color: #78837f; font-size: 11px; }
 .browser-sidebar { padding-top: 12px; }
-.browser-back { margin-top: 0; margin-right: 0; }
+.browser-back { margin-top: 12px; margin-right: 0; }
 .browser-cover-title.tile { background: transparent; }
 .browser-action-icon, .queue-art { padding: 0; }
 .browser-cover-art { min-width: 0; min-height: 0; }
@@ -257,7 +268,7 @@ class Display(Gtk.Application):
 
     def header(self, centre, clock):
         row = Gtk.Box(spacing=10)
-        centre.set_xalign(0)
+        if isinstance(centre, Gtk.Label): centre.set_xalign(0)
         title = Gtk.Button(); title.add_css_class("header-hotspot"); title.add_css_class("header-title"); title.set_child(centre); title.connect("clicked", self.open_settings); row.append(title)
         spacer = Gtk.Box(); spacer.set_hexpand(True); row.append(spacer)
         clock.set_xalign(1)
@@ -280,7 +291,8 @@ class Display(Gtk.Application):
 
     def build_bus(self):
         page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=7); page.add_css_class("page"); page.add_css_class("bus-page")
-        self.bus_clock = self.label("--:--", "clock", 1); self.stop = self.label("Connecting…", "stop"); self.stop_code = self.label("", "stop-code"); page.append(self.header(self.stop, self.bus_clock))
+        self.bus_clock = self.label("--:--", "clock", 1); self.stop = self.label("Connecting…", "stop"); self.stop_code = self.label("", "stop-code")
+        stop_heading = Gtk.Box(spacing=14); stop_heading.append(self.stop); stop_heading.append(self.stop_code); page.append(self.header(stop_heading, self.bus_clock))
         self.services = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14); self.services.set_vexpand(True); page.append(self.services)
         footer = Gtk.Box(); footer.add_css_class("bus-footer"); self.bus_status = self.label("Starting", "muted"); self.updated = self.label("", "muted", 1); self.updated.set_hexpand(True); footer.append(self.bus_status); footer.append(self.updated); page.append(footer)
         page.append(self.navigation("bus")); return page
@@ -326,24 +338,23 @@ class Display(Gtk.Application):
         browser_body = Gtk.Box(spacing=0); browser_body.set_vexpand(True); browser_body.set_hexpand(True); browser.set_child(browser_body)
         self.browser_section_buttons = {}; sidebar = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2); sidebar.add_css_class("browser-sidebar")
         for section in ("albums", "artists", "genres", "playlists"):
-            button = self.button(section.upper(), lambda _button, value=section: self.request_browser("section", section=value), "browser-filter"); self.browser_section_buttons[section] = button; sidebar.append(button)
-        self.browser_search_button = self.button("SEARCH", self.show_browser_search, "browser-filter"); sidebar.append(self.browser_search_button)
-        self.browser_surprise_button = self.button("SURPRISE!", lambda *_: self.request_browser("surprise"), "browser-filter"); self.browser_surprise_button.add_css_class("browser-surprise"); sidebar.append(self.browser_surprise_button)
+            button = self.button(section.upper(), lambda _button, value=section: self.request_browser("section", section=value), "browser-filter"); button.get_child().set_xalign(0); self.browser_section_buttons[section] = button; sidebar.append(button)
+        self.browser_search_button = self.button("SEARCH", self.show_browser_search, "browser-filter"); self.browser_search_button.get_child().set_xalign(0); sidebar.append(self.browser_search_button)
+        self.browser_surprise_button = self.button("SURPRISE!", lambda *_: self.request_browser("surprise"), "browser-filter"); self.browser_surprise_button.get_child().set_xalign(0); self.browser_surprise_button.add_css_class("browser-surprise"); sidebar.append(self.browser_surprise_button)
         self.browser_back = self.button("‹ BACK", lambda *_: self.request_browser("back"), "browser-back"); self.browser_back.set_visible(False); self.browser_back.set_halign(Gtk.Align.START); self.browser_back.set_valign(Gtk.Align.START)
         self.browser_sidebar = sidebar; browser_body.append(sidebar)
         browser_main = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2); browser_main.add_css_class("browser-main"); browser_main.set_vexpand(True); browser_main.set_hexpand(True)
-        browser_main.append(self.browser_back)
+        sidebar.append(self.browser_back)
         self.browser_message = self.label("", "browser-message"); self.browser_message.set_ellipsize(Pango.EllipsizeMode.END); self.browser_message.set_visible(False); browser_main.append(self.browser_message)
         self.browser_list = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2); self.browser_list.add_css_class("queue-list")
         browser_scroll = Gtk.ScrolledWindow(); browser_scroll.add_css_class("queue-scroll"); browser_scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC); browser_scroll.set_kinetic_scrolling(True); browser_scroll.set_overlay_scrolling(True); browser_scroll.set_propagate_natural_height(False); browser_scroll.set_propagate_natural_width(False); browser_scroll.set_min_content_height(1); browser_scroll.set_size_request(-1, 1); browser_scroll.set_vexpand(True); browser_scroll.set_hexpand(True); browser_scroll.set_child(self.browser_list); self.browser_scroll = browser_scroll
         browser_scroll.get_vadjustment().connect("value-changed", self.browser_scrolled)
         previous_scroll = Gtk.EventControllerScroll.new(Gtk.EventControllerScrollFlags.VERTICAL)
         previous_scroll.connect("scroll", self.browser_previous_scroll); browser_scroll.add_controller(previous_scroll)
-        previous_drag = Gtk.GestureDrag.new(); previous_drag.connect("drag-update", lambda _gesture, _x, y: self.browser_previous_scroll(None, 0, -1) if y > 30 else None); browser_scroll.add_controller(previous_drag)
+        previous_drag = Gtk.GestureDrag.new(); previous_drag.set_propagation_phase(Gtk.PropagationPhase.CAPTURE); previous_drag.connect("drag-update", lambda _gesture, x, y: self.browser_previous_scroll(None, 0, -1) if y > 30 and y > abs(x) * 2 else None); previous_drag.connect("drag-end", self.browser_swipe_back); browser_scroll.add_controller(previous_drag)
         content = Gtk.Box(spacing=2); content.set_vexpand(True); content.set_hexpand(True)
         self.browser_artist_panel = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12); self.browser_artist_panel.add_css_class("artist-profile"); self.browser_artist_panel.set_visible(False)
         self.browser_artist_scroll = Gtk.ScrolledWindow(); self.browser_artist_scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC); self.browser_artist_scroll.set_propagate_natural_height(False); self.browser_artist_scroll.set_min_content_height(1); self.browser_artist_scroll.set_size_request(-1, 1); self.browser_artist_scroll.set_child(self.browser_artist_panel); self.browser_artist_scroll.set_visible(False); content.append(self.browser_artist_scroll); content.append(browser_scroll)
-        swipe = Gtk.GestureSwipe.new(); swipe.connect("swipe", self.browser_swipe_back); browser_scroll.add_controller(swipe)
         self.browser_scrubber = Gtk.DrawingArea(); self.browser_scrubber.add_css_class("browser-scrubber"); self.browser_scrubber.set_size_request(74, -1); self.browser_scrubber.set_vexpand(True); self.browser_scrubber.set_visible(False); self.browser_scrubber.set_draw_func(self.draw_browser_scrubber)
         self.browser_scrub_scale = Gtk.Adjustment(value=0, lower=0, upper=25, step_increment=1); self.browser_scrub_scale.connect("value-changed", self.browser_scrub_changed)
         scrub_gesture = Gtk.GestureDrag.new(); scrub_gesture.connect("drag-begin", self.browser_scrub_begin); scrub_gesture.connect("drag-update", self.browser_scrub_drag); scrub_gesture.connect("drag-end", self.browser_scrub_end); self.browser_scrubber.add_controller(scrub_gesture)
@@ -507,6 +518,8 @@ class Display(Gtk.Application):
     def apply(self, target, status, roon, config, system, device, image_key, image):
         if config is not None:
             self.settings_data = config
+            if config.get("display_theme") == "roon": self.window.add_css_class("theme-roon")
+            else: self.window.remove_css_class("theme-roon")
             for button in self.roon_nav_buttons: button.set_label(config.get("roon_display_name") or "Roon")
             self.now_playing_tab.set_label((config.get("roon_now_playing_name") or "Now Playing").upper())
             self.queue_tab.set_label((config.get("roon_queue_name") or "Queue").upper())
@@ -666,7 +679,7 @@ class Display(Gtk.Application):
 
     def render_bus(self, data):
         if not data: self.bus_status.set_text("Bus service unavailable"); return
-        self.stop.set_text(" ".join(filter(None, (data.get('stop_name', 'Bus times'), data.get('stop_code', ''))))); self.stop_code.set_text(data.get('stop_code', ''))
+        self.stop.set_text(data.get('stop_name', 'Bus times')); self.stop_code.set_text(data.get('stop_code', ''))
         while child := self.services.get_first_child(): self.services.remove(child)
         visible = data.get("services", [])[:4]
         for index, service in enumerate(visible):
@@ -758,8 +771,8 @@ class Display(Gtk.Application):
         self.set_roon_view("browse")
         if self.browser_state is None: self.request_browser("section", section="albums")
 
-    def browser_swipe_back(self, _gesture, velocity_x, velocity_y):
-        if velocity_x > 350 and velocity_x > abs(velocity_y) * 2 and (self.browser_state or {}).get("can_back"):
+    def browser_swipe_back(self, _gesture, distance_x, distance_y):
+        if distance_x > 90 and distance_x > abs(distance_y) * 2 and (self.browser_state or {}).get("can_back"):
             self.request_browser("back")
 
     def render_artist_profile(self, profile):
@@ -851,7 +864,8 @@ class Display(Gtk.Application):
         center = 16 + max(1, height - 32) * value / 25
         x = width - 18
         cr.set_source_rgb(.145, .192, .18); cr.set_line_width(5); cr.set_line_cap(1); cr.move_to(x, 16); cr.line_to(x, max(16, height - 16)); cr.stroke()
-        cr.set_source_rgb(.431, .851, .682); cr.arc(x, center, 9, 0, 6.283185307); cr.fill()
+        accent = (.506, .478, .922) if getattr(self, "settings_data", {}).get("display_theme") == "roon" else (.431, .851, .682)
+        cr.set_source_rgb(*accent); cr.arc(x, center, 9, 0, 6.283185307); cr.fill()
         cr.select_font_face("Inter", 0, 1); cr.set_font_size(18)
         letter = chr(65 + value); extents = cr.text_extents(letter)
         cr.move_to(x - 26 - extents[2], center - extents[1] - extents[3] / 2); cr.show_text(letter)
@@ -986,7 +1000,7 @@ class Display(Gtk.Application):
     def render_browser(self, data):
         self.browser_rendering = True; self.browser_loading = True; self.browser_state = data; self.browser_back.set_visible(bool(data.get("can_back"))); self.browser_back.set_sensitive(bool(data.get("can_back"))); self.browser_scrubber.set_visible(bool(data.get("alpha_scrub")))
         active_section = data.get("section") or "albums"
-        self.browser_sidebar.set_visible(not data.get("surprise_preview"))
+        self.browser_sidebar.set_visible(True)
         self.browser_surprise_button.set_visible(True); self.browser_surprise_button.set_label("SURPRISE!")
         if active_section == "search": self.browser_search_button.add_css_class("active")
         else: self.browser_search_button.remove_css_class("active")
@@ -995,7 +1009,8 @@ class Display(Gtk.Application):
             else: button.remove_css_class("active")
         message = data.get("message") or ""; self.browser_message.set_text(message); self.browser_message.set_visible(bool(message))
         self.browser_pictures = {}; self.browser_artwork_keys = []; self.browser_cards = []
-        self.render_artist_profile(data.get("artist_profile"))
+        # Keep the full browsing width until artist information is reliable.
+        self.render_artist_profile(None)
         while child := self.browser_list.get_first_child(): self.browser_list.remove(child)
         items = data.get("items") or []
         if not items:

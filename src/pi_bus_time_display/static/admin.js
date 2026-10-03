@@ -9,6 +9,7 @@ let activeTab='overview',activeService='bus',toastTimer=null,updateWatchTimer=nu
 const dirtySections=new Set();
 const updateHistory=[];
 const sectionFields={
+  appearance:['display_theme'],
   automation:['morning_start','morning_end','auto_switch_to_roon','roon_idle_return_minutes','sleep_when_roon_idle','daytime_inactivity_minutes','sleep_start','sleep_end','outside_hours_wake_minutes','sleep_show_clock'],
   bus:['bus_stop_code','bus_stop_name','services','walking_minutes','poll_seconds','lta_account_key'],
   roon:['roon_display_name','roon_now_playing_name','roon_queue_name','roon_zone_name','roon_show_controls','roon_show_clock','roon_show_queue','roon_show_browser','bluos_enabled','bluos_player_address','bluos_visible_inputs','bluos_input_names'],
@@ -18,7 +19,7 @@ const sectionFields={
 
 function notify(text,error=false){clearTimeout(toastTimer);bannerMessage=text;saveBar.classList.toggle('error',error);updateSaveBar();toast.textContent=text;toastTimer=setTimeout(()=>{bannerMessage='';saveBar.classList.remove('error');updateSaveBar()},3600)}
 function pinBanner(text){if(text==='Display settings applied. Reboot now.')return;notify(text)}
-function currentSaveSection(){if(activeTab==='automation')return'automation';if(activeTab==='services')return activeService;if(activeTab==='system')return'logging';return null}
+function currentSaveSection(){if(activeTab==='display')return'appearance';if(activeTab==='automation')return'automation';if(activeTab==='services')return activeService;if(activeTab==='system')return'logging';return null}
 function updateSaveBar(){const dirty=dirtySections.size>0;saveBar.hidden=!dirty&&!pinnedBanner&&!bannerMessage;saveBar.classList.toggle('saved',!dirty);document.getElementById('save-settings').disabled=!dirty;saveState.textContent=bannerMessage||pinnedBanner||(dirtySections.size===1?'Unsaved changes':`${dirtySections.size} sections have unsaved changes`)}
 function markDirty(){const section=currentSaveSection();if(!section)return;dirtySections.add(section);updateSaveBar()}
 function showMode(mode){document.querySelectorAll('[data-mode]').forEach(button=>button.classList.toggle('active',button.dataset.mode===mode))}

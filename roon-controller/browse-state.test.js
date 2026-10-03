@@ -186,6 +186,9 @@ test('Surprise returns to the originating Artists section', async () => {
 test('Play Now navigates only after successful playback, not action menus or errors', async () => {
   for (const [reply, title, navigate] of [
     [{action:'none'}, 'Play Now', 'now'],
+    [{action:'none'}, ' Play Album ', 'now'],
+    [{action:'none'}, 'Play from here', 'now'],
+    [{action:'none'}, 'Play', 'now'],
     [{action:'none'}, 'Add Next', undefined],
     [{action:'list',list:{level:3,count:0}}, 'Play Album', undefined],
     [{action:'none',is_error:true,message:'Not available'}, 'Play Now', undefined]
@@ -198,6 +201,22 @@ test('Play Now navigates only after successful playback, not action menus or err
     assert.equal((await manager.run('test','current')).navigate,undefined);
     if (navigate) assert.equal((await manager.run('test','current')).message,'');
     if (reply.is_error) assert.equal(result.error,true);
+  }
+});
+
+test('Play Album completes its nested Play Now menu and hands off only on success', async () => {
+  for (const failure of [false, true]) {
+    const calls = [];
+    const service = {
+      browse:(options,cb)=>{calls.push(options.item_key); cb(false,options.item_key==='album-play'?{action:'list',list:{level:3,count:1}}:{action:'none',is_error:failure,message:failure?'Unavailable':''});},
+      load:(_options,cb)=>cb(false,{items:[{title:'Play Now',item_key:'now'}]})
+    };
+    const manager = new BrowseManager(()=>service,()=>({zone_id:'zone'}));
+    manager.sessions.set('pihome-test',{hierarchy:'browse',section:'albums',level:2,items:[{title:'Play Album',action:true,item_key:'album-play'}]});
+    const result = await manager.run('test','open',{item_key:'album-play'});
+    assert.deepEqual(calls,['album-play','now']);
+    assert.equal(result.navigate,failure?undefined:'now');
+    assert.equal((await manager.run('test','current')).navigate,undefined);
   }
 });
 

@@ -130,8 +130,8 @@ h1 {
 .browser-section { margin: 18px 12px 5px; color: var(--mint); font-size: 11px; letter-spacing: .15em; text-transform: uppercase; }.browser-loading-more { padding: 12px; color: var(--muted); font-size: 11px; font-weight: 800; letter-spacing: .12em; text-align: center; }
 .browser-list.layout-home,.browser-list.layout-menu,.browser-list.layout-covers,.browser-list.layout-tiles { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 12px; }
 .browser-list.genre-grid { grid-template-columns: repeat(5,minmax(0,1fr)); gap: 8px; }
-.browser-view.surprise-takeover { grid-template-columns: minmax(0,1fr); padding: 0 18px; }
-.surprise-takeover .browser-sidebar { display: none; }
+.browser-view.surprise-takeover { grid-template-columns: 132px minmax(0,1fr); padding: 0 18px; }
+.surprise-takeover .browser-sidebar { display: flex; }
 .browser-view.surprise-takeover .browser-list { display: block; }
 .surprise-preview { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: calc(100dvh - 170px); padding: 45px 0 12px; text-align: center; }
 .surprise-stage { display: grid; grid-template-columns: 100px minmax(0,1fr) 100px; align-items: center; gap: 40px; width: fit-content; max-width: 100%; }
@@ -289,9 +289,9 @@ h1 {
 
 /* Section rail and artist overview: controls never cover album artwork. */
 .browser-sidebar { gap: 2px; }
-.browser-sidebar button { min-height: 42px; border-radius: 0; border-bottom: 3px solid transparent; padding: 5px 10px; }
-.browser-sidebar button.active { background: transparent; border-bottom-color: var(--mint); }
-.browser-sidebar .browser-back { position: static; min-height: 34px; min-width: 0; padding: 3px 8px; background: transparent; color: var(--mint); }
+.browser-sidebar button { min-height: 42px; border-radius: 0; border: 0; padding: 5px 0; text-align: left; }
+.browser-sidebar button.active { background: transparent; border: 0; color: var(--mint); }
+.browser-sidebar .browser-back { position: static; min-height: 42px; min-width: 0; margin-top: 12px; padding: 5px 12px; background: #242b28; border: 1px solid #4a514e; border-radius: 10px; color: var(--ink); text-align: center; }
 .browser-shell { overflow-x: hidden; overscroll-behavior-x: none; touch-action: pan-y; }
 .surprise-preview { padding-top: 12px; }
 .surprise-preview h2 { font-size: clamp(28px, 3vw, 40px); }
@@ -302,6 +302,10 @@ h1 {
 .artist-profile h2 { color: var(--ink); font-size: 27px; margin: 18px 0 12px; }
 .artist-bio { font-size: 17px; line-height: 1.45; }.artist-source { font-size: 11px; }
 @media(max-width:700px) and (orientation:portrait) {
+  .browser-view.surprise-takeover { grid-template-columns: 88px minmax(0,1fr); padding: 4px 6px 0; }
+  .surprise-takeover .surprise-stage { grid-template-columns: 38px minmax(0,1fr) 38px; gap: 6px; }
+  .surprise-takeover .surprise-art { width: min(50dvh, calc(100vw - 196px)); }
+  .surprise-takeover .surprise-action { width: 36px; height: 42px; }
   .browser-sidebar button { min-height: 38px; }
   .browser-view.artist-takeover { grid-template-columns: 88px minmax(0,1fr); grid-template-rows: auto minmax(0,1fr); }
   .artist-takeover .browser-sidebar { grid-row: 1 / span 2; }
@@ -311,3 +315,10 @@ h1 {
   .artist-takeover .artist-bio { font-size: 14px; }
   .artist-takeover .browser-shell { grid-column: 2; grid-row: 2; }
 }
+
+/* Optional Roon-inspired palette; Fresh Mint stays unchanged by default. */
+body[data-theme="roon"] { --bg: #151515; --panel: #242424; --ink: #f5f5f5; --muted: #aaa; --mint: #817aeb; --line: #444; background: linear-gradient(120deg, #242338, #181818 60%, #251c22); }
+body[data-theme="roon"] .browser-card-art, body[data-theme="roon"] .browser-action-art { background: #282828; }
+body[data-theme="roon"] .music-subnav button.active { border-color: var(--mint); }
+body[data-theme="roon"] .browser-sidebar button.active { color: var(--mint); background: transparent; border: 0; }
+body[data-theme="roon"] .browser-sidebar .browser-back { background: #292929; border-color: #555; }

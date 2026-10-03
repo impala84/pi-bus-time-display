@@ -10,6 +10,16 @@ from pi_bus_time_display.server import State, active_wifi_ssid, automatic_displa
 
 
 class DisplayModeTests(unittest.TestCase):
+    def test_display_theme_round_trip_and_validation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "config.toml"
+            self.assertEqual(Config().display_theme, "fresh-mint")
+            write_config(path, Config(display_theme="roon"))
+            self.assertEqual(load_config(path).display_theme, "roon")
+            self.assertEqual(State(Config(display_theme="roon"), Path(directory)).snapshot()["display_theme"], "roon")
+            write_config(path, Config(display_theme="invalid"))
+            with self.assertRaises(ValueError): load_config(path)
+
     def test_custom_roon_display_name_persists(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "config.toml"

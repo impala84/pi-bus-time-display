@@ -22,6 +22,7 @@ class Config:
     roon_display_url: str = ""
     roon_zone_name: str = ""
     roon_display_name: str = "Roon"
+    display_theme: str = "fresh-mint"
     roon_now_playing_name: str = "Now Playing"
     roon_queue_name: str = "Queue"
     sleep_when_roon_idle: bool = False
@@ -76,6 +77,8 @@ def load_config(path: Path) -> Config:
     if "bluos_input_names" in data:
         data["bluos_input_names"] = tuple(str(item) for item in data["bluos_input_names"])
     config = Config(**data)
+    if config.display_theme not in {"fresh-mint", "roon"}:
+        raise ValueError("display_theme must be fresh-mint or roon")
     if not (5 <= config.poll_seconds <= 300):
         raise ValueError("poll_seconds must be between 5 and 300")
     if config.end_action not in {"display", "shutdown", "reboot"}:
