@@ -134,13 +134,14 @@ h1 {
 .surprise-takeover .browser-sidebar { display: none; }
 .browser-view.surprise-takeover .browser-list { display: block; }
 .surprise-preview { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: calc(100dvh - 170px); padding: 45px 0 12px; text-align: center; }
-.surprise-art { width: min(44dvh, 66vw, max(120px, calc(100dvh - 450px)), 420px); aspect-ratio: 1; overflow: hidden; border-radius: 12px; background: var(--panel); display: grid; place-items: center; color: var(--mint); font-size: 80px; }
+.surprise-stage { display: grid; grid-template-columns: 64px minmax(0,1fr) 64px; align-items: center; gap: 24px; width: fit-content; max-width: 100%; }
+.surprise-art { width: min(60dvh, max(120px, calc(100vw - 228px)), max(140px, calc(100dvh - 300px)), 480px); aspect-ratio: 1; overflow: hidden; border-radius: 12px; background: var(--panel); display: grid; place-items: center; color: var(--mint); font-size: 80px; }
 .surprise-art img { width: 100%; height: 100%; object-fit: cover; }
 .surprise-preview h2 { max-width: min(90vw, 700px); margin: 18px 0 6px; font-size: clamp(22px, 3vw, 34px); line-height: 1.15; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
 .surprise-preview p { max-width: 90vw; margin: 0 0 20px; color: var(--muted); font-size: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.surprise-controls { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
-.surprise-controls button { min-height: 48px; padding: 12px 20px; border: 0; border-radius: 8px; background: var(--panel); color: var(--ink); font-size: 15px; font-weight: 700; }
-.surprise-controls button:first-child { background: var(--mint); color: #080b0a; }
+.surprise-action { width: 64px; height: 64px; padding: 0; border: 0; border-radius: 12px; background: var(--panel); color: var(--mint); font-size: 38px; font-weight: 700; }
+.surprise-action:last-child { background: var(--mint); color: #080b0a; font-size: 30px; }
+@media (max-width: 700px) and (orientation: portrait) { .surprise-stage { grid-template-columns: 46px minmax(0,1fr) 46px; gap: 10px; } .surprise-art { width: min(60dvh, calc(100vw - 148px), 420px); } .surprise-action { width: 46px; height: 54px; font-size: 30px; } }
 .browser-list.layout-covers,.browser-list.layout-tiles,.browser-list.genre-grid { column-gap: 16px; row-gap: 24px; }
 .browser-card:hover,.browser-card:active { transform: none; box-shadow: none; background: transparent; }
 .browser-scrubber { padding: 0; }

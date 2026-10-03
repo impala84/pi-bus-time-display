@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.11.17 — 3 October 2026
+
+- Constrain native artwork grids to the physical display width so the clock and alphabetical scrubber remain on-screen.
+- Keep Surprise! available from every browsing section, with larger centred artwork between reroll and play symbols; Back returns to the originating section.
+- Switch successful Play Now and Surprise album playback straight to Roon Now Playing, without the small playback notification.
+- Replace System accordions with compact Device, Services, Logging, Diagnostics, Software and Password tabs, including keyboard navigation.
+- Keep bus routes ordered 40, 42, 401 and use stable blue, green and purple colours on web and touchscreen regardless of the reporting day.
+
 ## 0.11.16 — 3 October 2026
 
 - Install the required Python GI Cairo bridge on upgrades as well as fresh installations, fixing the missing gi._gi_cairo startup crash.

@@ -309,7 +309,7 @@ function renderBrowser(data) {
   $('browser-back').hidden = !data.can_back; $('browser-back').disabled = !data.can_back; $('browser-loading-more').hidden = true;
   document.querySelectorAll('[data-browser-section]').forEach(button => button.classList.toggle('active', button.dataset.browserSection === (data.section || 'albums')));
   $('browser-search-open').classList.toggle('active', data.section === 'search');
-  $('browser-surprise').hidden = data.section !== 'albums';
+  $('browser-surprise').hidden = false;
   $('browser-surprise').textContent = 'SURPRISE!';
   $('browser-scrubber').hidden = !data.alpha_scrub;
   $('browser-message').hidden = !data.message; $('browser-message').textContent = data.message || ''; $('browser-message').classList.toggle('error', Boolean(data.error));
@@ -323,11 +323,12 @@ function renderBrowser(data) {
     else art.textContent = '♫';
     const title = document.createElement('h2'); title.textContent = album.title;
     const artist = document.createElement('p'); artist.textContent = album.subtitle || '';
-    const controls = document.createElement('div'); controls.className = 'surprise-controls';
-    for (const [label, action] of [['▶ Play Album', 'surprise_play'], ['Surprise!', 'surprise']]) {
-      const button = document.createElement('button'); button.textContent = label; button.onclick = () => browseCommand(action); controls.append(button);
+    const stage = document.createElement('div'); stage.className = 'surprise-stage';
+    const buttons = [];
+    for (const [symbol, label, action] of [['↻', 'Surprise me again', 'surprise'], ['▶', 'Play this album', 'surprise_play']]) {
+      const button = document.createElement('button'); button.className = 'surprise-action'; button.textContent = symbol; button.title = label; button.setAttribute('aria-label', label); button.onclick = () => browseCommand(action); buttons.push(button);
     }
-    preview.append(art, title, artist, controls); list.append(preview);
+    stage.append(buttons[0], art, buttons[1]); preview.append(stage, title, artist); list.append(preview);
   } else (data.items || []).forEach(item => list.append(item.action ? browserRow(item) : (['home', 'menu', 'covers', 'tiles'].includes(data.layout) ? browserCard(item, data.layout, Boolean(data.show_labels), data.section, data.show_subtitles !== false) : browserRow(item))));
   if (!(data.items || []).length) { const empty = document.createElement('p'); empty.className = 'queue-empty'; empty.textContent = 'Nothing is available here.'; list.append(empty); }
   requestAnimationFrame(() => {
@@ -373,12 +374,12 @@ async function browseCommand(action, data = {}) {
   }
   else if (action === 'more') { browserScrollRestore = $('browser-scroll').scrollTop; }
   else if (action === 'previous') { browserScrollRestore = $('browser-scroll').scrollTop; browserPreviousHeight = $('browser-scroll').scrollHeight; }
-  else if (action === 'back' && browserState?.surprise_preview) browserScrollRestore = browserSectionScrolls.get('albums') || 0;
+  else if (action === 'back' && browserState?.surprise_preview) browserScrollRestore = browserSectionScrolls.get(browserState.return_section || 'albums') || 0;
   else if (['jump', 'open', 'back', 'surprise'].includes(action)) browserScrollRestore = 0;
   try {
     const options = action === 'current' ? {method: 'GET', cache: 'no-store'} : {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({session: browserSession, action, ...data})};
     const url = action === 'current' ? api(`/api/browse?session=${encodeURIComponent(browserSession)}`) : api('/api/browse');
-    const response = await fetch(url, options); const result = await response.json(); if (!response.ok) throw new Error(result.error || 'Browse failed'); renderBrowser(result);
+    const response = await fetch(url, options); const result = await response.json(); if (!response.ok) throw new Error(result.error || 'Browse failed'); renderBrowser(result); if (result.navigate === 'now') setMusicView('now');
   } catch (error) { browserLoading = false; renderBrowser({...(browserState || {}), status: 'ready', title: browserState?.title || 'Browse', items: browserState?.items || [], message: error.message, error: true}); }
 }
 

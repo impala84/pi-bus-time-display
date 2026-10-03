@@ -164,10 +164,41 @@ test('Surprise Me previews artwork without playback, rerolls, and plays only on 
   assert.equal(first.surprise_preview, true); assert.equal(second.items[0].image_key, 'cover');
   assert.equal(second.items[0].subtitle, 'Album artist'); assert.equal(second.has_more, false);
   const result = await manager.run('touch', 'surprise_play');
-  assert.equal(played.length, 1); assert.match(result.message, /Playing Album/);
+  assert.equal(played.length, 1); assert.equal(result.navigate, 'now'); assert.equal(result.message, '');
+  assert.equal((await manager.run('touch', 'current')).navigate, undefined);
   assert.equal(result.surprise_preview, true); assert.equal(result.surprise_album, second.surprise_album);
   assert.equal(await manager.run('touch', 'back'), original);
   await assert.rejects(manager.run('touch', 'surprise_play'), /Choose a surprise album first/);
+});
+
+test('Surprise returns to the originating Artists section', async () => {
+  const original = {section:'artists', items:[{title:'My artist'}]};
+  const service = {load:(_options, callback)=>callback(false,{items:[{title:'Album', item_key:'album'}]})};
+  const manager = new BrowseManager(()=>service, ()=>({zone_id:'zone'}));
+  manager.openSection = async ()=>({count:2,level:2});
+  manager.sessions.set('pihome-touch-artists', original);
+  manager.activeSessions.set('pihome-touch', 'pihome-touch-artists');
+  const preview = await manager.run('touch', 'surprise');
+  assert.equal(preview.return_section, 'artists');
+  assert.equal(await manager.run('touch','back'), original);
+});
+
+test('Play Now navigates only after successful playback, not action menus or errors', async () => {
+  for (const [reply, title, navigate] of [
+    [{action:'none'}, 'Play Now', 'now'],
+    [{action:'none'}, 'Add Next', undefined],
+    [{action:'list',list:{level:3,count:0}}, 'Play Album', undefined],
+    [{action:'none',is_error:true,message:'Not available'}, 'Play Now', undefined]
+  ]) {
+    const service = {browse:(_options,cb)=>cb(false,reply),load:(_options,cb)=>cb(false,{items:[]})};
+    const manager = new BrowseManager(()=>service,()=>({zone_id:'zone'}));
+    manager.sessions.set('pihome-test', {hierarchy:'browse',section:'albums',level:2,items:[{title,hint:'action',action:true,item_key:'play'}]});
+    const result = await manager.run('test','open',{item_key:'play'});
+    assert.equal(result.navigate,navigate);
+    assert.equal((await manager.run('test','current')).navigate,undefined);
+    if (navigate) assert.equal((await manager.run('test','current')).message,'');
+    if (reply.is_error) assert.equal(result.error,true);
+  }
 });
 
 test('alphabet indexing respects Roon offsets and can load previous results', async () => {

@@ -27,6 +27,23 @@ class Entry:
 
 
 class NativeBrowserControlsTests(unittest.TestCase):
+    def test_grid_minimums_fit_physical_monitor_without_using_expanded_content(self):
+        metrics = native_method("browser_grid_metrics", {"Gdk": SimpleNamespace(Display=SimpleNamespace(get_default=lambda: display))})
+        for width in (480, 720, 800, 1024, 1280):
+            monitor = SimpleNamespace(get_geometry=lambda:SimpleNamespace(width=width))
+            display = SimpleNamespace(get_monitors=lambda:SimpleNamespace(get_n_items=lambda:1,get_item=lambda _:monitor))
+            for genres in (True, False):
+                columns, size = metrics(SimpleNamespace(), genres)
+                self.assertLessEqual(columns * (size + 12) + (columns - 1) * 16, width - 266)
+                self.assertLessEqual(size, 212)
+
+    def test_playback_handoff_requires_successful_navigation_response(self):
+        for data, expected in (({"navigate":"now"}, ["render", "now"]), ({}, ["render"]), ({"navigate":"now","error":"failed"}, ["render"])):
+            calls = []
+            owner = SimpleNamespace(render_browser=lambda _:calls.append("render"),set_roon_view=calls.append)
+            native_method("apply_browser_response")(owner, data)
+            self.assertEqual(calls, expected)
+
     def test_keyboard_edits_at_cursor_and_replaces_selection(self):
         entry = Entry("ac", 1)
         owner = SimpleNamespace(browser_search_entry=entry)

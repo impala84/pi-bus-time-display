@@ -95,6 +95,7 @@ CSS += b"""
 .browser-cover-card:hover, .browser-cover-card:active, .browser-home-card:hover, .browser-row:hover { background: transparent; box-shadow: none; outline: none; transform: none; transition: none; }
 .browser-scrubber { padding: 0; }
 .browser-surprise { font-size: 14px; }
+.surprise-action { min-width: 72px; min-height: 72px; padding: 8px; border-radius: 12px; background: #18211f; color: #6ed9ae; }
 .browser-search-panel { padding: 18px 24px; }
 .browser-search-entry { min-height: 60px; font-size: 28px; padding: 8px 14px; background: #18211f; color: #f4f0e6; border-radius: 8px; }
 .browser-key { min-height: 44px; min-width: 40px; padding: 6px; background: #18211f; color: #f4f0e6; font-size: 20px; border-radius: 7px; }
@@ -322,7 +323,7 @@ class Display(Gtk.Application):
         browser_main = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2); browser_main.add_css_class("browser-main"); browser_main.set_vexpand(True); browser_main.set_hexpand(True)
         self.browser_message = self.label("", "browser-message"); self.browser_message.set_ellipsize(Pango.EllipsizeMode.END); self.browser_message.set_visible(False); browser_main.append(self.browser_message)
         self.browser_list = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2); self.browser_list.add_css_class("queue-list")
-        browser_scroll = Gtk.ScrolledWindow(); browser_scroll.add_css_class("queue-scroll"); browser_scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC); browser_scroll.set_kinetic_scrolling(True); browser_scroll.set_overlay_scrolling(True); browser_scroll.set_propagate_natural_height(False); browser_scroll.set_propagate_natural_width(False); browser_scroll.set_min_content_height(1); browser_scroll.set_size_request(-1, 1); browser_scroll.set_vexpand(True); browser_scroll.set_hexpand(True); browser_scroll.set_child(self.browser_list); self.browser_scroll = browser_scroll
+        browser_scroll = Gtk.ScrolledWindow(); browser_scroll.add_css_class("queue-scroll"); browser_scroll.set_policy(Gtk.PolicyType.EXTERNAL, Gtk.PolicyType.AUTOMATIC); browser_scroll.set_kinetic_scrolling(True); browser_scroll.set_overlay_scrolling(True); browser_scroll.set_propagate_natural_height(False); browser_scroll.set_propagate_natural_width(False); browser_scroll.set_min_content_height(1); browser_scroll.set_size_request(-1, 1); browser_scroll.set_vexpand(True); browser_scroll.set_hexpand(True); browser_scroll.set_child(self.browser_list); self.browser_scroll = browser_scroll
         browser_scroll.get_vadjustment().connect("value-changed", self.browser_scrolled)
         previous_scroll = Gtk.EventControllerScroll.new(Gtk.EventControllerScrollFlags.VERTICAL)
         previous_scroll.connect("scroll", self.browser_previous_scroll); browser_scroll.add_controller(previous_scroll)
@@ -653,9 +654,8 @@ class Display(Gtk.Application):
         self.stop.set_text(data.get('stop_name', 'Bus times')); self.stop_code.set_text(data.get('stop_code', ''))
         while child := self.services.get_first_child(): self.services.remove(child)
         visible = data.get("services", [])[:4]
-        colours = ("service-blue", "service-green", "service-violet", "service-amber")
         for index, service in enumerate(visible):
-            row = Gtk.Box(spacing=12); row.add_css_class("service"); row.add_css_class(colours[index]); row.set_vexpand(True)
+            row = Gtk.Box(spacing=12); row.add_css_class("service"); row.add_css_class("service-" + (service.get("colour") or {"40": "blue", "42": "green", "401": "violet"}.get(str(service.get("service")), "amber"))); row.set_vexpand(True)
             if len(visible) == 3: row.add_css_class("compact")
             elif len(visible) >= 4: row.add_css_class("dense")
             number = self.label(str(service.get("service", "")), "service-no"); number.set_size_request((150 if len(visible) > 2 else 188) if self.window.has_css_class("high-resolution") else (100 if len(visible) > 2 else 125), -1); number.set_valign(Gtk.Align.CENTER); row.append(number)
@@ -756,7 +756,7 @@ class Display(Gtk.Application):
         elif action == "previous":
             self.browser_previous_height = self.browser_scroll.get_vadjustment().get_upper()
             self.browser_scroll_restore = self.browser_scroll.get_vadjustment().get_value()
-        elif action == "back" and (self.browser_state or {}).get("surprise_preview"): self.browser_scroll_restore = self.browser_section_scrolls.get("albums", 0.0)
+        elif action == "back" and (self.browser_state or {}).get("surprise_preview"): self.browser_scroll_restore = self.browser_section_scrolls.get(self.browser_state.get("return_section", "albums"), 0.0)
         elif action in {"jump", "open", "back", "surprise"}: self.browser_scroll_restore = 0.0
         self.browser_loading = True; self.browser_message.set_visible(False)
         threading.Thread(target=self._request_browser, args=(action, payload), daemon=True).start()
@@ -764,7 +764,23 @@ class Display(Gtk.Application):
     def _request_browser(self, action, payload):
         if action == "current": result = get_json(f"{ROON}/api/browse?session=touch", timeout=3.0)
         else: result = post_json(ROON + "/api/browse", {"session": "touch", "action": action, **payload}, timeout=15.0 if action in {"jump", "section", "search", "surprise", "surprise_play", "open"} else 4.0)
-        GLib.idle_add(self.render_browser, result or {"status": "ready", "title": "Browse", "items": [], "message": "Roon Browse did not respond.", "error": True})
+        GLib.idle_add(self.apply_browser_response, result or {"status": "ready", "title": "Browse", "items": [], "message": "Roon Browse did not respond.", "error": True})
+
+    def apply_browser_response(self, data):
+        self.render_browser(data)
+        if data.get("navigate") == "now" and not data.get("error"): self.set_roon_view("now")
+        return False
+
+    def browser_grid_metrics(self, genres=False):
+        monitors = Gdk.Display.get_default().get_monitors()
+        monitor = monitors.get_item(0) if monitors.get_n_items() else None
+        # Never derive minimum tile sizes from content that may have already
+        # expanded the window. Reserve the section rail, scrubber and padding.
+        width = monitor.get_geometry().width if monitor else 800
+        available = max(140, width - 266)
+        columns = min(5 if genres else 4, max(1, available // 140))
+        size = max(64, min(212, (available - 16 * (columns - 1)) // columns - 12))
+        return columns, size
 
     def browser_scrub_changed(self, scale):
         if getattr(self, "browser_scrub_sync", False): return
@@ -895,7 +911,7 @@ class Display(Gtk.Application):
         content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=1); content.set_halign(Gtk.Align.FILL)
         size = getattr(self, "browser_tile_size", 172)
         artwork = Gtk.Overlay(); picture = Gtk.Picture(); picture.add_css_class("browser-cover-art"); picture.set_can_shrink(True); picture.set_content_fit(Gtk.ContentFit.COVER); artwork.set_child(picture)
-        square = Gtk.AspectFrame(xalign=.5, yalign=.5, ratio=1, obey_child=False); square.set_size_request(size, size); square.set_halign(Gtk.Align.FILL); square.set_hexpand(True); square.set_child(artwork); content.append(square)
+        square = Gtk.AspectFrame(xalign=.5, yalign=.5, ratio=1, obey_child=False); square.set_size_request(size, size); square.set_halign(Gtk.Align.CENTER); square.set_hexpand(False); square.set_child(artwork); content.append(square)
         key = item.get("image_key"); self.browser_artwork_keys.append(key)
         if key:
             self.browser_pictures.setdefault(key, []).append(picture)
@@ -917,7 +933,7 @@ class Display(Gtk.Application):
         self.browser_rendering = True; self.browser_loading = True; self.browser_state = data; self.browser_back.set_visible(bool(data.get("can_back"))); self.browser_back.set_sensitive(bool(data.get("can_back"))); self.browser_scrubber.set_visible(bool(data.get("alpha_scrub")))
         active_section = data.get("section") or "albums"
         self.browser_sidebar.set_visible(not data.get("surprise_preview"))
-        self.browser_surprise_button.set_visible(active_section == "albums"); self.browser_surprise_button.set_label("SURPRISE!")
+        self.browser_surprise_button.set_visible(True); self.browser_surprise_button.set_label("SURPRISE!")
         if active_section == "search": self.browser_search_button.add_css_class("active")
         else: self.browser_search_button.remove_css_class("active")
         for section, button in self.browser_section_buttons.items():
@@ -933,9 +949,14 @@ class Display(Gtk.Application):
         if items and data.get("surprise_preview"):
             album = items[0]; preview = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12); preview.set_halign(Gtk.Align.CENTER); preview.set_hexpand(True)
             preview.set_margin_top(50)
-            size = max(140, min(380, self.browser_scroll.get_allocated_height() - 270))
+            monitor = Gdk.Display.get_default().get_monitors().get_item(0)
+            screen_width = monitor.get_geometry().width if monitor else 800
+            size = max(100, min(420, screen_width - 240, self.browser_scroll.get_allocated_height() - 170))
             picture = Gtk.Picture(); picture.set_can_shrink(True); picture.set_content_fit(Gtk.ContentFit.COVER)
-            square = Gtk.AspectFrame(xalign=.5, yalign=.5, ratio=1, obey_child=False); square.set_size_request(size, size); square.set_halign(Gtk.Align.CENTER); square.set_child(picture); preview.append(square)
+            square = Gtk.AspectFrame(xalign=.5, yalign=.5, ratio=1, obey_child=False); square.set_size_request(size, size); square.set_halign(Gtk.Align.CENTER); square.set_child(picture)
+            stage = Gtk.Box(spacing=24); stage.set_halign(Gtk.Align.CENTER); stage.set_valign(Gtk.Align.CENTER)
+            again = self.icon_button("view-refresh-symbolic", lambda *_: self.request_browser("surprise"), "surprise-action"); again.set_tooltip_text("Surprise me again"); again.set_valign(Gtk.Align.CENTER); stage.append(again); stage.append(square)
+            play = self.icon_button("media-playback-start-symbolic", lambda *_: self.request_browser("surprise_play"), "surprise-action"); play.set_tooltip_text("Play this album"); play.set_valign(Gtk.Align.CENTER); stage.append(play); preview.append(stage)
             key = album.get("image_key"); self.browser_artwork_keys.append(key)
             if key:
                 self.browser_pictures.setdefault(key, []).append(picture)
@@ -944,18 +965,14 @@ class Display(Gtk.Application):
             else: square.set_child(self.label("♫", "browser-tile-icon", .5))
             title = self.label(album.get("title") or "Untitled", "queue-title", .5); title.set_wrap(True); title.set_lines(2); title.set_max_width_chars(40); title.set_ellipsize(Pango.EllipsizeMode.END); title.set_justify(Gtk.Justification.CENTER); preview.append(title)
             preview.append(self.label(album.get("subtitle") or "", "queue-meta", .5))
-            controls = Gtk.Box(spacing=12); controls.set_halign(Gtk.Align.CENTER)
-            controls.append(self.button("▶ Play Album", lambda *_: self.request_browser("surprise_play"), "browser-filter"))
-            controls.append(self.button("Surprise!", lambda *_: self.request_browser("surprise"), "browser-filter")); preview.append(controls); self.browser_list.append(preview)
+            self.browser_list.append(preview)
         elif items and layout in {"home", "menu"}:
             grid = Gtk.Grid(column_spacing=12, row_spacing=12); grid.add_css_class("browser-home-grid"); grid.set_column_homogeneous(True); grid.set_row_homogeneous(True); columns = 4
             for index, item in enumerate(item for item in items if item.get("hint") != "header"): grid.attach(self.browser_menu_card(item, layout == "menu"), index % columns, index // columns, 1, 1)
             self.browser_list.append(grid)
         elif items and layout in {"covers", "tiles"}:
             grid = Gtk.Grid(column_spacing=16, row_spacing=24); grid.add_css_class("browser-cover-grid"); grid.set_column_homogeneous(True); grid.set_halign(Gtk.Align.FILL); grid.set_hexpand(True); columns = 5 if layout == "tiles" and active_section == "genres" else 4
-            width = self.browser_scroll.get_allocated_width()
-            columns = min(columns, max(2, width // 140)) if width > 0 else columns
-            self.browser_tile_size = max(64, (max(320, width) - 12 - 16 * (columns - 1)) // columns - 6)
+            columns, self.browser_tile_size = self.browser_grid_metrics(layout == "tiles" and active_section == "genres")
             tile_kind = active_section if layout == "tiles" else None
             for index, item in enumerate(item for item in items if item.get("hint") != "header"):
                 card = self.browser_cover_card(item, bool(data.get("show_labels")), tile_kind); self.browser_cards.append((card, item)); grid.attach(card, index % columns, index // columns, 1, 1)

@@ -90,9 +90,10 @@ class BrowseManager {
     this.alphabetIndexes = new Map();
     this.activeSessions = new Map();
     this.lastSurprises = new Map();
+    this.surpriseOrigins = new Map();
   }
 
-  clear() { this.sessions.clear(); this.pending.clear(); this.sections.clear(); this.alphabetIndexes.clear(); this.activeSessions.clear(); this.lastSurprises.clear(); }
+  clear() { this.sessions.clear(); this.pending.clear(); this.sections.clear(); this.alphabetIndexes.clear(); this.activeSessions.clear(); this.lastSurprises.clear(); this.surpriseOrigins.clear(); }
 
   run(sessionName, command = 'current', data = {}) {
     const session = safeSession(sessionName);
@@ -109,7 +110,8 @@ class BrowseManager {
       } else if (command === 'search') {
         active = `${session}-search`; this.sections.set(active, 'search'); this.activeSessions.set(session, active);
       } else if (command === 'back' && (this.sessions.get(active)?.surprise_preview || (this.sessions.get(active)?.hierarchy === 'search' && this.sessions.get(active)?.level === 0))) {
-        active = `${session}-albums`; this.activeSessions.set(session, active);
+        active = this.sessions.get(active)?.surprise_preview ? (this.surpriseOrigins.get(session) || `${session}-albums`) : `${session}-albums`;
+        this.activeSessions.set(session, active);
         return this.sessions.get(active) || this._run(active, 'root', {section: 'albums'});
       } else if (command === 'current' && !this.activeSessions.has(session) && !this.sessions.has(session)) {
         active = `${session}-albums`; this.activeSessions.set(session, active);
@@ -139,7 +141,10 @@ class BrowseManager {
     else return state || this._run(session, 'root', {});
     const opened = command === 'open' ? state?.items?.find(item => String(item.item_key) === String(data.item_key)) : null;
     if (opened?.shuffle_genre) return this.shuffleGenre(service, zone, session, state, options);
-    return this.follow(service, session, hierarchy, await request(service, 'browse', options), opened?.image_key || null);
+    const result = await request(service, 'browse', options);
+    const next = await this.follow(service, session, hierarchy, result, opened?.image_key || null);
+    if (opened?.action && /^play (now|album)$/i.test(opened.title) && !result.is_error && result.action !== 'list') return {...this.save(session, {...next, message: ''}), navigate: 'now'};
+    return next;
   }
 
   async shuffleGenre(service, zone, session, state, options) {
@@ -159,6 +164,9 @@ class BrowseManager {
     const service = this.service(); const zone = this.zone();
     if (!service || !zone) throw new Error('Roon is not connected');
     const session = `${baseSession}-surprise`;
+    const origin = this.activeSessions.get(baseSession) || `${baseSession}-albums`;
+    if (!this.sessions.get(origin)?.surprise_preview) this.surpriseOrigins.set(baseSession, origin);
+    const returnSection = this.sessions.get(this.surpriseOrigins.get(baseSession))?.section || 'albums';
     const albums = await this.openSection(service, zone, session, 'albums');
     if (!albums.count || albums.error) throw new Error('No library albums are available');
     const previous = this.lastSurprises.get(baseSession);
@@ -173,7 +181,7 @@ class BrowseManager {
     return this.save(session, {...albums, section: 'albums', section_root: false,
       items: [publicItem(album)], layout: 'covers', show_labels: true, show_subtitles: true,
       count: 1, offset: 0, has_more: false, alpha_scrub: false, can_back: true,
-      surprise_album: album.title, surprise_preview: true, message: ''});
+      surprise_album: album.title, surprise_preview: true, return_section: returnSection, message: ''});
   }
 
   async playSurprise(baseSession) {
@@ -200,7 +208,8 @@ class BrowseManager {
       result = await request(service, 'browse', {...options, item_key: now.item_key});
     }
     if (result.is_error) throw new Error(String(result.message || 'Roon could not play the album'));
-    return this.save(this.activeSessions.get(baseSession), {...preview, message: `Playing ${preview.surprise_album}.`});
+    const saved = this.save(this.activeSessions.get(baseSession), {...preview, message: ''});
+    return {...saved, navigate: 'now'};
   }
 
   async openNamed(service, zone, session, result, title) {
@@ -230,7 +239,7 @@ class BrowseManager {
   }
 
   async follow(service, session, hierarchy, result, fallbackImageKey = null) {
-    if (result.action === 'message') {
+    if (result.action === 'message' || result.is_error) {
       const state = this.sessions.get(session) || {status: 'ready', hierarchy, title: 'Browse', items: [], can_back: false, has_more: false};
       return this.save(session, {...state, message: String(result.message || (result.is_error ? 'Roon could not complete that action.' : 'Done.')), error: Boolean(result.is_error)});
     }

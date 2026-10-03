@@ -1,16 +1,19 @@
-.service:nth-child(1) {
+.service.service-blue {
   border-color: rgba(79, 166, 216, 0.52);
   background: linear-gradient(90deg, rgba(45, 92, 119, 0.26), var(--panel) 34%);
 }
 
-.service:nth-child(1) .service-no { color: #4fa6d8; }
+.service.service-blue .service-no { color: #4fa6d8; }
 
-.service:nth-child(2) {
+.service.service-green {
   border-color: rgba(91, 197, 139, 0.5);
   background: linear-gradient(90deg, rgba(42, 101, 69, 0.24), var(--panel) 34%);
 }
 
-.service:nth-child(2) .service-no { color: #5bc58b; }
+.service.service-green .service-no { color: #5bc58b; }
+
+.service.service-violet { border-color: rgba(169,152,224,.5); background: linear-gradient(90deg,rgba(85,74,119,.24),var(--panel) 34%); }
+.service.service-violet .service-no { color: #a998e0; }
 
 @media (max-height: 600px) and (orientation: landscape) {
   .service {

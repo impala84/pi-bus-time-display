@@ -48,8 +48,10 @@ def normalise(payload: dict, now: datetime, services: tuple[str, ...], walking: 
         output.append({
             "service": number,
             "operator": service.get("Operator", ""),
+            "colour": {"40": "blue", "42": "green", "401": "violet"}.get(number, "amber"),
             "arrivals": buses,
             "leave_in": max(0, buses[0]["minutes"] - walking) if buses else None,
         })
+    order = {number: index for index, number in enumerate(("40", "42", "401"))}
+    output.sort(key=lambda item: order.get(item["service"], 3))
     return output
-

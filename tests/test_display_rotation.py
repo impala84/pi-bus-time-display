@@ -6,6 +6,23 @@ ROOT = Path(__file__).parents[1]
 
 
 class DisplayRotationTests(unittest.TestCase):
+    def test_system_uses_compact_accessible_tabs_instead_of_anchors(self):
+        html = (ROOT / "src/pi_bus_time_display/static/admin.html").read_text()
+        css = (ROOT / "src/pi_bus_time_display/static/admin.css").read_text()
+        self.assertIn('class="system-tabs" aria-label="System settings" role="tablist"', html)
+        self.assertEqual(html.count('data-system-panel='), 6)
+        self.assertIn('aria-controls="system-web"', html)
+        self.assertIn('data-system-anchor="system-web">Password</button>', html)
+        self.assertIn('.system-tabs button[aria-selected="true"]', css)
+        self.assertIn('.system-tab-panel>summary{display:none}', css)
+
+    def test_bus_colours_are_keyed_by_route_not_row_position(self):
+        css = (ROOT / "src/pi_bus_time_display/static/bus-refinements.css").read_text()
+        self.assertNotIn(".service:nth-child", css)
+        self.assertIn(".service.service-blue", css)
+        self.assertIn(".service.service-green", css)
+        self.assertIn(".service.service-violet", css)
+
     def test_touch_uses_inverse_wayland_quarter_turn(self):
         script = (ROOT / "scripts" / "pi-bus-appliance-mode").read_text(encoding="utf-8")
         self.assertIn("90) matrix='0 1 0 -1 0 1'", script)
@@ -86,10 +103,10 @@ class DisplayRotationTests(unittest.TestCase):
         self.assertNotIn("#browser-surprise { font-size:", css)
         self.assertIn("left: 62px; right: 10px; width: auto; transform: none", css)
         self.assertIn(".browser-view.surprise-takeover .browser-list { display: block; }", css)
-        self.assertIn("['▶ Play Album', 'surprise_play']", app)
+        self.assertIn("['▶', 'Play this album', 'surprise_play']", app)
         self.assertIn('self.browser_sidebar.set_visible(not data.get("surprise_preview"))', display)
         self.assertIn('self.request_browser("surprise_play")', display)
-        self.assertIn("['Surprise!', 'surprise']", app)
+        self.assertIn("['↻', 'Surprise me again', 'surprise']", app)
         self.assertIn('self.button("SURPRISE!"', display)
         self.assertNotIn("Surprise Again", app)
         self.assertNotIn("SURPRISE\\nME", display)
