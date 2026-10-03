@@ -28,11 +28,21 @@
   .arrival small { font-size: 11px; margin-top: 9px; }
 }
 
-main { grid-template-rows: auto minmax(0, 1fr) auto; padding-bottom: 100px; }
+main { grid-template-rows: auto minmax(0, 1fr); padding-bottom: 100px; }
+.bus-results { min-height: 0; display: flex; flex-direction: column; justify-content: center; gap: 12px; }
+.bus-results footer { flex-shrink: 0; }
+.bus-results .services { min-height: 0; max-height: calc(100% - 30px); grid-auto-rows: minmax(0, 1fr); }
+.service { border-width: 2px; }
+.settings-cog, .web-nav, body[data-theme="roon"] .settings-cog, body[data-theme="roon"] .web-nav { background: transparent; }
 .services { align-content: center; gap: clamp(16px, 4vh, 34px); }
 .service { min-height: clamp(150px, 29vh, 250px); }
 #stop { font-size: clamp(30px, 4.4vw, 48px); }
 #clock { font-size: clamp(34px, 5.4vw, 58px); }
+@media (min-width: 701px), (orientation: landscape) {
+  .bus-results .service { min-height: 0; padding: clamp(12px, 3vh, 26px) 22px; }
+  .bus-results .service-no { font-size: clamp(44px, 11vh, 90px); line-height: 1; }
+  .bus-results .arrival { font-size: clamp(32px, 10vh, 72px); line-height: 1; }
+}
 
 .web-nav { position: fixed; z-index: 6; left: 22px; right: 22px; bottom: 18px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 8px 12px; border: 0; border-radius: 0; background: rgba(11,17,16,.96); }
 .web-nav a { min-height: 48px; display: grid; place-items: center; padding: 12px 8px; color: var(--muted); text-align: center; text-decoration: none; font-size: 14px; font-weight: 750; }
@@ -51,6 +61,7 @@ main { grid-template-rows: auto minmax(0, 1fr) auto; padding-bottom: 100px; }
   .settings-cog { top: max(9px, env(safe-area-inset-top)); left: 10px; }
   #clock { font-size: 34px; }
   .services { gap: 12px; grid-auto-rows: minmax(0, 1fr); align-content: stretch; min-height: 0; }
+  .bus-results .services { flex: 1; }
   .service {
     grid-template-columns: 72px minmax(0, 1fr);
     grid-template-rows: 1fr;
@@ -72,4 +83,10 @@ main { grid-template-rows: auto minmax(0, 1fr) auto; padding-bottom: 100px; }
   html, body { height: auto; overflow-y: auto; }
   main { height: auto; min-height: 100dvh; overflow: visible; }
   .services { grid-auto-rows: minmax(86px, auto); }
+}
+@media (max-height: 700px) and (orientation: landscape) {
+  .bus-results .service { padding: 8px 18px; }
+  .bus-results .service-no { font-size: 48px; }
+  .bus-results .arrival { font-size: 40px; }
+  .bus-results .arrival small { font-size: 8px; margin-top: 4px; }
 }

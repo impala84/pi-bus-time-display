@@ -6,3 +6,6 @@ body[data-theme="roon"]{--bg:#151515;--panel:#232228;--line:#45424b;--ink:#f5f5f
 body[data-theme="roon"] .entity.on{background:#302b44;border-color:var(--mint)}
 body[data-theme="roon"] .entity.on svg{color:var(--mint)}
 .settings-cog,.web-nav,body[data-theme="roon"] .settings-cog,body[data-theme="roon"] .web-nav{background:transparent;border:0;cursor:pointer}
+#clock{font-size:clamp(34px,5.4vw,58px);font-weight:300;color:#bbb;font-variant-numeric:tabular-nums}
+#status:empty{display:none}
+main{grid-template-rows:auto auto;align-content:start}

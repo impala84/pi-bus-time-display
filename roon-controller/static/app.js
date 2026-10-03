@@ -271,7 +271,7 @@ function browserTileSymbol(title, section) {
   if (value.includes('jazz')) return '♪';
   if (value.includes('classical')) return '♬';
   if (value.includes('electronic')) return '⌁';
-  if (value.includes('pop') || value.includes('rock')) return '⚡';
+  if (value.includes('pop') || value.includes('rock')) return 'ϟ';
   if (value.includes('stage') || value.includes('screen') || value.includes('soundtrack')) return '★';
   if (value.includes('folk') || value.includes('country')) return '♧';
   if (value.includes('blues')) return '♭';

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.11.29 — 4 October 2026
+
+- Theme-coloured Pop/Rock symbol and centred genre labels with more bottom padding.
+- Add the Singapore clock to Home; retain transparent navigation in both themes.
+- Strengthen bus card borders and group the live-data footer directly beneath the cards, retaining compact mobile layouts.
+
 ## 0.11.28 — 4 October 2026
 
 - Remove navigation and settings-cog backplates in both web themes and provide hand-pointer cursors on the top menu.

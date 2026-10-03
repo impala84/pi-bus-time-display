@@ -339,8 +339,10 @@ body[data-theme="roon"] .timeline input, body[data-theme="roon"] input[type="ran
 body[data-theme="roon"] .music-subnav, body[data-theme="roon"] .web-nav, body[data-theme="roon"] .settings-cog { background: transparent; }
 .music-subnav button, .settings-cog, .web-nav a { cursor: pointer; }
 .music-subnav button:disabled { cursor: default; }
+.music-subnav button.active::after { left: -5px; right: -5px; }
 .browser-view, .browser-view.surprise-takeover { padding-left: 25px; padding-right: 25px; }
 .browser-sidebar { padding-left: 0; }
+.genre-grid .browser-card.tiles .browser-card-copy { text-align: center; padding-bottom: 18px; }
 .browser-scrubber { min-width: 0; }
 .browser-scrubber::before { right: 6.5px; }
 .browser-scrub-dot { right: 0; }
