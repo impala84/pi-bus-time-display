@@ -18,6 +18,7 @@ from zoneinfo import ZoneInfo
 
 import gi
 gi.require_version("Gtk", "4.0")
+gi.require_foreign("cairo")
 from gi.repository import Gdk, Gio, GLib, Gtk, Pango
 
 BUS = "http://127.0.0.1:8765"
@@ -92,7 +93,8 @@ CSS += b"""
 .touch-landscape .browser-cover-art { min-width: 0; min-height: 0; }
 .browser-cover-card { min-height: 0; padding: 3px; }
 .browser-cover-card:hover, .browser-cover-card:active, .browser-home-card:hover, .browser-row:hover { background: transparent; box-shadow: none; outline: none; transform: none; transition: none; }
-.browser-search-button { min-height: 40px; background: transparent; color: #84908c; font-size: 13px; }
+.browser-scrubber { padding: 0; }
+.browser-surprise { font-size: 14px; }
 .browser-search-panel { padding: 18px 24px; }
 .browser-search-entry { min-height: 60px; font-size: 28px; padding: 8px 14px; background: #18211f; color: #f4f0e6; border-radius: 8px; }
 .browser-key { min-height: 44px; min-width: 40px; padding: 6px; background: #18211f; color: #f4f0e6; font-size: 20px; border-radius: 7px; }
@@ -171,6 +173,7 @@ class Display(Gtk.Application):
         self.browser_pictures = {}
         self.browser_artwork_keys = []
         self.browser_scroll_restore = None
+        self.browser_section_scrolls = {}
         self.last_interaction = time.monotonic()
         self.inactivity_sleeping = False
         self.sleep_entered_at = 0.0
@@ -312,7 +315,8 @@ class Display(Gtk.Application):
         self.browser_section_buttons = {}; sidebar = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=5); sidebar.add_css_class("browser-sidebar")
         for section in ("albums", "artists", "genres", "playlists"):
             button = self.button(section.upper(), lambda _button, value=section: self.request_browser("section", section=value), "browser-filter"); self.browser_section_buttons[section] = button; sidebar.append(button)
-        sidebar.append(self.button("SEARCH", self.show_browser_search, "browser-search-button"))
+        self.browser_search_button = self.button("SEARCH", self.show_browser_search, "browser-filter"); sidebar.append(self.browser_search_button)
+        self.browser_surprise_button = self.button("SURPRISE\nME", lambda *_: self.request_browser("surprise"), "browser-filter"); self.browser_surprise_button.add_css_class("browser-surprise"); sidebar.append(self.browser_surprise_button)
         self.browser_back = self.button("BACK", lambda *_: self.request_browser("back"), "browser-back"); self.browser_back.set_visible(False); self.browser_back.set_halign(Gtk.Align.END); self.browser_back.set_valign(Gtk.Align.START); browser.add_overlay(self.browser_back)
         browser_body.append(sidebar)
         browser_main = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2); browser_main.add_css_class("browser-main"); browser_main.set_vexpand(True); browser_main.set_hexpand(True)
@@ -324,12 +328,10 @@ class Display(Gtk.Application):
         previous_scroll.connect("scroll", self.browser_previous_scroll); browser_scroll.add_controller(previous_scroll)
         previous_drag = Gtk.GestureDrag.new(); previous_drag.connect("drag-update", lambda _gesture, _x, y: self.browser_previous_scroll(None, 0, -1) if y > 30 else None); browser_scroll.add_controller(previous_drag)
         content = Gtk.Box(spacing=2); content.set_vexpand(True); content.set_hexpand(True); content.append(browser_scroll)
-        self.browser_scrubber = Gtk.Overlay(); self.browser_scrubber.add_css_class("browser-scrubber"); self.browser_scrubber.set_size_request(74, -1); self.browser_scrubber.set_visible(False)
-        self.browser_scrub_scale = Gtk.Scale.new_with_range(Gtk.Orientation.VERTICAL, 0, 25, 1); self.browser_scrub_scale.set_draw_value(False); self.browser_scrub_scale.set_has_origin(False); self.browser_scrub_scale.set_inverted(True); self.browser_scrub_scale.set_vexpand(True); self.browser_scrub_scale.set_halign(Gtk.Align.END); self.browser_scrub_scale.connect("value-changed", self.browser_scrub_changed); self.browser_scrubber.set_child(self.browser_scrub_scale)
-        self.browser_scrub_letter = self.label("A", "browser-scrub-letter", .5); self.browser_scrub_letter.set_halign(Gtk.Align.START); self.browser_scrub_letter.set_valign(Gtk.Align.START); self.browser_scrubber.add_overlay(self.browser_scrub_letter); content.append(self.browser_scrubber); browser_main.append(content); browser_body.append(browser_main)
-        self.browser_scrub_scale.set_inverted(False)
-        self.browser_scrub_scale.add_tick_callback(self.track_browser_scrub_letter)
-        scrub_gesture = Gtk.GestureClick.new(); scrub_gesture.set_propagation_phase(Gtk.PropagationPhase.CAPTURE); scrub_gesture.connect("pressed", self.browser_scrub_pressed); scrub_gesture.connect("released", self.browser_scrub_released); self.browser_scrub_scale.add_controller(scrub_gesture)
+        self.browser_scrubber = Gtk.DrawingArea(); self.browser_scrubber.add_css_class("browser-scrubber"); self.browser_scrubber.set_size_request(74, -1); self.browser_scrubber.set_vexpand(True); self.browser_scrubber.set_visible(False); self.browser_scrubber.set_draw_func(self.draw_browser_scrubber)
+        self.browser_scrub_scale = Gtk.Adjustment(value=0, lower=0, upper=25, step_increment=1); self.browser_scrub_scale.connect("value-changed", self.browser_scrub_changed)
+        scrub_gesture = Gtk.GestureDrag.new(); scrub_gesture.connect("drag-begin", self.browser_scrub_begin); scrub_gesture.connect("drag-update", self.browser_scrub_drag); scrub_gesture.connect("drag-end", self.browser_scrub_end); self.browser_scrubber.add_controller(scrub_gesture)
+        content.append(self.browser_scrubber); browser_main.append(content); browser_body.append(browser_main)
         self.roon_views.add_named(browser, "browse")
         search_panel = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12); search_panel.add_css_class("browser-search-panel")
         search_header = Gtk.Box(spacing=12); self.browser_search_entry = Gtk.Entry(); self.browser_search_entry.add_css_class("browser-search-entry"); self.browser_search_entry.set_placeholder_text("Search Roon"); self.browser_search_entry.set_hexpand(True); self.browser_search_entry.connect("activate", self.submit_browser_search); search_header.append(self.browser_search_entry); search_header.append(self.button("CANCEL", lambda *_: self.set_roon_view("browse"), "browser-key")); search_panel.append(search_header)
@@ -745,17 +747,20 @@ class Display(Gtk.Application):
         if self.browser_loading:
             if action in {"jump", "section", "search"}: self.browser_pending_request = (action, payload)
             return
-        if action == "more": self.browser_scroll_restore = self.browser_scroll.get_vadjustment().get_value()
+        if action in {"section", "search"}:
+            self.browser_section_scrolls[(self.browser_state or {}).get("section", "albums")] = self.browser_scroll.get_vadjustment().get_value()
+            self.browser_scroll_restore = self.browser_section_scrolls.get(payload.get("section", "search"), 0.0) if action == "section" else 0.0
+        elif action in {"more", "surprise"}: self.browser_scroll_restore = self.browser_scroll.get_vadjustment().get_value()
         elif action == "previous":
             self.browser_previous_height = self.browser_scroll.get_vadjustment().get_upper()
             self.browser_scroll_restore = self.browser_scroll.get_vadjustment().get_value()
-        elif action in {"jump", "section", "search", "open", "back"}: self.browser_scroll_restore = 0.0
+        elif action in {"jump", "open", "back"}: self.browser_scroll_restore = 0.0
         self.browser_loading = True; self.browser_message.set_visible(False)
         threading.Thread(target=self._request_browser, args=(action, payload), daemon=True).start()
 
     def _request_browser(self, action, payload):
         if action == "current": result = get_json(f"{ROON}/api/browse?session=touch", timeout=3.0)
-        else: result = post_json(ROON + "/api/browse", {"session": "touch", "action": action, **payload}, timeout=15.0 if action in {"jump", "section", "search"} else 4.0)
+        else: result = post_json(ROON + "/api/browse", {"session": "touch", "action": action, **payload}, timeout=15.0 if action in {"jump", "section", "search", "surprise", "open"} else 4.0)
         GLib.idle_add(self.render_browser, result or {"status": "ready", "title": "Browse", "items": [], "message": "Roon Browse did not respond.", "error": True})
 
     def browser_scrub_changed(self, scale):
@@ -765,13 +770,32 @@ class Display(Gtk.Application):
         self.browser_scrub_timer = GLib.timeout_add(220, self.commit_browser_scrub, letter)
 
     def position_browser_scrub_letter(self, letter, value):
-        self.browser_scrub_letter.set_text(letter)
-        self.track_browser_scrub_letter(None, None)
+        self.browser_scrubber.queue_draw()
 
-    def track_browser_scrub_letter(self, _widget, _clock):
-        start, end = self.browser_scrub_scale.get_slider_range()
-        self.browser_scrub_letter.set_margin_top(max(0, round((start + end) / 2 - self.browser_scrub_letter.get_allocated_height() / 2)))
-        return True
+    def draw_browser_scrubber(self, _area, cr, width, height, *_data):
+        # One shared centre for the dot and the letter's actual ink bounds.
+        value = max(0, min(25, round(self.browser_scrub_scale.get_value())))
+        center = 16 + max(1, height - 32) * value / 25
+        x = width - 18
+        cr.set_source_rgb(.145, .192, .18); cr.set_line_width(5); cr.set_line_cap(1); cr.move_to(x, 16); cr.line_to(x, max(16, height - 16)); cr.stroke()
+        cr.set_source_rgb(.431, .851, .682); cr.arc(x, center, 9, 0, 6.283185307); cr.fill()
+        cr.select_font_face("Inter", 0, 1); cr.set_font_size(18)
+        letter = chr(65 + value); extents = cr.text_extents(letter)
+        cr.move_to(x - 26 - extents[2], center - extents[1] - extents[3] / 2); cr.show_text(letter)
+
+    def browser_scrub_at(self, y):
+        height = self.browser_scrubber.get_allocated_height()
+        value = max(0, min(25, round((y - 16) * 25 / max(1, height - 32))))
+        self.browser_scrub_scale.set_value(value)
+
+    def browser_scrub_begin(self, _gesture, _x, y):
+        self.browser_scrub_dragging = True; self.browser_scrub_start_y = y; self.browser_scrub_at(y); self.browser_scrub_changed(self.browser_scrub_scale)
+
+    def browser_scrub_drag(self, _gesture, _x, y):
+        self.browser_scrub_at(self.browser_scrub_start_y + y)
+
+    def browser_scrub_end(self, _gesture, _x, y):
+        self.browser_scrub_at(self.browser_scrub_start_y + y); self.browser_scrub_dragging = False
 
     def browser_scrub_pressed(self, *_):
         self.browser_scrub_dragging = True
@@ -866,7 +890,7 @@ class Display(Gtk.Application):
 
     def browser_cover_card(self, item, show_labels, tile_kind=None):
         content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=1); content.set_halign(Gtk.Align.FILL)
-        size = 136 if tile_kind == "genres" else 172
+        size = getattr(self, "browser_tile_size", 172)
         artwork = Gtk.Overlay(); picture = Gtk.Picture(); picture.add_css_class("browser-cover-art"); picture.set_can_shrink(True); picture.set_content_fit(Gtk.ContentFit.COVER); artwork.set_child(picture)
         square = Gtk.AspectFrame(xalign=.5, yalign=.5, ratio=1, obey_child=False); square.set_size_request(size, size); square.set_halign(Gtk.Align.FILL); square.set_hexpand(True); square.set_child(artwork); content.append(square)
         key = item.get("image_key"); self.browser_artwork_keys.append(key)
@@ -887,8 +911,11 @@ class Display(Gtk.Application):
         button = Gtk.Button(); button.add_css_class("browser-cover-card"); button.set_child(content); button.set_sensitive(bool(item.get("item_key"))); button.connect("clicked", self.open_browser_item, item.get("item_key")); return button
 
     def render_browser(self, data):
-        self.browser_rendering = True; self.browser_loading = False; self.browser_state = data; self.browser_back.set_visible(bool(data.get("can_back"))); self.browser_back.set_sensitive(bool(data.get("can_back"))); self.browser_scrubber.set_visible(bool(data.get("alpha_scrub")))
+        self.browser_rendering = True; self.browser_loading = True; self.browser_state = data; self.browser_back.set_visible(bool(data.get("can_back"))); self.browser_back.set_sensitive(bool(data.get("can_back"))); self.browser_scrubber.set_visible(bool(data.get("alpha_scrub")))
         active_section = data.get("section") or "albums"
+        self.browser_surprise_button.set_visible(active_section == "albums"); self.browser_surprise_button.set_label("SURPRISE\nAGAIN" if data.get("surprise_album") else "SURPRISE\nME")
+        if active_section == "search": self.browser_search_button.add_css_class("active")
+        else: self.browser_search_button.remove_css_class("active")
         for section, button in self.browser_section_buttons.items():
             if section == active_section: button.add_css_class("active")
             else: button.remove_css_class("active")
@@ -904,7 +931,10 @@ class Display(Gtk.Application):
             for index, item in enumerate(item for item in items if item.get("hint") != "header"): grid.attach(self.browser_menu_card(item, layout == "menu"), index % columns, index // columns, 1, 1)
             self.browser_list.append(grid)
         elif items and layout in {"covers", "tiles"}:
-            grid = Gtk.Grid(column_spacing=20, row_spacing=20); grid.add_css_class("browser-cover-grid"); grid.set_column_homogeneous(True); columns = 5 if layout == "tiles" and active_section == "genres" else 4
+            grid = Gtk.Grid(column_spacing=16, row_spacing=24); grid.add_css_class("browser-cover-grid"); grid.set_column_homogeneous(True); grid.set_halign(Gtk.Align.FILL); grid.set_hexpand(True); columns = 5 if layout == "tiles" and active_section == "genres" else 4
+            width = self.browser_scroll.get_allocated_width()
+            columns = min(columns, max(2, width // 140)) if width > 0 else columns
+            self.browser_tile_size = max(64, (max(320, width) - 12 - 16 * (columns - 1)) // columns - 6)
             tile_kind = active_section if layout == "tiles" else None
             for index, item in enumerate(item for item in items if item.get("hint") != "header"):
                 card = self.browser_cover_card(item, bool(data.get("show_labels")), tile_kind); self.browser_cards.append((card, item)); grid.attach(card, index % columns, index // columns, 1, 1)
@@ -932,9 +962,15 @@ class Display(Gtk.Application):
                 if item.get("action"): button.add_css_class("browser-action")
                 button.connect("clicked", self.open_browser_item, item.get("item_key")); self.browser_list.append(button)
         GLib.timeout_add(100, self.load_visible_browser_artwork)
-        if self.browser_scroll_restore is not None: GLib.timeout_add(60, self.restore_browser_scroll)
-        else: GLib.timeout_add(60, self.sync_browser_scrubber)
-        self.browser_rendering = False; GLib.timeout_add(180, self.maybe_load_more_browser)
+        GLib.timeout_add(60, self.finish_browser_render)
+        return False
+
+    def finish_browser_render(self):
+        # Restore the old view before dispatching the next section/letter.
+        # Otherwise an older restore callback can move a newer page's cursor.
+        if self.browser_scroll_restore is not None: self.restore_browser_scroll()
+        self.browser_rendering = False; self.browser_loading = False; self.sync_browser_scrubber()
+        GLib.timeout_add(120, self.maybe_load_more_browser)
         pending = getattr(self, "browser_pending_request", None)
         if pending:
             self.browser_pending_request = None

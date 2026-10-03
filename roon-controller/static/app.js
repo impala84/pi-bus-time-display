@@ -12,6 +12,7 @@ let browserPendingRequest = null;
 let browserPreviousHeight = null;
 let browserScrubDragging = false;
 let browserScrollRestore = null;
+const browserSectionScrolls = new Map();
 const browserSession = sessionStorage.getItem('pi-home-roon-browser') || (globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`);
 sessionStorage.setItem('pi-home-roon-browser', browserSession);
 const proxied = location.pathname.startsWith('/roon');
@@ -306,6 +307,9 @@ function renderBrowser(data) {
   browserRendering = true; browserState = data; browserLoading = false;
   $('browser-back').hidden = !data.can_back; $('browser-back').disabled = !data.can_back; $('browser-loading-more').hidden = true;
   document.querySelectorAll('[data-browser-section]').forEach(button => button.classList.toggle('active', button.dataset.browserSection === (data.section || 'albums')));
+  $('browser-search-open').classList.toggle('active', data.section === 'search');
+  $('browser-surprise').hidden = data.section !== 'albums';
+  $('browser-surprise').textContent = data.surprise_album ? 'SURPRISE AGAIN' : 'SURPRISE ME';
   $('browser-scrubber').hidden = !data.alpha_scrub;
   $('browser-message').hidden = !data.message; $('browser-message').textContent = data.message || ''; $('browser-message').classList.toggle('error', Boolean(data.error));
   const list = $('browser-list'); list.replaceChildren(); list.className = `browser-list layout-${data.layout || 'list'}`;
@@ -326,8 +330,9 @@ function renderBrowser(data) {
 function positionWebScrubber(value) {
   const bounded = Math.max(0, Math.min(25, Math.round(value))); const letter = String.fromCharCode(65 + bounded);
   $('browser-scrub-letter').textContent = letter; $('browser-scrub-range').value = String(bounded);
-  const height = $('browser-scrub-range').clientHeight;
-  $('browser-scrub-letter').style.top = `${9 + (height - 18) * bounded / 25 - 17}px`;
+  const height = $('browser-scrubber').clientHeight;
+  // Dot and letter share a single centre, including after viewport resizing.
+  $('browser-scrubber').style.setProperty('--scrub-center', `${16 + Math.max(1, height - 32) * bounded / 25}px`);
 }
 
 function syncWebScrubber() {
@@ -346,11 +351,15 @@ function maybeLoadMore() {
 }
 
 async function browseCommand(action, data = {}) {
-  if (browserLoading) { if (['jump', 'section', 'search'].includes(action)) browserPendingRequest = {action, data}; return; }
+  if (browserLoading || browserRendering) { if (['jump', 'section', 'search'].includes(action)) browserPendingRequest = {action, data}; return; }
   browserLoading = true;
-  if (action === 'more') { browserScrollRestore = $('browser-scroll').scrollTop; }
+  if (['section', 'search'].includes(action)) {
+    browserSectionScrolls.set(browserState?.section || 'albums', $('browser-scroll').scrollTop);
+    browserScrollRestore = action === 'section' ? (browserSectionScrolls.get(data.section) || 0) : 0;
+  }
+  else if (['more', 'surprise'].includes(action)) { browserScrollRestore = $('browser-scroll').scrollTop; }
   else if (action === 'previous') { browserScrollRestore = $('browser-scroll').scrollTop; browserPreviousHeight = $('browser-scroll').scrollHeight; }
-  else if (['jump', 'section', 'open', 'back', 'search'].includes(action)) browserScrollRestore = 0;
+  else if (['jump', 'open', 'back'].includes(action)) browserScrollRestore = 0;
   try {
     const options = action === 'current' ? {method: 'GET', cache: 'no-store'} : {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({session: browserSession, action, ...data})};
     const url = action === 'current' ? api(`/api/browse?session=${encodeURIComponent(browserSession)}`) : api('/api/browse');
@@ -421,6 +430,7 @@ $('now-tab').onclick = () => setMusicView('now');
 $('queue-tab').onclick = () => setMusicView('queue');
 $('browse-tab').onclick = () => setMusicView('browse');
 $('browser-back').onclick = () => browseCommand('back');
+$('browser-surprise').onclick = () => browseCommand('surprise');
 $('browser-search-open').onclick = () => { $('browser-search-panel').hidden = false; $('browser-search-input').focus(); };
 $('browser-search-cancel').onclick = () => { $('browser-search-panel').hidden = true; };
 $('browser-search-form').onsubmit = event => {
@@ -445,8 +455,15 @@ for (const keys of ['qwertyuiop', 'asdfghjkl', 'zxcvbnm', '1234567890', ['SPACE'
 document.querySelectorAll('[data-browser-section]').forEach(button => button.onclick = () => browseCommand('section', {section: button.dataset.browserSection}));
 $('browser-scroll').addEventListener('scroll', () => { maybeLoadMore(); syncWebScrubber(); }, {passive: true});
 $('browser-scrub-range').oninput = event => positionWebScrubber(Number(event.target.value));
-$('browser-scrub-range').onpointerdown = () => { browserScrubDragging = true; };
-$('browser-scrub-range').onpointerup = () => { browserScrubDragging = false; };
+function scrubAtPointer(event) {
+  const bounds = $('browser-scrubber').getBoundingClientRect();
+  positionWebScrubber((event.clientY - bounds.top - 16) * 25 / Math.max(1, bounds.height - 32));
+}
+$('browser-scrub-range').onpointerdown = event => { event.preventDefault(); browserScrubDragging = true; event.target.setPointerCapture(event.pointerId); scrubAtPointer(event); };
+$('browser-scrub-range').onpointermove = event => { if (browserScrubDragging) scrubAtPointer(event); };
+$('browser-scrub-range').onpointerup = event => { if (!browserScrubDragging) return; scrubAtPointer(event); browserScrubDragging = false; browseCommand('jump', {letter: $('browser-scrub-letter').textContent}); };
+$('browser-scrub-range').onpointercancel = () => { browserScrubDragging = false; };
+window.addEventListener('resize', () => positionWebScrubber(Number($('browser-scrub-range').value)));
 $('browser-scroll').addEventListener('wheel', event => { if (event.deltaY < 0 && $('browser-scroll').scrollTop < 40 && browserState?.offset > 0 && !browserRendering) browseCommand('previous'); }, {passive: true});
 $('browser-scrub-range').onchange = event => browseCommand('jump', {letter: String.fromCharCode(65 + Number(event.target.value))});
 $('details-open').onclick = () => setMusicView('details');

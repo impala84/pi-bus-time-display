@@ -102,6 +102,68 @@ test('section rail switches directly and alphabet jumps replace the loaded page'
   assert.equal(jumped.offset, 2); assert.equal(jumped.items[0].title, 'Kind of Blue'); assert.equal(albums.section_root, true);
 });
 
+test('sections retain their pages and navigation stacks without invalidating item keys', async () => {
+  const service = fakeService(); const manager = new BrowseManager(() => service, () => ({zone_id: 'zone'}));
+  await manager.run('touch', 'section', {section: 'albums'});
+  const album = await manager.run('touch', 'open', {item_key: 'album-a'});
+  const artists = await manager.run('touch', 'section', {section: 'artists'});
+  const artistPage = await manager.run('touch', 'jump', {letter: 'M'});
+  assert.equal(artistPage.offset, 1);
+  assert.deepEqual(await manager.run('touch', 'section', {section: 'albums'}), album);
+  assert.equal((await manager.run('touch', 'back')).title, 'Albums');
+  assert.deepEqual(await manager.run('touch', 'section', {section: 'artists'}), artistPage);
+  assert.notEqual(manager.activeSessions.get(safeSession('touch')), safeSession('touch') + '-albums');
+  assert.equal(artists.title, 'Artists');
+  manager.clear(); assert.equal(manager.activeSessions.size, 0);
+});
+
+test('Shuffle Genre executes only the native Shuffle action in the chosen zone', async () => {
+  const calls = []; let menu = false;
+  const service = {
+    browse(options, callback) {
+      calls.push(options); menu = !options.pop_levels;
+      callback(false, options.item_key === 'shuffle' ? {action: 'none'} : {action: 'list', list: {title: menu ? 'Play Genre' : 'Jazz', level: menu ? 3 : 2, count: 1}});
+    },
+    load(options, callback) { callback(false, {list: {title: menu ? 'Play Genre' : 'Jazz', level: menu ? 3 : 2, count: 1}, items: menu ? [{title: 'Shuffle', item_key: 'shuffle', hint: 'action'}] : [{title: 'Play Genre', item_key: 'play-genre', hint: 'action_list'}]}); }
+  };
+  const manager = new BrowseManager(() => service, () => ({zone_id: 'zone'}));
+  const session = safeSession('touch'); manager.sections.set(session, 'genres');
+  const genre = manager.store(session, 'browse', {title: 'Jazz', level: 2, count: 1}, [{title: 'Play Genre', item_key: 'play-genre', hint: 'action_list'}]);
+  assert.equal(genre.items[0].title, 'Shuffle Genre'); assert.equal(calls.length, 0);
+  const result = await manager.run('touch', 'open', {item_key: 'play-genre'});
+  assert.match(result.message, /Shuffling Jazz/);
+  assert.deepEqual(calls.map(call => call.item_key || 'back'), ['play-genre', 'shuffle', 'back']);
+  assert.ok(calls.every(call => call.zone_or_output_id === 'zone'));
+});
+
+test('Surprise Me plays a whole random album and avoids repeating it immediately', async () => {
+  const manager = new BrowseManager(() => service, () => ({zone_id: 'zone'}));
+  const offsets = []; const played = []; let stage = 'albums';
+  const service = {
+    browse(options, callback) {
+      assert.equal(options.zone_or_output_id, 'zone');
+      if (options.item_key?.startsWith('album-')) stage = 'tracks';
+      else if (options.item_key === 'play-album') stage = 'actions';
+      else if (options.item_key === 'play-now') { played.push(options); return callback(false, {action: 'none'}); }
+      callback(false, {action: 'list', list: {level: 2}});
+    },
+    load(options, callback) {
+      if (options.count === 1) { offsets.push(options.offset); stage = 'albums'; }
+      const items = stage === 'albums' ? [{title: `Album ${options.offset}`, item_key: `album-${options.offset}`}]
+        : stage === 'tracks' ? [{title: 'Play Album', item_key: 'play-album', hint: 'action_list'}]
+        : [{title: 'Play Now', item_key: 'play-now', hint: 'action'}];
+      callback(false, {items});
+    }
+  };
+  manager.openSection = async () => ({count: 5, level: 2});
+  const original = {section: 'albums', items: [{title: 'Unchanged browse page'}]}; manager.sessions.set(safeSession('touch'), original);
+  const first = await manager.run('touch', 'surprise');
+  const second = await manager.run('touch', 'surprise');
+  assert.notEqual(offsets[0], offsets[1]); assert.equal(played.length, 2);
+  assert.equal(first.items, original.items); assert.equal(second.items, original.items);
+  assert.match(second.message, /Playing Album/);
+});
+
 test('alphabet indexing respects Roon offsets and can load previous results', async () => {
   const titles = ["(What's the Story) Morning Glory?", ...Array.from({length: 35}, (_, i) => `A album ${i}`), 'The Beatles', 'Écho', 'Foxtrot', 'Tango', 'Zulu'];
   let loads = 0;

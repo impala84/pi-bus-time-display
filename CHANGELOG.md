@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.11.14 — 3 October 2026
+
+- Make Search a full-size sidebar menu item on both displays.
+- Size native artwork squares from the available width, reduce column gaps, and increase row spacing while keeping five genre columns where they fit.
+- Draw the native alphabet dot and letter together using one centre; use the same shared geometry on the web display, including resized layouts.
+- Keep separate in-memory Roon browsing stacks and saved scroll positions for Albums, Artists, Genres, Playlists and Search.
+- Finish scroll restoration before dispatching queued navigation so older callbacks cannot reposition a newer page.
+- Expose Roon's native Shuffle Genre action directly on a genre page.
+- Add Surprise Me and Surprise Again to Albums: play a randomly selected whole library album, avoid immediate repeats, and keep the current browse position intact.
+- Include the Cairo integration dependency required by the native scrubber drawing.
+
 ## 0.11.13 — 3 October 2026
 
 - Submit search text directly to Roon's search hierarchy, instead of looking for an input prompt in the empty results.

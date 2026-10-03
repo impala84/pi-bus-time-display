@@ -21,7 +21,7 @@ function formatDuration(value) {
 }
 
 function isActionItem(item) {
-  return item?.hint === 'action' || /^(play (album|playlist|artist)|add next|queue|start radio|shuffle|play from here)$/i.test(String(item?.title || '').trim());
+  return item?.hint === 'action' || /^(play (album|playlist|artist|genre)|add next|queue|start radio|shuffle|play from here)$/i.test(String(item?.title || '').trim());
 }
 
 function publicItem(item) {
@@ -88,14 +88,33 @@ class BrowseManager {
     this.pending = new Map();
     this.sections = new Map();
     this.alphabetIndexes = new Map();
+    this.activeSessions = new Map();
+    this.lastSurprises = new Map();
   }
 
-  clear() { this.sessions.clear(); this.pending.clear(); this.sections.clear(); this.alphabetIndexes.clear(); }
+  clear() { this.sessions.clear(); this.pending.clear(); this.sections.clear(); this.alphabetIndexes.clear(); this.activeSessions.clear(); this.lastSurprises.clear(); }
 
   run(sessionName, command = 'current', data = {}) {
     const session = safeSession(sessionName);
     const previous = this.pending.get(session) || Promise.resolve();
-    const current = previous.catch(() => {}).then(() => this._run(session, command, data));
+    const current = previous.catch(() => {}).then(() => {
+      if (command === 'surprise') return this.surprise(session);
+      let active = this.activeSessions.get(session) || session;
+      if (command === 'section' || command === 'root') {
+        const section = ['albums', 'artists', 'genres', 'playlists'].includes(data.section) ? data.section : 'albums';
+        active = `${session}-${section}`;
+        this.activeSessions.set(session, active);
+        if (this.sessions.has(active)) return this.sessions.get(active);
+      } else if (command === 'search') {
+        active = `${session}-search`; this.sections.set(active, 'search'); this.activeSessions.set(session, active);
+      } else if (command === 'back' && this.sessions.get(active)?.hierarchy === 'search' && this.sessions.get(active)?.level === 0) {
+        active = `${session}-albums`; this.activeSessions.set(session, active);
+        return this.sessions.get(active) || this._run(active, 'root', {section: 'albums'});
+      } else if (command === 'current' && !this.activeSessions.has(session) && !this.sessions.has(session)) {
+        active = `${session}-albums`; this.activeSessions.set(session, active);
+      }
+      return this._run(active, command, data);
+    });
     this.pending.set(session, current);
     return current.finally(() => { if (this.pending.get(session) === current) this.pending.delete(session); });
   }
@@ -118,7 +137,54 @@ class BrowseManager {
     else if (command === 'open' && data.item_key) options.item_key = String(data.item_key);
     else return state || this._run(session, 'root', {});
     const opened = command === 'open' ? state?.items?.find(item => String(item.item_key) === String(data.item_key)) : null;
+    if (opened?.shuffle_genre) return this.shuffleGenre(service, zone, session, state, options);
     return this.follow(service, session, hierarchy, await request(service, 'browse', options), opened?.image_key || null);
+  }
+
+  async shuffleGenre(service, zone, session, state, options) {
+    const menu = await request(service, 'browse', options);
+    if (menu.action !== 'list') return this.follow(service, session, state.hierarchy, menu);
+    const loaded = await request(service, 'load', {hierarchy: state.hierarchy, multi_session_key: session, level: menu.list.level, offset: 0, count: 30});
+    const shuffle = loaded.items?.find(item => /^shuffle$/i.test(item.title) && item.hint === 'action');
+    if (!shuffle?.item_key) return this.follow(service, session, state.hierarchy, menu);
+    const result = await request(service, 'browse', {...options, item_key: shuffle.item_key});
+    if (result.is_error) return this.follow(service, session, state.hierarchy, result);
+    const restored = await request(service, 'browse', {hierarchy: state.hierarchy, multi_session_key: session, zone_or_output_id: zone.zone_id, pop_levels: 1});
+    const next = await this.follow(service, session, state.hierarchy, restored);
+    return this.save(session, {...next, message: `Shuffling ${state.title}.`});
+  }
+
+  async surprise(baseSession) {
+    const service = this.service(); const zone = this.zone();
+    if (!service || !zone) throw new Error('Roon is not connected');
+    const session = `${baseSession}-surprise`;
+    const albums = await this.openSection(service, zone, session, 'albums');
+    if (!albums.count || albums.error) throw new Error('No library albums are available');
+    const previous = this.lastSurprises.get(baseSession);
+    const count = albums.count;
+    let offset = Math.floor(Math.random() * (count - (count > 1 && previous !== undefined ? 1 : 0)));
+    if (count > 1 && previous !== undefined && offset >= previous) offset++;
+    const loaded = await request(service, 'load', {hierarchy: 'browse', multi_session_key: session, level: albums.level, offset, count: 1});
+    const album = loaded.items?.[0];
+    if (!album?.item_key) throw new Error('The selected album is unavailable');
+    const options = {hierarchy: 'browse', multi_session_key: session, zone_or_output_id: zone.zone_id};
+    const opened = await request(service, 'browse', {...options, item_key: album.item_key});
+    if (opened.action !== 'list' || !opened.list || opened.is_error) throw new Error(String(opened.message || 'Roon could not open the selected album'));
+    const tracks = await request(service, 'load', {...options, level: opened.list?.level, offset: 0, count: 30});
+    const play = tracks.items?.find(item => /^play album$/i.test(item.title));
+    if (!play?.item_key) throw new Error('Roon has no Play Album action for this album');
+    let result = await request(service, 'browse', {...options, item_key: play.item_key});
+    if (result.action === 'list') {
+      const menu = await request(service, 'load', {...options, level: result.list.level, offset: 0, count: 30});
+      const now = menu.items?.find(item => /^play now$/i.test(item.title) && item.hint === 'action');
+      if (!now?.item_key) throw new Error('Roon has no Play Now action for this album');
+      result = await request(service, 'browse', {...options, item_key: now.item_key});
+    }
+    if (result.is_error) throw new Error(String(result.message || 'Roon could not play the album'));
+    this.lastSurprises.set(baseSession, offset);
+    const active = this.activeSessions.get(baseSession) || baseSession;
+    const state = this.sessions.get(active) || await this.openSection(service, zone, active, 'albums');
+    return this.save(active, {...state, surprise_album: album.title, message: `Playing ${album.title}${album.subtitle ? ` · ${album.subtitle}` : ''}.`});
   }
 
   async openNamed(service, zone, session, result, title) {
@@ -163,6 +229,7 @@ class BrowseManager {
   store(session, hierarchy, list, items, message, fallbackImageKey = null, loadedOffset = 0) {
     const level = Number(list?.level || 0);
     let normalised = withAlbumArtist(withFallbackImage(libraryItems(list, (items || []).map(publicItem)), fallbackImageKey));
+    normalised = normalised.map(item => /^play genre$/i.test(item.title) ? {...item, title: 'Shuffle Genre', action: true, shuffle_genre: true} : item);
     if (hierarchy === 'browse' && level === 0) normalised = rootItems(normalised);
     const presentation = browserLayout(hierarchy, level, list, normalised);
     const filteredLibrary = /^library$/i.test(String(list?.title || '').trim());

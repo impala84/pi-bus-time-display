@@ -8,10 +8,10 @@ import unittest
 SOURCE = Path(__file__).parents[1] / "native-display" / "pi_bus_native.py"
 
 
-def native_method(name):
+def native_method(name, dependencies=None):
     tree = ast.parse(SOURCE.read_text(encoding="utf-8"))
     method = next(node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef) and node.name == name)
-    namespace = {}
+    namespace = dict(dependencies or {})
     exec(compile(ast.Module(body=[method], type_ignores=[]), str(SOURCE), "exec"), namespace)
     return namespace[name]
 
@@ -37,14 +37,27 @@ class NativeBrowserControlsTests(unittest.TestCase):
         key(owner, "Z"); self.assertEqual(entry.text, "z")
         key(owner, "CLEAR"); self.assertEqual(entry.text, "")
 
-    def test_letter_tracks_actual_thumb_bounds_at_both_ends(self):
-        margins = []
-        label = SimpleNamespace(get_allocated_height=lambda:34, set_margin_top=margins.append)
-        owner = SimpleNamespace(browser_scrub_letter=label, browser_scrub_scale=SimpleNamespace(get_slider_range=lambda:(8, 26)))
-        track = native_method("track_browser_scrub_letter")
-        self.assertTrue(track(owner, None, None)); self.assertEqual(margins[-1], 0)
-        owner.browser_scrub_scale.get_slider_range = lambda:(374, 392)
-        track(owner, None, None); self.assertEqual(margins[-1], 366)
+    def test_dot_and_letter_ink_have_identical_centres_at_every_letter(self):
+        class Canvas:
+            def __getattr__(self, name): return lambda *_: None
+            def arc(self, _x, y, *_): self.dot_y = y
+            def move_to(self, _x, y): self.text_baseline = y
+            def text_extents(self, _text): return (0, -13, 12, 13, 12, 0)
+        draw = native_method("draw_browser_scrubber")
+        for height in (240, 480, 720):
+            for value in range(26):
+                owner = SimpleNamespace(browser_scrub_scale=SimpleNamespace(get_value=lambda:value))
+                canvas = Canvas(); draw(owner, None, canvas, 74, height)
+                self.assertAlmostEqual(canvas.dot_y, canvas.text_baseline - 13 + 6.5)
+                self.assertGreaterEqual(canvas.dot_y, 16); self.assertLessEqual(canvas.dot_y, height - 16)
+
+    def test_scrubber_touch_mapping_matches_drawing_at_every_letter(self):
+        at = native_method("browser_scrub_at")
+        for height in (240, 480, 720):
+            values = []
+            owner = SimpleNamespace(browser_scrubber=SimpleNamespace(get_allocated_height=lambda:height), browser_scrub_scale=SimpleNamespace(set_value=values.append))
+            for value in range(26): at(owner, 16 + (height - 32) * value / 25)
+            self.assertEqual(values, list(range(26)))
 
     def test_latest_jump_is_retained_while_results_are_loading(self):
         owner = SimpleNamespace(browser_loading=True)
@@ -55,6 +68,20 @@ class NativeBrowserControlsTests(unittest.TestCase):
     def test_result_sync_cannot_move_scrubber_during_drag(self):
         owner = SimpleNamespace(browser_state={"alpha_scrub":True}, browser_scrub_dragging=True)
         native_method("sync_browser_scrubber")(owner)
+
+    def test_section_switch_remembers_the_old_scroll_and_restores_the_new_one(self):
+        thread = SimpleNamespace(Thread=lambda **_: SimpleNamespace(start=lambda:None))
+        owner = SimpleNamespace(browser_loading=False, browser_state={"section":"artists"}, browser_section_scrolls={"albums":72}, browser_scroll=SimpleNamespace(get_vadjustment=lambda:SimpleNamespace(get_value=lambda:350)), browser_message=SimpleNamespace(set_visible=lambda _:None), _request_browser=lambda *_:None)
+        native_method("request_browser", {"threading":thread})(owner, "section", section="albums")
+        self.assertEqual(owner.browser_section_scrolls["artists"], 350)
+        self.assertEqual(owner.browser_scroll_restore, 72)
+
+    def test_old_scroll_restore_finishes_before_the_next_queued_request(self):
+        calls = []
+        owner = SimpleNamespace(browser_scroll_restore=350, restore_browser_scroll=lambda:calls.append("restore"), sync_browser_scrubber=lambda:calls.append("sync"), maybe_load_more_browser=lambda:None, browser_pending_request=("section", {"section":"albums"}), request_browser=lambda *_args, **_kwargs:calls.append("request"))
+        native_method("finish_browser_render", {"GLib":SimpleNamespace(timeout_add=lambda *_:None)})(owner)
+        self.assertEqual(calls, ["restore", "sync", "request"])
+        self.assertFalse(owner.browser_loading); self.assertFalse(owner.browser_rendering)
 
 
 if __name__ == "__main__":

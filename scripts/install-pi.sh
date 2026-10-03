@@ -8,7 +8,7 @@ fi
 
 SOURCE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 apt-get update
-apt-get install -y git nodejs npm python3-venv python3-gi gir1.2-gtk-4.0 fonts-inter avahi-utils wlr-randr
+apt-get install -y git nodejs npm python3-venv python3-gi python3-gi-cairo gir1.2-gtk-4.0 fonts-inter avahi-utils wlr-randr
 id morningbus >/dev/null 2>&1 || useradd --create-home --shell /bin/bash morningbus
 install -d -o morningbus -g morningbus /opt/pi-bus-time-display /etc/pi-bus-time-display /var/lib/pi-bus-time-display /var/lib/pi-bus-time-display/roon
 cp -a "${SOURCE_DIR}/." /opt/pi-bus-time-display/

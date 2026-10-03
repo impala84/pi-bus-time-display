@@ -130,9 +130,15 @@ h1 {
 .browser-section { margin: 18px 12px 5px; color: var(--mint); font-size: 11px; letter-spacing: .15em; text-transform: uppercase; }.browser-loading-more { padding: 12px; color: var(--muted); font-size: 11px; font-weight: 800; letter-spacing: .12em; text-align: center; }
 .browser-list.layout-home,.browser-list.layout-menu,.browser-list.layout-covers,.browser-list.layout-tiles { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 12px; }
 .browser-list.genre-grid { grid-template-columns: repeat(5,minmax(0,1fr)); gap: 8px; }
-.browser-list.layout-covers,.browser-list.layout-tiles,.browser-list.genre-grid { gap: 22px; }
+.browser-list.layout-covers,.browser-list.layout-tiles,.browser-list.genre-grid { column-gap: 16px; row-gap: 24px; }
 .browser-card:hover,.browser-card:active { transform: none; box-shadow: none; background: transparent; }
-.browser-sidebar .browser-search-small { font-size: 13px; min-height: 40px; }
+.browser-sidebar #browser-surprise { font-size: 13px; }
+.browser-scrubber { padding: 0; }
+.browser-scrubber::before { content: ""; position: absolute; right: 15.5px; top: 16px; bottom: 16px; width: 5px; border-radius: 3px; background: #25312e; }
+.browser-scrubber input { opacity: 0; width: 100%; touch-action: none; direction: ltr; }
+.browser-scrubber output { top: var(--scrub-center,16px); transform: translateY(-50%); left: auto; right: 32px; height: 34px; }
+.browser-scrub-dot { position: absolute; pointer-events: none; right: 9px; top: var(--scrub-center,16px); transform: translateY(-50%); width: 18px; height: 18px; border-radius: 50%; background: var(--mint); }
+.browser-scrubber:focus-within::before { box-shadow: 0 0 0 2px #84908c; }
 .browser-search-panel { position: absolute; z-index: 10; inset: 0; padding: 18px; background: var(--bg); overflow-y: auto; }
 .browser-search-panel form { display: flex; gap: 10px; margin-bottom: 20px; }
 .browser-search-panel input { min-width: 0; flex: 1; min-height: 64px; padding: 12px; font-size: 28px; color: var(--ink); background: var(--panel); border: 0; border-radius: 8px; }
