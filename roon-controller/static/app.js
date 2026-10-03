@@ -1,4 +1,8 @@
 const $ = id => document.getElementById(id);
+function tickClock() {
+  $('dashboard-clock').textContent = new Intl.DateTimeFormat('en-GB', {timeZone:'Asia/Singapore', hour:'2-digit', minute:'2-digit', hour12:false}).format(new Date());
+}
+tickClock(); setInterval(tickClock, 1000);
 let state = null;
 let lastTick = Date.now();
 let musicView = 'now';

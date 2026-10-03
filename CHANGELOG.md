@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.11.30 — 4 October 2026
+
+- Align the clock at identical upper-right offsets across Home, Bus Times and every music view; add a live Singapore clock to Now Playing, browsing and external inputs.
+- Match the Rune bus background to the Home and music gradient, and align the bus heading with Home.
+- Reserve a separate mobile navigation row so music tabs do not overlap the clock.
+
 ## 0.11.29 — 4 October 2026
 
 - Theme-coloured Pop/Rock symbol and centred genre labels with more bottom padding.
