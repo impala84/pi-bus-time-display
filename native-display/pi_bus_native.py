@@ -879,13 +879,13 @@ class Display(Gtk.Application):
         if not profile: return
         panel.set_size_request(260, -1)
         picture = Gtk.Picture(); picture.set_can_shrink(True); picture.set_content_fit(Gtk.ContentFit.COVER)
+        self.set_browser_placeholder(picture, artist=True)
         square = Gtk.AspectFrame(xalign=.5, yalign=.5, ratio=1, obey_child=False); square.set_size_request(200, 200); square.set_halign(Gtk.Align.CENTER); square.set_child(picture); panel.append(square)
         key = profile.get("image_key")
         if key:
             self.browser_pictures.setdefault(key, []).append(picture); self.browser_artwork_keys.append(key)
             cached = self.queue_thumbnail_cache.get(key)
             if cached: picture.set_paintable(cached)
-        else: square.set_child(self.label("♫", "browser-tile-icon", .5))
         name = profile.get("name", "")
         title = self.label(name, "artist-name", .5); title.set_wrap(True); title.set_max_width_chars(20); panel.append(title)
         if play_action:
@@ -1058,10 +1058,16 @@ class Display(Gtk.Application):
         if compact: button.add_css_class("compact")
         button.set_hexpand(True); button.set_vexpand(True); button.set_child(content); button.set_sensitive(bool(item.get("item_key"))); button.connect("clicked", self.open_browser_item, item.get("item_key")); return button
 
+    def set_browser_placeholder(self, picture, artist=False):
+        name = "missing-artist.svg" if artist else "missing-album.svg"
+        picture.set_filename(str(Path(__file__).with_name("icons") / name))
+
     def browser_cover_card(self, item, show_labels, tile_kind=None):
         content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=1); content.set_halign(Gtk.Align.FILL)
         size = getattr(self, "browser_tile_size", 172)
         artwork = Gtk.Overlay(); picture = Gtk.Picture(); picture.add_css_class("browser-cover-art"); picture.set_can_shrink(True); picture.set_content_fit(Gtk.ContentFit.COVER); artwork.set_child(picture)
+        if not tile_kind:
+            self.set_browser_placeholder(picture, artist=(self.browser_state or {}).get("section") == "artists")
         square = Gtk.AspectFrame(xalign=.5, yalign=.5, ratio=1, obey_child=False); square.set_size_request(size, size); square.set_halign(Gtk.Align.CENTER); square.set_hexpand(False); square.set_child(artwork); content.append(square)
         key = item.get("image_key"); self.browser_artwork_keys.append(key)
         if key:

@@ -30,6 +30,27 @@ class Entry:
 
 
 class NativeBrowserControlsTests(unittest.TestCase):
+    def test_native_placeholder_uses_local_artist_and_album_assets(self):
+        method = native_method("set_browser_placeholder", {"Path": Path, "__file__": str(SOURCE)})
+        picture = SimpleNamespace(set_filename=Mock())
+        method(SimpleNamespace(), picture, artist=True)
+        self.assertEqual(Path(picture.set_filename.call_args.args[0]), SOURCE.parent / "icons/missing-artist.svg")
+        method(SimpleNamespace(), picture)
+        self.assertEqual(Path(picture.set_filename.call_args.args[0]), SOURCE.parent / "icons/missing-album.svg")
+        for name in ("missing-artist.svg", "missing-album.svg"):
+            self.assertTrue((SOURCE.parent / "icons" / name).is_file())
+
+    def test_native_missing_thumbnail_retains_placeholder(self):
+        picture = SimpleNamespace(set_paintable=Mock())
+        instance = SimpleNamespace(queue_thumbnail_pending={"missing"}, browser_pictures={"missing": [picture]})
+        timeout = Mock()
+        method = native_method("apply_queue_thumbnail", {"GLib": SimpleNamespace(timeout_add=timeout)})
+        instance.retry_visible_thumbnail = Mock()
+        self.assertFalse(method(instance, "missing", None))
+        picture.set_paintable.assert_not_called()
+        self.assertEqual(instance.thumbnail_failures["missing"], 1)
+        timeout.assert_called_once()
+
     def test_back_swipe_requires_rightward_horizontal_motion_and_back_destination(self):
         swipe = native_method("browser_swipe_back")
         calls = []

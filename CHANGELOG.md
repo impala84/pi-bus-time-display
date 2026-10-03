@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.11.31 — 4 October 2026
+
+- Slightly reduce desktop browser clocks without changing mobile or native clock sizing.
+- Separate the missing-artist silhouette's head and shoulders.
+- Add neutral local SVG artwork fallbacks to native artist cards and profiles, retained when artwork fetching or decoding fails.
+
 ## 0.11.30 — 4 October 2026
 
 - Align the clock at identical upper-right offsets across Home, Bus Times and every music view; add a live Singapore clock to Now Playing, browsing and external inputs.
