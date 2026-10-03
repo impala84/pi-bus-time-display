@@ -265,6 +265,19 @@ test('Play Album completes its nested Play Now menu and hands off only on succes
   }
 });
 
+test('successful Play Now returning a track list hands off and retains album artwork', async () => {
+  const service = {browse:(_options,cb)=>cb(false,{action:'list',list:{title:'Album',level:2,count:1}}),load:(_options,cb)=>cb(false,{items:[{title:'Song',item_key:'song',hint:'action_list'}]})};
+  const manager = new BrowseManager(()=>service,()=>({zone_id:'zone'}));
+  manager.sessions.set('pihome-test',{hierarchy:'browse',section:'albums',level:3,fallback_image_key:'cover',items:[{title:'Play Now',action:true,item_key:'now'}]});
+  const result = await manager.run('test','open',{item_key:'now'});
+  assert.equal(result.navigate,'now');
+  assert.equal(result.items[0].image_key,'cover');
+});
+
+test('search display removes Roon catalogue link markup', () => {
+  assert.equal(publicItem({title:'Air',subtitle:'[[109178|Air]]'}).subtitle,'Air');
+});
+
 test('artist overview retains the selected portrait when returning from an album', async () => {
   const service = {browse:(_options,cb)=>cb(false,{action:'list',list:{title:'Band',level:3,count:2}}),load:(_options,cb)=>cb(false,{items:[{title:'Play Artist',hint:'action',item_key:'play'}, {title:'Album',image_key:'album-cover',item_key:'album'}]})};
   const manager = new BrowseManager(()=>service,()=>({zone_id:'zone'}));

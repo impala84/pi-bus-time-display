@@ -466,7 +466,7 @@ $('browser-search-open').onclick = () => { $('browser-search-panel').hidden = fa
 $('browser-search-cancel').onclick = () => { $('browser-search-panel').hidden = true; };
 $('browser-search-form').onsubmit = event => {
   event.preventDefault(); const query = $('browser-search-input').value.trim();
-  if (query) { $('browser-search-panel').hidden = true; browseCommand('search', {query, source: $('browser-search-source').value}); }
+  if (query) { $('browser-search-panel').hidden = true; browseCommand('search', {query, source: 'all'}); }
 };
 for (const keys of ['qwertyuiop', 'asdfghjkl', 'zxcvbnm', '1234567890', ['SPACE', '⌫', 'CLEAR']]) {
   const row = document.createElement('div'); row.className = 'browser-keyboard-row';

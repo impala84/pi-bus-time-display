@@ -27,7 +27,7 @@ function isActionItem(item) {
 function publicItem(item) {
   const title = String(item?.title || '');
   return {
-    title, subtitle: String(item?.subtitle || ''),
+    title, subtitle: String(item?.subtitle || '').replace(/\[\[\d+\|([^\]]+)\]\]/g, '$1'),
     image_key: item?.image_key || null, item_key: item?.item_key || null,
     hint: item?.hint || null, action: isActionItem(item),
     // Duration is not part of the original Browse contract, but newer/custom
@@ -144,20 +144,27 @@ class BrowseManager {
     const opened = command === 'open' ? state?.items?.find(item => String(item.item_key) === String(data.item_key)) : null;
     if (opened?.shuffle_genre) return this.shuffleGenre(service, zone, session, state, options);
     let result = await request(service, 'browse', options);
+    let playbackCompleted = opened?.action && /^play(?: now| from here)?$/i.test(opened.title.trim());
     // Play Album can open a second action menu rather than start playback.
     // Complete its Play Now action explicitly, just as the Surprise preview does.
     if (opened?.action && /^play album$/i.test(opened.title.trim()) && result.action === 'list' && !result.is_error) {
       const menu = await request(service, 'load', {hierarchy, multi_session_key: session, level: result.list.level, offset: 0, count: 30});
       const playNow = menu.items?.find(item => /^play now$/i.test(String(item.title || '').trim()) && isActionItem(item));
-      if (playNow?.item_key) result = await request(service, 'browse', {...options, item_key: playNow.item_key});
+      if (playNow?.item_key) {
+        result = await request(service, 'browse', {...options, item_key: playNow.item_key});
+        playbackCompleted = true;
+      } else if (menu.items?.some(item => !isActionItem(item) && item.hint !== 'header')) {
+        // Some cores return the album's track list after executing playback.
+        playbackCompleted = true;
+      }
     }
-    const next = await this.follow(service, session, hierarchy, result, opened?.image_key || null);
+    const next = await this.follow(service, session, hierarchy, result, opened?.image_key || (opened?.action ? state?.fallback_image_key : null) || result.list?.image_key || null);
     if (state?.section === 'artists' && state.section_root && opened && result.action === 'list' && !next.error) {
       this.artistContexts.set(session + ':' + next.title, {name:opened.title,image_key:opened.image_key});
       while (this.artistContexts.size > 64) this.artistContexts.delete(this.artistContexts.keys().next().value);
       return this.save(session, {...next, artist_profile:{name:opened.title,image_key:opened.image_key}});
     }
-    if (opened?.action && /^play(?: (now|album|from here))?$/i.test(opened.title.trim()) && !result.is_error && result.action !== 'list') return {...this.save(session, {...next, message: ''}), navigate: 'now'};
+    if (opened?.action && /^play(?: (now|album|from here))?$/i.test(opened.title.trim()) && !result.is_error && (playbackCompleted || result.action !== 'list')) return {...this.save(session, {...next, message: ''}), navigate: 'now'};
     return next;
   }
 
@@ -246,8 +253,8 @@ class BrowseManager {
 
   async search(service, zone, session, query, source = 'library') {
     if (!query) return this._run(session, 'root', {});
-    this.searchSources.set(session, source === 'tidal' ? 'tidal' : 'library');
-    this.save(session, {status: 'ready', hierarchy: source === 'tidal' ? 'browse' : 'search', level: 0, section: 'search', search_source: this.searchSources.get(session), title: source === 'tidal' ? 'TIDAL Search' : 'Library Search', items: [], can_back: false, has_more: false});
+    this.searchSources.set(session, source === 'all' ? 'all' : source === 'tidal' ? 'tidal' : 'library');
+    this.save(session, {status: 'ready', hierarchy: source === 'tidal' ? 'browse' : 'search', level: 0, section: 'search', search_source: this.searchSources.get(session), title: source === 'tidal' ? 'TIDAL Search' : 'Search', items: [], can_back: false, has_more: false});
     if (source === 'tidal') {
       const options = {hierarchy: 'browse', multi_session_key: session, zone_or_output_id: zone.zone_id};
       const root = await request(service, 'browse', {...options, pop_all: true});
@@ -260,6 +267,8 @@ class BrowseManager {
       const result = await request(service, 'browse', {...options, item_key: prompt.item_key, input: query});
       return this.follow(service, session, 'browse', result);
     }
+    // Roon's search hierarchy includes library and connected catalogue hits,
+    // already ordered by the core; do not split it into service-specific queries.
     // The search hierarchy takes input on the root browse request. Opening
     // it without input returns "No Results", not an input_prompt item.
     const result = await request(service, 'browse', {hierarchy: 'search', multi_session_key: session, zone_or_output_id: zone.zone_id, pop_all: true, input: query});

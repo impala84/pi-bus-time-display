@@ -52,22 +52,19 @@ class NativeBrowserControlsTests(unittest.TestCase):
     def test_theme_updates_the_selector_without_triggering_a_save(self):
         calls = []
         owner = SimpleNamespace(settings_data={},window=SimpleNamespace(add_css_class=calls.append,remove_css_class=calls.append),browser_scrubber=SimpleNamespace(queue_draw=lambda:calls.append('draw')))
-        def select(value):
-            self.assertTrue(owner.theme_updating)
-            calls.append(value)
-        owner.touch_theme = SimpleNamespace(set_selected=select)
+        owner.touch_theme_buttons = {value: SimpleNamespace(add_css_class=lambda cls, value=value:calls.append((value,cls)),remove_css_class=lambda cls:None) for value in ('fresh-mint','roon')}
         native_method('apply_theme')(owner, 'roon')
         self.assertEqual(owner.settings_data['display_theme'], 'roon')
-        self.assertEqual(calls, ['theme-roon',1,'draw'])
+        self.assertEqual(calls, ['theme-roon',('roon','active'),'draw'])
         self.assertFalse(owner.theme_updating)
-        native_method('change_theme')(SimpleNamespace(theme_updating=True))
+        native_method('change_theme')(SimpleNamespace(theme_updating=True), 'roon')
 
     def test_native_search_passes_the_selected_source(self):
         for selected, expected in ((0,'library'),(1,'tidal')):
             calls = []
             owner = SimpleNamespace(browser_search_entry=SimpleNamespace(get_text=lambda:' Radiohead '),browser_search_source=SimpleNamespace(get_selected=lambda:selected),set_roon_view=lambda view:calls.append(view),request_browser=lambda action,**data:calls.append((action,data)))
             native_method('submit_browser_search')(owner)
-            self.assertEqual(calls, ['browse',('search',{'query':'Radiohead','source':expected})])
+            self.assertEqual(calls, ['browse',('search',{'query':'Radiohead','source':'all'})])
 
     def test_surprise_selection_and_bottom_back_are_present_in_both_interfaces(self):
         code = SOURCE.read_text(encoding='utf-8')

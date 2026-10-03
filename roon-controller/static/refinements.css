@@ -323,9 +323,9 @@ body[data-theme="roon"] .music-subnav button.active { border-color: var(--mint);
 body[data-theme="roon"] .browser-sidebar button.active { color: var(--mint); background: transparent; border: 0; }
 body[data-theme="roon"] .browser-sidebar .browser-back { background: #303030; border: 0; color: var(--mint); }
 .browser-sidebar { height: 100%; align-self: stretch; }
-.browser-sidebar .browser-back { margin-top: auto; align-self: flex-start; width: 80px; min-width: 0; min-height: 32px; height: 32px; padding: 4px 10px; border: 0; border-radius: 7px; background: #303030; color: var(--mint); }
+.browser-sidebar .browser-back { margin-top: auto; align-self: flex-start; width: 80px; min-width: 0; min-height: 44px; height: 44px; padding: 4px 10px; border: 0; border-radius: 7px; background: #303030; color: var(--mint); }
 .queue-play-badge { background: transparent; border-radius: 0; color: var(--mint); }
-#browser-search-source { min-height: 44px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel); color: var(--ink); padding: 8px; font: inherit; }
+.browser-sidebar .browser-back, body[data-theme="roon"] .browser-sidebar .browser-back { color: #fff; }
 body[data-theme="roon"] .queue-row.current, body[data-theme="roon"] .queue-row:hover, body[data-theme="roon"] .queue-row:active { background: #292733; }
 body[data-theme="roon"] .transport button, body[data-theme="roon"] .source-step, body[data-theme="roon"] .source-mute, body[data-theme="roon"] .browser-search-panel, body[data-theme="roon"] .browser-keyboard button, body[data-theme="roon"] .browser-search-panel input { background: #292929; color: var(--ink); }
 body[data-theme="roon"] .transport .play { background: var(--mint); color: #151515; }

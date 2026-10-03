@@ -126,9 +126,13 @@ CSS += b"""
 .queue-duration, .high-resolution .queue-duration { font-size: 26px; min-width: 72px; padding-right: 16px; }
 .queue-play-badge { min-width: 52px; min-height: 52px; border-radius: 26px; }
 .browser-view { padding-left: 0; }
-.browser-back, .touch-landscape .browser-back { min-width: 70px; min-height: 28px; padding: 4px 10px; margin-top: 8px; border: 0; border-radius: 7px; background: #303030; color: #6ed9ae; }
+.browser-back, .touch-landscape .browser-back { min-width: 70px; min-height: 40px; padding: 4px 10px; margin-top: 8px; border: 0; border-radius: 7px; background: #303030; color: #fff; }
 .queue-play-badge { background: transparent; border-radius: 0; color: #6ed9ae; }
-.theme-roon .browser-back { background: #303030; border: 0; color: #817aeb; }
+.theme-roon .browser-back { background: #303030; border: 0; color: #fff; }
+.theme-choice { min-height: 36px; padding: 4px 12px; background: #303030; color: #fff; border-radius: 6px; }
+.theme-choice.active { background: #6ed9ae; color: #101714; }
+.theme-roon .theme-choice.active { background: #817aeb; color: #fff; }
+.settings-select label { color: #fff; }
 .theme-roon .queue-play-badge { background: transparent; color: #817aeb; }
 .theme-roon .queue-row.current, .theme-roon .queue-row:hover, .theme-roon .queue-row:active { background: #292733; }
 .theme-roon .utility, .theme-roon .source-step, .theme-roon .source-mute, .theme-roon .transport button, .theme-roon .browser-key, .theme-roon .browser-search-entry { background: #292929; color: #ddd; }
@@ -385,7 +389,6 @@ class Display(Gtk.Application):
         content.append(self.browser_scrubber); browser_main.append(content); browser_body.append(browser_main)
         self.roon_views.add_named(browser, "browse")
         search_panel = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12); search_panel.add_css_class("browser-search-panel")
-        self.browser_search_source = Gtk.DropDown.new_from_strings(["Library", "TIDAL"]); self.browser_search_source.add_css_class("settings-select"); search_panel.append(self.browser_search_source)
         search_header = Gtk.Box(spacing=12); self.browser_search_entry = Gtk.Entry(); self.browser_search_entry.add_css_class("browser-search-entry"); self.browser_search_entry.set_placeholder_text("Search Roon"); self.browser_search_entry.set_hexpand(True); self.browser_search_entry.connect("activate", self.submit_browser_search); search_header.append(self.browser_search_entry); search_header.append(self.button("CANCEL", lambda *_: self.set_roon_view("browse"), "browser-key")); search_panel.append(search_header)
         for keys in ("QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM", "1234567890"):
             key_row = Gtk.Box(spacing=7); key_row.set_homogeneous(True)
@@ -427,7 +430,10 @@ class Display(Gtk.Application):
         card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14); card.add_css_class("settings-card"); card.set_vexpand(True)
         self.device_status = self.label("Checking system…", "muted", .5); card.append(self.device_status)
         self.touch_diagnostics = self.label("Loading diagnostics…", "settings-diagnostic", .5); self.touch_diagnostics.set_wrap(True); self.touch_diagnostics.set_justify(Gtk.Justification.CENTER); self.touch_diagnostics.set_margin_top(8); self.touch_diagnostics.set_margin_bottom(14); card.append(self.touch_diagnostics)
-        theme_row = Gtk.Box(spacing=16); theme_row.append(self.label("THEME", "eyebrow")); self.touch_theme = Gtk.DropDown.new_from_strings(["Fresh Mint", "Roon"]); self.touch_theme.add_css_class("settings-select"); self.touch_theme.set_hexpand(True); self.touch_theme.connect("notify::selected", self.change_theme); theme_row.append(self.touch_theme); card.append(theme_row)
+        self.touch_theme_row = Gtk.Box(spacing=8); self.touch_theme_row.append(self.label("Theme")); self.touch_theme_buttons = {}
+        for value, title in (("fresh-mint", "Mint"), ("roon", "Roon")):
+            button = self.button(title, lambda _button, theme=value: self.change_theme(theme), "theme-choice")
+            self.touch_theme_buttons[value] = button; self.touch_theme_row.append(button)
         controls = Gtk.Box(spacing=28); controls.add_css_class("settings-controls"); controls.set_vexpand(True); controls.set_valign(Gtk.Align.START)
         daily = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16); daily.add_css_class("settings-column"); daily.set_size_request(430, -1); daily.append(self.label("DAILY CONTROLS", "eyebrow")); self.touch_daily = daily; controls.append(daily)
         display_column = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16); display_column.add_css_class("settings-column"); display_column.set_hexpand(True); display_column.append(self.label("DISPLAY", "eyebrow"))
@@ -450,19 +456,21 @@ class Display(Gtk.Application):
         if theme == "roon": self.window.add_css_class("theme-roon")
         else: self.window.remove_css_class("theme-roon")
         self.theme_updating = True
-        self.touch_theme.set_selected(1 if theme == "roon" else 0)
+        for value, button in self.touch_theme_buttons.items():
+            if value == theme: button.add_css_class("active")
+            else: button.remove_css_class("active")
         self.theme_updating = False
         self.browser_scrubber.queue_draw()
 
-    def change_theme(self, *_):
+    def change_theme(self, selected):
         if getattr(self, "theme_updating", False): return
-        selected = "roon" if self.touch_theme.get_selected() == 1 else "fresh-mint"
-        self.touch_theme.set_sensitive(False)
+        if selected == self.settings_data.get("display_theme"): return
+        self.touch_theme_row.set_sensitive(False)
         def save():
             result = post_json(f"{BUS}/api/admin/config", {"section": "appearance", "display_theme": selected}, timeout=3)
             GLib.idle_add(finish, result)
         def finish(result):
-            self.touch_theme.set_sensitive(True)
+            self.touch_theme_row.set_sensitive(True)
             if result and not result.get("error"):
                 self.apply_theme(selected); self.last_config_fetch = 0
             else:
@@ -700,9 +708,10 @@ class Display(Gtk.Application):
         for item in device.get("services", []):
             button = Gtk.CheckButton(label=item.get("name", "")); button.set_active(bool(item.get("enabled"))); button.connect("toggled", self.toggle_service, item.get("name", "")); services.append(button)
         self.touch_daily.append(services)
+        self.touch_daily.append(self.touch_theme_row)
 
     def render_home(self, home):
-        signature = json.dumps({"status": home.get("status"), "entities": home.get("entities", [])}, sort_keys=True, default=str)
+        signature = json.dumps({"status": home.get("status"), "entities": home.get("entities", []), "theme": self.settings_data.get("display_theme")}, sort_keys=True, default=str)
         if signature == self.home_signature: return
         self.home_signature = signature
         while child := self.home_grid.get_first_child(): self.home_grid.remove(child)
@@ -715,6 +724,7 @@ class Display(Gtk.Application):
             if state in {"on", "open", "playing"}: box.add_css_class("on")
             control_row = Gtk.Box(spacing=5); control_row.set_vexpand(True)
             domain = entity.get("domain", "switch"); icon_name = domain + ("-on" if state == "on" else "") + ".svg"
+            if self.settings_data.get("display_theme") == "roon": icon_name = icon_name.replace(".svg", "-roon.svg")
             icon_path = Path(__file__).with_name("icons") / icon_name
             icon_size = 108 if self.window.has_css_class("high-resolution") else 72
             icon = Gtk.Image.new_from_gicon(Gio.FileIcon.new(Gio.File.new_for_path(str(icon_path)))); icon.set_pixel_size(icon_size); icon.set_size_request(icon_size, icon_size); icon.set_halign(Gtk.Align.CENTER); icon.set_valign(Gtk.Align.CENTER); icon.add_css_class("home-icon")
@@ -942,7 +952,7 @@ class Display(Gtk.Application):
 
     def submit_browser_search(self, *_):
         query = self.browser_search_entry.get_text().strip()
-        if query: self.set_roon_view("browse"); self.request_browser("search", query=query, source="tidal" if self.browser_search_source.get_selected() == 1 else "library")
+        if query: self.set_roon_view("browse"); self.request_browser("search", query=query, source="all")
 
     def commit_browser_scrub(self, letter):
         self.browser_scrub_timer = None; self.request_browser("jump", letter=letter); return False

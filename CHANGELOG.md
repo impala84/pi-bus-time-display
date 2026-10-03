@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.11.22 — 3 October 2026
+
+- Use theme-specific purple Home icons in the Roon palette, including refreshing them when the theme changes.
+- Make the bottom-left Back button taller with white text on its borderless grey background.
+- Put a compact Mint/Roon button choice beneath Daily Controls instead of a full-width theme dropdown. Improve remaining settings-dropdown text contrast.
+- Complete album playback and switch to Now Playing even when Roon returns an updated track list after Play Now. Preserve the album artwork through action menus.
+- Replace the Library/TIDAL search dropdown with one combined Roon search, retaining the core's result order and removing catalogue link markup from artist names. Source badges are omitted because the browse API does not reliably identify the source.
+
 ## 0.11.21 — 3 October 2026
 
 - Add Library / TIDAL search selection on native and web displays. Discover Roon's TIDAL search prompt dynamically, retain its browse session for result navigation and playback, and report clearly when the service or search prompt is unavailable. TIDAL requires a connected subscription in Roon.
