@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.11.27 — 3 October 2026
+
+- Fix mobile portrait bus cards: put each route number beside the arrivals, reduce spacing and typography, and keep all arrival times inside their cards.
+- Reserve room for footer and bottom navigation, with vertical scrolling on especially short portrait screens rather than clipping the data. Leave native touchscreen and landscape styling unchanged.
+
 ## 0.11.26 — 3 October 2026
 
 - Add System → Diagnostics → Capture display, with an image preview and timestamped PNG download.
