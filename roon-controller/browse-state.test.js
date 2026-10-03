@@ -33,8 +33,8 @@ function fakeService() {
     load(options, callback) {
       const current = sessions.get(options.multi_session_key) || {path: '', hierarchy: options.hierarchy};
       const items = current.hierarchy === 'search' && current.path !== 'results'
-        ? [{title: 'Search', item_key: 'prompt', input_prompt: {prompt: 'Search Roon'}}]
-        : current.hierarchy === 'search' ? [{title: 'Blue Train', subtitle: 'John Coltrane', image_key: 'blue'}]
+        ? [{title: 'No Results', item_key: 'empty'}]
+        : current.hierarchy === 'search' ? [{title: 'Blue Train', subtitle: 'John Coltrane', image_key: 'blue', item_key: 'album-b'}]
         : (levels[current.path] || []);
       const title = current.hierarchy === 'search' ? (current.path === 'results' ? 'Search results' : 'Search') : (current.path ? current.path.split('/').at(-1).replace(/^./, value => value.toUpperCase()) : 'Browse');
       callback(false, {offset: options.offset, list: {level: current.path ? current.path.split('/').length : 0, title, count: items.length}, items: items.slice(options.offset, options.offset + options.count)});
@@ -51,7 +51,7 @@ test('browser opens the album section directly and returns to it from an album',
   const back = await manager.run('touch', 'back'); assert.equal(back.title, 'Albums'); assert.equal(back.can_back, false);
 });
 
-test('browser search uses Roon input prompt and keeps sessions separate', async () => {
+test('browser search submits input directly without requiring a prompt and keeps sessions separate', async () => {
   const fake = fakeService(); const manager = new BrowseManager(() => fake, () => ({zone_id: 'zone'}));
   const result = await manager.run('phone', 'search', {query: 'Blue'});
   assert.equal(result.title, 'Search results'); assert.equal(result.items[0].title, 'Blue Train');
@@ -59,6 +59,32 @@ test('browser search uses Roon input prompt and keeps sessions separate', async 
   const browseRoot = await manager.run('phone', 'back'); assert.equal(browseRoot.title, 'Albums');
   const touch = await manager.run('touch', 'root'); assert.equal(touch.items[0].title, 'A Moon Shaped Pool');
   assert.notEqual(safeSession('phone!?'), safeSession('touch'));
+});
+
+test('search results retain the hierarchy and zone when opened for playback', async () => {
+  const calls = [];
+  const service = {
+    browse(options, callback) {
+      calls.push(options);
+      if (options.item_key === 'play') return callback(false, {action: 'none'});
+      callback(false, {action: 'list', list: {title: options.input ? 'Search' : 'Blue Train', level: options.input ? 0 : 1, count: 1}});
+    },
+    load(options, callback) {
+      assert.equal(options.hierarchy, 'search');
+      callback(false, {list: {title: options.level ? 'Blue Train' : 'Search', level: options.level, count: 1}, items: options.level
+        ? [{title: 'Play Album', hint: 'action', item_key: 'play'}]
+        : [{title: 'Blue Train', item_key: 'album', hint: 'list'}]});
+    }
+  };
+  const manager = new BrowseManager(() => service, () => ({zone_id: 'zone'}));
+  await manager.run('test', 'search', {query: 'Blue'});
+  const album = await manager.run('test', 'open', {item_key: 'album'});
+  assert.equal(album.items[0].action, true);
+  await manager.run('test', 'open', {item_key: 'play'});
+  await manager.run('test', 'search', {query: 'Oasis'});
+  assert.deepEqual(calls.map(call => call.input || call.item_key), ['Blue', 'album', 'play', 'Oasis']);
+  assert.ok(calls.every(call => call.hierarchy === 'search' && call.zone_or_output_id === 'zone'));
+  assert.ok(calls.filter(call => call.input).every(call => call.pop_all && !call.item_key));
 });
 
 test('browser root removes TIDAL and keeps the remaining destinations in order', () => {

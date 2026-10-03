@@ -13,18 +13,19 @@ test('chooseItem prefers an exact title and ignores headers', () => {
   assert.equal(result.item_key, 'b');
 });
 
-test('loadDetails uses the Roon search prompt and merges cached external facts', async () => {
+test('loadDetails sends search text directly and merges cached external facts', async () => {
   const sessions = new Map();
   const service = {
     browse(options, callback) {
-      const session = sessions.get(options.multi_session_key) || {stage: 'prompt'};
+      const session = sessions.get(options.multi_session_key) || {};
+      if (options.pop_all) { assert.ok(options.input); assert.equal(options.item_key, undefined); }
       if (options.input) session.stage = options.input === 'Artist' ? 'artist-results' : 'album-results';
       else if (options.item_key === 'album') session.stage = 'tracks';
       sessions.set(options.multi_session_key, session); callback(false, {action: 'list', list: {count: 1}});
     },
     load(options, callback) {
       const stage = sessions.get(options.multi_session_key)?.stage;
-      const items = stage === 'prompt' ? [{title: 'Search', item_key: 'search', input_prompt: {prompt: 'Search'}}]
+      const items = !stage ? [{title: 'No Results'}]
         : stage === 'artist-results' ? [{title: 'Artist', item_key: 'artist', image_key: 'artist-art'}]
         : stage === 'album-results' ? [{title: 'Album', item_key: 'album', image_key: 'album-art', subtitle: '1999'}]
         : [{title: 'Track one', subtitle: '3:12'}];

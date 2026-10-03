@@ -210,12 +210,8 @@ const request = (service, method, options) => new Promise((resolve, reject) => {
 });
 
 async function searchItem(service, zoneId, query, category, title, session) {
-  await request(service, 'browse', {hierarchy: 'search', pop_all: true, multi_session_key: session, zone_or_output_id: zoneId});
-  let loaded = await request(service, 'load', {hierarchy: 'search', multi_session_key: session, offset: 0, count: 20});
-  const prompt = (loaded.items || []).find(candidate => candidate.input_prompt && candidate.item_key);
-  if (!prompt) return null;
-  await request(service, 'browse', {hierarchy: 'search', item_key: prompt.item_key, input: query, multi_session_key: session, zone_or_output_id: zoneId});
-  loaded = await request(service, 'load', {hierarchy: 'search', multi_session_key: session, offset: 0, count: 60});
+  await request(service, 'browse', {hierarchy: 'search', pop_all: true, input: query, multi_session_key: session, zone_or_output_id: zoneId});
+  let loaded = await request(service, 'load', {hierarchy: 'search', multi_session_key: session, offset: 0, count: 60});
   let item = chooseItem(loaded.items, title);
   if (item && clean(item.title) === clean(title)) return item;
   const group = chooseItem(loaded.items, category);

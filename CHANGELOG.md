@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.11.13 — 3 October 2026
+
+- Submit search text directly to Roon's search hierarchy, instead of looking for an input prompt in the empty results.
+- Correct the same search-request bug in album and artist detail lookups.
+- Add regression coverage for prompt-free search, repeated queries, and opening results through to playback actions in the selected zone.
+- Leave the display layout unchanged while the search fix is verified on the device.
+
 ## 0.11.12 — 3 October 2026
 
 - Add a small Search button beneath Playlists, opening a large search field and on-screen keyboard on the touchscreen and web display.

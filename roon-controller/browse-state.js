@@ -141,12 +141,9 @@ class BrowseManager {
 
   async search(service, zone, session, query) {
     if (!query) return this._run(session, 'root', {});
-    const options = {hierarchy: 'search', multi_session_key: session, zone_or_output_id: zone.zone_id, pop_all: true};
-    const root = await request(service, 'browse', options);
-    const initial = await request(service, 'load', {hierarchy: 'search', multi_session_key: session, level: root.list?.level, offset: 0, count: 30});
-    const prompt = (initial.items || []).find(item => item.input_prompt && item.item_key);
-    if (!prompt) return this.store(session, 'search', root.list || initial.list, initial.items || [], `No search input is available for “${query}”.`);
-    const result = await request(service, 'browse', {hierarchy: 'search', multi_session_key: session, zone_or_output_id: zone.zone_id, item_key: prompt.item_key, input: query});
+    // The search hierarchy takes input on the root browse request. Opening
+    // it without input returns "No Results", not an input_prompt item.
+    const result = await request(service, 'browse', {hierarchy: 'search', multi_session_key: session, zone_or_output_id: zone.zone_id, pop_all: true, input: query});
     return this.follow(service, session, 'search', result);
   }
 
