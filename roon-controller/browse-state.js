@@ -71,8 +71,7 @@ function withAlbumArtist(items) {
   if (!items.some(item => item.action && /^play album$/i.test(String(item.title || '').trim()))) return items;
   const firstTrack = items.find(item => !item.action && item.subtitle);
   const albumArtist = String(firstTrack?.subtitle || '').split(/\s*,\s*/)[0].trim();
-  if (!albumArtist) return items;
-  return items.map(item => item.action ? item : {...item, subtitle: albumArtist});
+  return items.map(item => item.action ? item : {...item, title: String(item.title || '').replace(/^\s*(?:\d+\s*[-/]\s*\d+[.\s]+|\d+\.\s+)/, ''), subtitle: albumArtist || item.subtitle});
 }
 
 function rootItems(items) {
@@ -88,9 +87,10 @@ class BrowseManager {
     this.sessions = new Map();
     this.pending = new Map();
     this.sections = new Map();
+    this.alphabetIndexes = new Map();
   }
 
-  clear() { this.sessions.clear(); this.pending.clear(); this.sections.clear(); }
+  clear() { this.sessions.clear(); this.pending.clear(); this.sections.clear(); this.alphabetIndexes.clear(); }
 
   run(sessionName, command = 'current', data = {}) {
     const session = safeSession(sessionName);
@@ -105,6 +105,7 @@ class BrowseManager {
     if (!service || !zone) return {status: 'unavailable', title: 'Browse', items: [], can_back: false, has_more: false};
     if (command === 'current' && this.sessions.has(session)) return this.sessions.get(session);
     if (command === 'more') return this.loadMore(service, session);
+    if (command === 'previous') return this.loadPrevious(service, session);
     if (command === 'jump') return this.jumpTo(service, session, String(data.letter || 'A'));
     if (command === 'section' || command === 'root' || (command === 'current' && !this.sessions.has(session))) return this.openSection(service, zone, session, String(data.section || 'albums'));
     if (command === 'search') return this.search(service, zone, session, String(data.query || '').trim());
@@ -197,19 +198,36 @@ class BrowseManager {
     const state = this.sessions.get(session);
     if (!state?.alpha_scrub || !state.count) return state || this.openSection(service, this.zone(), session, 'albums');
     const target = String(letter || 'A').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 1) || 'A';
-    let low = 0; let high = state.count;
-    while (low < high) {
-      const middle = Math.floor((low + high) / 2);
-      const probe = await request(service, 'load', {hierarchy: state.hierarchy, multi_session_key: session, level: state.level, offset: middle, count: 1});
-      const item = (probe.items || []).find(candidate => candidate.hint !== 'header');
-      const key = String(item?.title || '').normalize('NFKD').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
-      if (key && key.localeCompare(target, 'en', {sensitivity: 'base'}) < 0) low = middle + 1;
-      else high = middle;
+    const cacheKey = `${session}:${state.section}:${state.level}:${state.count}`;
+    let index = this.alphabetIndexes.get(cacheKey);
+    if (!index) {
+      index = new Map();
+      // Roon's ordering is not JavaScript locale ordering (punctuation,
+      // articles and accented names differ). Index actual offsets instead.
+      for (let start = 0; start < state.count; start += 200) {
+        const page = await request(service, 'load', {hierarchy: state.hierarchy, multi_session_key: session, level: state.level, offset: start, count: 200});
+        (page.items || []).forEach((item, position) => {
+          const first = String(item.title || '').trim().replace(/^the\s+/i, '').normalize('NFKD').toUpperCase()[0];
+          const key = /^[A-Z]$/.test(first || '') ? first : 'A';
+          if (!index.has(key)) index.set(key, start + position);
+        });
+      }
+      this.alphabetIndexes.set(cacheKey, index);
     }
-    const offset = Math.max(0, Math.min(low, Math.max(0, state.count - 1)));
+    const key = [...index.keys()].sort().find(key => key >= target);
+    const offset = key ? index.get(key) : Math.max(0, state.count - PAGE_SIZE);
     const loaded = await request(service, 'load', {hierarchy: state.hierarchy, multi_session_key: session, level: state.level, offset, count: PAGE_SIZE});
     const items = withAlbumArtist(withFallbackImage((loaded.items || []).map(publicItem), state.fallback_image_key));
     return this.save(session, {...state, offset, items, count: Number(loaded.list?.count ?? state.count), has_more: offset + items.length < Number(loaded.list?.count ?? state.count), message: ''});
+  }
+
+  async loadPrevious(service, session) {
+    const state = this.sessions.get(session);
+    if (!state?.offset) return state;
+    const offset = Math.max(0, state.offset - PAGE_SIZE);
+    const loaded = await request(service, 'load', {hierarchy: state.hierarchy, multi_session_key: session, level: state.level, offset, count: state.offset - offset});
+    const items = [...withFallbackImage((loaded.items || []).map(publicItem), state.fallback_image_key), ...state.items];
+    return this.save(session, {...state, offset, items});
   }
 
   save(session, state) { this.sessions.set(session, state); return state; }

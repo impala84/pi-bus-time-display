@@ -76,6 +76,29 @@ test('section rail switches directly and alphabet jumps replace the loaded page'
   assert.equal(jumped.offset, 2); assert.equal(jumped.items[0].title, 'Kind of Blue'); assert.equal(albums.section_root, true);
 });
 
+test('alphabet indexing respects Roon offsets and can load previous results', async () => {
+  const titles = ["(What's the Story) Morning Glory?", ...Array.from({length: 35}, (_, i) => `A album ${i}`), 'The Beatles', 'Écho', 'Foxtrot', 'Tango', 'Zulu'];
+  let loads = 0;
+  const service = {load(options, callback) { loads++; callback(false, {list: {count: titles.length}, items: titles.slice(options.offset, options.offset + options.count).map(title => ({title}))}); }};
+  const manager = new BrowseManager(() => service, () => ({zone_id: 'zone'}));
+  manager.sessions.set(safeSession('test'), {alpha_scrub: true, count: titles.length, section: 'albums', hierarchy: 'browse', level: 2, offset: 0, items: []});
+  const echo = await manager.run('test', 'jump', {letter: 'E'});
+  assert.equal(echo.items[0].title, 'Écho');
+  const previous = await manager.run('test', 'previous');
+  assert.ok(previous.offset < echo.offset); assert.equal(previous.items.at(-1).title, 'Zulu');
+  const before = loads;
+  const beatles = await manager.run('test', 'jump', {letter: 'B'});
+  assert.equal(beatles.items[0].title, 'The Beatles'); assert.equal(loads, before + 1);
+  const first = await manager.run('test', 'jump', {letter: 'A'});
+  assert.equal(first.offset, 0);
+});
+
+test('album track titles hide disc and track prefixes without changing names', () => {
+  const items = withAlbumArtist([{title: 'Play Album', action: true}, {title: '1-1 Hello'}, {title: '2. Wonderful'}, {title: '99 Luftballons'}]);
+  assert.equal(items[1].title, 'Hello'); assert.equal(items[2].title, 'Wonderful');
+  assert.equal(items[3].title, '99 Luftballons');
+});
+
 test('album and artist collections retain artwork grids', () => {
   const items = [{title: 'One', image_key: '1'}, {title: 'Two', image_key: '2'}];
   assert.deepEqual(browserLayout('browse', 2, {title: 'Albums'}, items), {layout: 'covers', show_labels: false});

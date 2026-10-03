@@ -8,6 +8,9 @@ let lastActiveInput = '';
 let browserState = null;
 let browserLoading = false;
 let browserRendering = false;
+let browserPendingRequest = null;
+let browserPreviousHeight = null;
+let browserScrubDragging = false;
 let browserScrollRestore = null;
 const browserSession = sessionStorage.getItem('pi-home-roon-browser') || (globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`);
 sessionStorage.setItem('pi-home-roon-browser', browserSession);
@@ -306,28 +309,33 @@ function renderBrowser(data) {
   $('browser-scrubber').hidden = !data.alpha_scrub;
   $('browser-message').hidden = !data.message; $('browser-message').textContent = data.message || ''; $('browser-message').classList.toggle('error', Boolean(data.error));
   const list = $('browser-list'); list.replaceChildren(); list.className = `browser-list layout-${data.layout || 'list'}`;
+  list.classList.toggle('genre-grid', data.layout === 'tiles' && data.section === 'genres');
   if (data.status === 'unavailable') { const empty = document.createElement('p'); empty.className = 'queue-empty'; empty.textContent = 'Roon Browse is unavailable.'; list.append(empty); browserRendering = false; return; }
   (data.items || []).forEach(item => list.append(item.action ? browserRow(item) : (['home', 'menu', 'covers', 'tiles'].includes(data.layout) ? browserCard(item, data.layout, Boolean(data.show_labels), data.section, data.show_subtitles !== false) : browserRow(item))));
   if (!(data.items || []).length) { const empty = document.createElement('p'); empty.className = 'queue-empty'; empty.textContent = 'Nothing is available here.'; list.append(empty); }
-  browserRendering = false;
   requestAnimationFrame(() => {
+    if (browserPreviousHeight !== null) { browserScrollRestore += $('browser-scroll').scrollHeight - browserPreviousHeight; browserPreviousHeight = null; }
     if (browserScrollRestore !== null) { $('browser-scroll').scrollTop = browserScrollRestore; browserScrollRestore = null; }
+    browserRendering = false;
     syncWebScrubber();
     maybeLoadMore();
+    if (browserPendingRequest) { const pending = browserPendingRequest; browserPendingRequest = null; browseCommand(pending.action, pending.data); }
   });
 }
 
 function positionWebScrubber(value) {
   const bounded = Math.max(0, Math.min(25, Math.round(value))); const letter = String.fromCharCode(65 + bounded);
-  $('browser-scrub-letter').textContent = letter; $('browser-scrub-range').value = String(bounded); $('browser-scrubber').style.setProperty('--scrub-position', `${bounded / 25 * 100}%`);
+  $('browser-scrub-letter').textContent = letter; $('browser-scrub-range').value = String(bounded);
+  const height = $('browser-scrub-range').clientHeight;
+  $('browser-scrub-letter').style.top = `${9 + (height - 18) * bounded / 25 - 17}px`;
 }
 
 function syncWebScrubber() {
-  if (!browserState?.alpha_scrub || $('browser-scrubber').hidden) return;
+  if (!browserState?.alpha_scrub || $('browser-scrubber').hidden || browserRendering || browserLoading || browserScrubDragging || browserPendingRequest) return;
   const top = $('browser-scroll').getBoundingClientRect().top + 45;
   const cards = [...$('browser-list').querySelectorAll('.browser-card')];
   const card = cards.find(candidate => candidate.getBoundingClientRect().bottom > top) || cards.at(-1);
-  const first = String(card?.getAttribute('aria-label') || 'A').trim().replace(/^[^A-Za-z]+/, '').charAt(0).toUpperCase();
+  const first = String(card?.getAttribute('aria-label') || 'A').trim().replace(/^the\s+/i, '').charAt(0).toUpperCase();
   positionWebScrubber(first >= 'A' && first <= 'Z' ? first.charCodeAt(0) - 65 : 0);
 }
 
@@ -338,9 +346,10 @@ function maybeLoadMore() {
 }
 
 async function browseCommand(action, data = {}) {
-  if (browserLoading) return;
+  if (browserLoading) { if (action === 'jump' || action === 'section') browserPendingRequest = {action, data}; return; }
   browserLoading = true;
   if (action === 'more') { browserScrollRestore = $('browser-scroll').scrollTop; }
+  else if (action === 'previous') { browserScrollRestore = $('browser-scroll').scrollTop; browserPreviousHeight = $('browser-scroll').scrollHeight; }
   else if (action === 'jump' || action === 'section') browserScrollRestore = 0;
   try {
     const options = action === 'current' ? {method: 'GET', cache: 'no-store'} : {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({session: browserSession, action, ...data})};
@@ -415,6 +424,9 @@ $('browser-back').onclick = () => browseCommand('back');
 document.querySelectorAll('[data-browser-section]').forEach(button => button.onclick = () => browseCommand('section', {section: button.dataset.browserSection}));
 $('browser-scroll').addEventListener('scroll', () => { maybeLoadMore(); syncWebScrubber(); }, {passive: true});
 $('browser-scrub-range').oninput = event => positionWebScrubber(Number(event.target.value));
+$('browser-scrub-range').onpointerdown = () => { browserScrubDragging = true; };
+$('browser-scrub-range').onpointerup = () => { browserScrubDragging = false; };
+$('browser-scroll').addEventListener('wheel', event => { if (event.deltaY < 0 && $('browser-scroll').scrollTop < 40 && browserState?.offset > 0 && !browserRendering) browseCommand('previous'); }, {passive: true});
 $('browser-scrub-range').onchange = event => browseCommand('jump', {letter: String.fromCharCode(65 + Number(event.target.value))});
 $('details-open').onclick = () => setMusicView('details');
 $('details-artwork-close').onclick = () => setMusicView('now');

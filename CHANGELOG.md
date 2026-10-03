@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.11.11 — 3 October 2026
+
+- Index actual Roon alphabet offsets instead of assuming browser sort order; cache the index for subsequent jumps.
+- Support backward paging after alphabet jumps and retain the visible position when earlier results arrive.
+- Keep the latest requested letter when a browse request is already running; avoid scrubber updates during layout rebuilds.
+- Position the touchscreen letter from the actual slider bounds and track visible artwork rows.
+- Restore square play/action icons and square artwork, with a tighter five-column genre grid.
+- Hide disc/track numbering prefixes in album track titles without stripping genuinely numeric song names.
+
 ## 0.11.10 — 3 October 2026
 
 - Correct the touchscreen alphabet thumb direction so it follows the current letter.

@@ -87,6 +87,8 @@ CSS += b"""
 .browser-back { margin-top: 12px; margin-right: 0; }
 .browser-cover-title.tile { background: transparent; }
 .browser-action-icon, .queue-art { padding: 0; }
+.browser-cover-art { min-width: 0; min-height: 0; }
+.browser-cover-card { min-height: 0; padding: 3px; }
 """
 
 
@@ -308,6 +310,9 @@ class Display(Gtk.Application):
         self.browser_list = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2); self.browser_list.add_css_class("queue-list")
         browser_scroll = Gtk.ScrolledWindow(); browser_scroll.add_css_class("queue-scroll"); browser_scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC); browser_scroll.set_kinetic_scrolling(True); browser_scroll.set_overlay_scrolling(True); browser_scroll.set_propagate_natural_height(False); browser_scroll.set_propagate_natural_width(False); browser_scroll.set_min_content_height(1); browser_scroll.set_size_request(-1, 1); browser_scroll.set_vexpand(True); browser_scroll.set_hexpand(True); browser_scroll.set_child(self.browser_list); self.browser_scroll = browser_scroll
         browser_scroll.get_vadjustment().connect("value-changed", self.browser_scrolled)
+        previous_scroll = Gtk.EventControllerScroll.new(Gtk.EventControllerScrollFlags.VERTICAL)
+        previous_scroll.connect("scroll", self.browser_previous_scroll); browser_scroll.add_controller(previous_scroll)
+        previous_drag = Gtk.GestureDrag.new(); previous_drag.connect("drag-update", lambda _gesture, _x, y: self.browser_previous_scroll(None, 0, -1) if y > 30 else None); browser_scroll.add_controller(previous_drag)
         content = Gtk.Box(spacing=2); content.set_vexpand(True); content.set_hexpand(True); content.append(browser_scroll)
         self.browser_scrubber = Gtk.Overlay(); self.browser_scrubber.add_css_class("browser-scrubber"); self.browser_scrubber.set_size_request(74, -1); self.browser_scrubber.set_visible(False)
         self.browser_scrub_scale = Gtk.Scale.new_with_range(Gtk.Orientation.VERTICAL, 0, 25, 1); self.browser_scrub_scale.set_draw_value(False); self.browser_scrub_scale.set_has_origin(False); self.browser_scrub_scale.set_inverted(True); self.browser_scrub_scale.set_vexpand(True); self.browser_scrub_scale.set_halign(Gtk.Align.END); self.browser_scrub_scale.connect("value-changed", self.browser_scrub_changed); self.browser_scrubber.set_child(self.browser_scrub_scale)
@@ -716,8 +721,13 @@ class Display(Gtk.Application):
         if self.browser_state is None: self.request_browser("section", section="albums")
 
     def request_browser(self, action, **payload):
-        if self.browser_loading: return
+        if self.browser_loading:
+            if action in {"jump", "section"}: self.browser_pending_request = (action, payload)
+            return
         if action == "more": self.browser_scroll_restore = self.browser_scroll.get_vadjustment().get_value()
+        elif action == "previous":
+            self.browser_previous_height = self.browser_scroll.get_vadjustment().get_upper()
+            self.browser_scroll_restore = self.browser_scroll.get_vadjustment().get_value()
         elif action in {"jump", "section"}: self.browser_scroll_restore = 0.0
         self.browser_loading = True; self.browser_message.set_visible(False)
         threading.Thread(target=self._request_browser, args=(action, payload), daemon=True).start()
@@ -734,17 +744,26 @@ class Display(Gtk.Application):
         self.browser_scrub_timer = GLib.timeout_add(220, self.commit_browser_scrub, letter)
 
     def position_browser_scrub_letter(self, letter, value):
-        self.browser_scrub_letter.set_text(letter); height = max(40, self.browser_scrubber.get_allocated_height()); self.browser_scrub_letter.set_margin_top(round((height - 38) * value / 25))
+        self.browser_scrub_letter.set_text(letter)
+        start, end = self.browser_scrub_scale.get_slider_range()
+        self.browser_scrub_letter.set_margin_top(max(0, round((start + end) / 2 - self.browser_scrub_letter.get_allocated_height() / 2)))
 
     def commit_browser_scrub(self, letter):
         self.browser_scrub_timer = None; self.request_browser("jump", letter=letter); return False
 
     def sync_browser_scrubber(self, item=None):
-        if not self.browser_state or not self.browser_state.get("alpha_scrub"): return
+        if not self.browser_state or not self.browser_state.get("alpha_scrub") or getattr(self, "browser_scrub_timer", None) or getattr(self, "browser_pending_request", None): return
         if item is None:
             items = [entry for entry in (self.browser_state.get("items") or []) if not entry.get("action") and entry.get("title")]
             item = items[0] if items else None
-        first = str((item or {}).get("title") or "A").lstrip("'\"([{ ")[:1].upper(); value = ord(first) - 65 if "A" <= first <= "Z" else 0
+            value = self.browser_scroll.get_vadjustment().get_value()
+            for card, entry in getattr(self, "browser_cards", []):
+                valid, bounds = card.compute_bounds(self.browser_list)
+                if valid and bounds.get_y() + bounds.get_height() > value:
+                    item = entry; break
+        title = str((item or {}).get("title") or "A").strip()
+        if title.lower().startswith("the "): title = title[4:]
+        first = title[:1].upper(); value = ord(first) - 65 if "A" <= first <= "Z" else 0
         self.browser_scrub_sync = True; self.browser_scrub_scale.set_value(value); self.browser_scrub_sync = False; self.position_browser_scrub_letter(chr(65 + value), value)
 
     def open_browser_item(self, _button, item_key):
@@ -798,7 +817,9 @@ class Display(Gtk.Application):
 
     def browser_cover_card(self, item, show_labels, tile_kind=None):
         content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=1); content.set_halign(Gtk.Align.CENTER)
-        artwork = Gtk.Overlay(); picture = Gtk.Picture(); picture.add_css_class("browser-cover-art"); picture.set_size_request(172, 172); picture.set_content_fit(Gtk.ContentFit.COVER); artwork.set_child(picture); content.append(artwork)
+        size = 140 if tile_kind == "genres" else 172
+        artwork = Gtk.Overlay(); picture = Gtk.Picture(); picture.add_css_class("browser-cover-art"); picture.set_can_shrink(True); picture.set_content_fit(Gtk.ContentFit.COVER); artwork.set_child(picture)
+        square = Gtk.AspectFrame(xalign=.5, yalign=.5, ratio=1, obey_child=False); square.set_size_request(size, size); square.set_halign(Gtk.Align.CENTER); square.set_child(artwork); content.append(square)
         key = item.get("image_key"); self.browser_artwork_keys.append(key)
         if key:
             self.browser_pictures.setdefault(key, []).append(picture)
@@ -823,7 +844,7 @@ class Display(Gtk.Application):
             if section == active_section: button.add_css_class("active")
             else: button.remove_css_class("active")
         message = data.get("message") or ""; self.browser_message.set_text(message); self.browser_message.set_visible(bool(message))
-        self.browser_pictures = {}; self.browser_artwork_keys = []
+        self.browser_pictures = {}; self.browser_artwork_keys = []; self.browser_cards = []
         while child := self.browser_list.get_first_child(): self.browser_list.remove(child)
         items = data.get("items") or []
         if not items:
@@ -834,9 +855,10 @@ class Display(Gtk.Application):
             for index, item in enumerate(item for item in items if item.get("hint") != "header"): grid.attach(self.browser_menu_card(item, layout == "menu"), index % columns, index // columns, 1, 1)
             self.browser_list.append(grid)
         elif items and layout in {"covers", "tiles"}:
-            grid = Gtk.Grid(column_spacing=10, row_spacing=12); grid.add_css_class("browser-cover-grid"); grid.set_column_homogeneous(True); columns = 4
+            grid = Gtk.Grid(column_spacing=6, row_spacing=8); grid.add_css_class("browser-cover-grid"); grid.set_column_homogeneous(True); columns = 5 if layout == "tiles" and active_section == "genres" else 4
             tile_kind = active_section if layout == "tiles" else None
-            for index, item in enumerate(item for item in items if item.get("hint") != "header"): grid.attach(self.browser_cover_card(item, bool(data.get("show_labels")), tile_kind), index % columns, index // columns, 1, 1)
+            for index, item in enumerate(item for item in items if item.get("hint") != "header"):
+                card = self.browser_cover_card(item, bool(data.get("show_labels")), tile_kind); self.browser_cards.append((card, item)); grid.attach(card, index % columns, index // columns, 1, 1)
             self.browser_list.append(grid)
         else:
             for item in items:
@@ -845,9 +867,9 @@ class Display(Gtk.Application):
                 key = item.get("image_key")
                 if item.get("action"):
                     action_icon = Gtk.Image.new_from_icon_name(self.browser_action_icon(item.get("title"))); action_icon.set_pixel_size(34)
-                    action_frame = Gtk.Box(); action_frame.add_css_class("browser-action-icon"); action_frame.set_size_request(66, 66); action_icon.set_halign(Gtk.Align.CENTER); action_icon.set_valign(Gtk.Align.CENTER); action_icon.set_hexpand(True); action_icon.set_vexpand(True); action_frame.append(action_icon); row.append(action_frame)
+                    action_frame = Gtk.CenterBox(); action_frame.add_css_class("browser-action-icon"); action_frame.set_size_request(84, 84); action_frame.set_hexpand(False); action_frame.set_halign(Gtk.Align.START); action_frame.set_valign(Gtk.Align.CENTER); action_frame.set_center_widget(action_icon); row.append(action_frame)
                 else:
-                    picture = Gtk.Picture(); picture.add_css_class("queue-art"); picture.set_size_request(66, 66); picture.set_content_fit(Gtk.ContentFit.COVER); row.append(picture)
+                    picture = Gtk.Picture(); picture.add_css_class("queue-art"); picture.set_can_shrink(True); picture.set_size_request(84, 84); picture.set_halign(Gtk.Align.START); picture.set_valign(Gtk.Align.CENTER); picture.set_content_fit(Gtk.ContentFit.COVER); row.append(picture)
                     self.browser_artwork_keys.append(key)
                     if key:
                         self.browser_pictures.setdefault(key, []).append(picture)
@@ -862,23 +884,43 @@ class Display(Gtk.Application):
                 button.connect("clicked", self.open_browser_item, item.get("item_key")); self.browser_list.append(button)
         for key in dict.fromkeys(key for key in self.browser_artwork_keys if key):
             if key not in self.queue_thumbnail_cache and key not in self.queue_thumbnail_pending: self.queue_thumbnail_pending.add(key); self.queue_thumbnail_jobs.put(key)
-        if self.browser_scroll_restore is not None: GLib.idle_add(self.restore_browser_scroll)
-        self.sync_browser_scrubber()
+        if self.browser_scroll_restore is not None: GLib.timeout_add(60, self.restore_browser_scroll)
+        else: GLib.timeout_add(60, self.sync_browser_scrubber)
         self.browser_rendering = False; GLib.timeout_add(180, self.maybe_load_more_browser)
+        pending = getattr(self, "browser_pending_request", None)
+        if pending:
+            self.browser_pending_request = None
+            self.request_browser(pending[0], **pending[1])
         return False
 
     def restore_browser_scroll(self):
+        self.browser_rendering = True
         value = self.browser_scroll_restore; self.browser_scroll_restore = None
+        previous_height = getattr(self, "browser_previous_height", None)
+        if previous_height is not None:
+            value = (value or 0) + self.browser_scroll.get_vadjustment().get_upper() - previous_height
+            self.browser_previous_height = None
         if value is not None: self.browser_scroll.get_vadjustment().set_value(value)
+        self.browser_rendering = False
+        self.sync_browser_scrubber()
         return False
 
     def browser_scrolled(self, *_):
+        if self.browser_rendering or self.browser_loading or self.browser_scroll_restore is not None or getattr(self, "browser_scrub_timer", None): return
         self.load_visible_browser_artwork()
         if self.browser_state and self.browser_state.get("alpha_scrub"):
-            value = self.browser_scroll.get_vadjustment().get_value(); columns = 4; index = min(len(self.browser_state.get("items") or []) - 1, max(0, int(value / 214) * columns))
-            items = self.browser_state.get("items") or []
-            if items and index >= 0: self.sync_browser_scrubber(items[index])
+            value = self.browser_scroll.get_vadjustment().get_value()
+            for card, item in getattr(self, "browser_cards", []):
+                valid, bounds = card.compute_bounds(self.browser_list)
+                if valid and bounds.get_y() + bounds.get_height() > value:
+                    self.sync_browser_scrubber(item); break
+            if value < 40 and self.browser_state.get("offset", 0) > 0: self.request_browser("previous")
         if not self.browser_rendering: self.maybe_load_more_browser()
+
+    def browser_previous_scroll(self, _controller, _dx, dy):
+        if dy < 0 and self.browser_scroll.get_vadjustment().get_value() < 40 and (self.browser_state or {}).get("offset", 0) > 0 and not self.browser_loading:
+            self.request_browser("previous")
+        return False
 
     def maybe_load_more_browser(self):
         adjustment = self.browser_scroll.get_vadjustment()
