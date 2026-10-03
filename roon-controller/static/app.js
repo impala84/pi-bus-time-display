@@ -199,7 +199,7 @@ function queueRow(item) {
   const copy = document.createElement('span'); copy.className = 'queue-copy';
   const title = document.createElement('strong'); title.textContent = item.title || 'Untitled track'; copy.append(title);
   const meta = document.createElement('small'); meta.textContent = [item.artist, item.album].filter(Boolean).join(' · ') || 'Roon'; copy.append(meta);
-  const duration = document.createElement('time'); duration.textContent = item.length ? format(item.length) : '';
+  const duration = document.createElement('time'); duration.className = 'queue-duration'; duration.textContent = item.length ? format(item.length) : '';
   button.append(artwork, copy, duration);
   return button;
 }
@@ -346,11 +346,11 @@ function maybeLoadMore() {
 }
 
 async function browseCommand(action, data = {}) {
-  if (browserLoading) { if (action === 'jump' || action === 'section') browserPendingRequest = {action, data}; return; }
+  if (browserLoading) { if (['jump', 'section', 'search'].includes(action)) browserPendingRequest = {action, data}; return; }
   browserLoading = true;
   if (action === 'more') { browserScrollRestore = $('browser-scroll').scrollTop; }
   else if (action === 'previous') { browserScrollRestore = $('browser-scroll').scrollTop; browserPreviousHeight = $('browser-scroll').scrollHeight; }
-  else if (action === 'jump' || action === 'section') browserScrollRestore = 0;
+  else if (['jump', 'section', 'open', 'back', 'search'].includes(action)) browserScrollRestore = 0;
   try {
     const options = action === 'current' ? {method: 'GET', cache: 'no-store'} : {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({session: browserSession, action, ...data})};
     const url = action === 'current' ? api(`/api/browse?session=${encodeURIComponent(browserSession)}`) : api('/api/browse');
@@ -421,6 +421,27 @@ $('now-tab').onclick = () => setMusicView('now');
 $('queue-tab').onclick = () => setMusicView('queue');
 $('browse-tab').onclick = () => setMusicView('browse');
 $('browser-back').onclick = () => browseCommand('back');
+$('browser-search-open').onclick = () => { $('browser-search-panel').hidden = false; $('browser-search-input').focus(); };
+$('browser-search-cancel').onclick = () => { $('browser-search-panel').hidden = true; };
+$('browser-search-form').onsubmit = event => {
+  event.preventDefault(); const query = $('browser-search-input').value.trim();
+  if (query) { $('browser-search-panel').hidden = true; browseCommand('search', {query}); }
+};
+for (const keys of ['qwertyuiop', 'asdfghjkl', 'zxcvbnm', '1234567890', ['SPACE', '⌫', 'CLEAR']]) {
+  const row = document.createElement('div'); row.className = 'browser-keyboard-row';
+  for (const key of keys) {
+    const button = document.createElement('button'); button.type = 'button'; button.textContent = key.toUpperCase();
+    button.onpointerdown = event => event.preventDefault();
+    button.onclick = () => {
+      const input = $('browser-search-input'); const start = input.selectionStart ?? input.value.length; const end = input.selectionEnd ?? start;
+      if (key === 'CLEAR') { input.value = ''; input.focus(); return; }
+      const removeStart = key === '⌫' && start === end ? Math.max(0, start - 1) : start;
+      const text = key === '⌫' ? '' : key === 'SPACE' ? ' ' : key;
+      input.value = input.value.slice(0, removeStart) + text + input.value.slice(end); input.focus();
+      input.setSelectionRange?.(removeStart + text.length, removeStart + text.length);
+    }; row.append(button);
+  } $('browser-keyboard').append(row);
+}
 document.querySelectorAll('[data-browser-section]').forEach(button => button.onclick = () => browseCommand('section', {section: button.dataset.browserSection}));
 $('browser-scroll').addEventListener('scroll', () => { maybeLoadMore(); syncWebScrubber(); }, {passive: true});
 $('browser-scrub-range').oninput = event => positionWebScrubber(Number(event.target.value));

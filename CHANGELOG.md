@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.11.12 — 3 October 2026
+
+- Add a small Search button beneath Playlists, opening a large search field and on-screen keyboard on the touchscreen and web display.
+- Make the top-left Pi Home heading return to Overview; remove redundant settings links from panel headings.
+- Remove gallery hover effects and increase the spacing between tile rows and columns.
+- Keep the alphabet letter aligned with the live thumb geometry and prevent results from moving it during a drag.
+- Prioritise visible artwork, reset scroll position on Back, retain more cached thumbnails, and retry temporary image failures.
+- Enlarge the queue playing symbol and durations, with more right-hand padding.
+- Run external album enrichment independently of Roon search failures, bound stalled Roon lookups, and retry temporary enrichment failures twice.
+
 ## 0.11.11 — 3 October 2026
 
 - Index actual Roon alphabet offsets instead of assuming browser sort order; cache the index for subsequent jumps.

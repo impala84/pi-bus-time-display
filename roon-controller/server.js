@@ -27,6 +27,7 @@ let queueSubscription = null;
 let details = {status: 'unavailable'};
 let detailsKey = '';
 let detailsRequest = 0;
+let detailsRetryCount = 0;
 const detailsCache = new Map();
 const listeners = new Set();
 const imageCache = new Map();
@@ -139,14 +140,15 @@ function mergeZones(command, data) {
   broadcast();
 }
 
-function ensureDetails() {
+function ensureDetails(force = false) {
   const zone = selectedZone();
   const metadata = playingMetadata(zone);
   const nextKey = zone ? `${zone.zone_id}|${metadata.key}` : '';
   if (!zone || !metadata.key) {
     detailsKey = nextKey; details = {status: 'unavailable', ...metadata}; return;
   }
-  if (nextKey === detailsKey) return;
+  if (nextKey === detailsKey && !force) return;
+  if (nextKey !== detailsKey) detailsRetryCount = 0;
   detailsKey = nextKey;
   const cached = detailsCache.get(nextKey);
   if (cached) { details = cached; return; }
@@ -154,13 +156,22 @@ function ensureDetails() {
   const requestId = ++detailsRequest;
   loadDetails(browseService, zone).then(result => {
     if (requestId !== detailsRequest || detailsKey !== nextKey) return;
-    details = result; detailsCache.set(nextKey, result);
+    details = result;
+    if (result.metadata_retryable) retryDetails(nextKey);
+    else detailsCache.set(nextKey, result);
     while (detailsCache.size > 24) detailsCache.delete(detailsCache.keys().next().value);
     broadcast();
   }).catch(() => {
     if (requestId !== detailsRequest || detailsKey !== nextKey) return;
-    details = {...details, status: 'ready'}; broadcast();
+    details = {...details, status: 'ready'}; retryDetails(nextKey); broadcast();
   });
+}
+
+function retryDetails(key) {
+  if (detailsRetryCount >= 2) return;
+  detailsRetryCount += 1;
+  const requestId = detailsRequest;
+  setTimeout(() => { if (detailsKey === key && detailsRequest === requestId) ensureDetails(true); }, 30000).unref();
 }
 
 function stopQueueSubscription() {

@@ -37,6 +37,22 @@ test('loadDetails uses the Roon search prompt and merges cached external facts',
   assert.equal(result.metadata.year, '1999'); assert.deepEqual(result.metadata.genres, ['Electronic']);
 });
 
+test('album information still loads when both Roon searches fail', async () => {
+  const service = {browse(_options, callback) { callback('Roon browse temporarily unavailable'); }};
+  let enriched = false;
+  const result = await loadDetails(service, {zone_id: 'zone', now_playing: {three_line: {line1: 'R U Mine?', line2: 'Arctic Monkeys', line3: 'AM'}}}, async (album, artist) => {
+    assert.equal(album, 'AM'); assert.equal(artist, 'Arctic Monkeys'); enriched = true;
+    return {year: '2013', track_count: 12, writeup: 'Album information', source: 'MusicBrainz'};
+  });
+  assert.equal(enriched, true); assert.equal(result.metadata.year, '2013'); assert.equal(result.metadata.track_count, 12);
+});
+
+test('temporary enrichment failure is marked for a bounded retry', async () => {
+  const service = {browse(_options, callback) { callback('offline'); }};
+  const result = await loadDetails(service, {zone_id: 'zone', now_playing: {three_line: {line1: 'Track', line2: 'Artist', line3: 'Album'}}}, async () => { throw new Error('temporary timeout'); });
+  assert.equal(result.status, 'ready'); assert.equal(result.metadata_retryable, true);
+});
+
 test('MusicBrainz matching requires the exact album and artist', () => {
   const groups = [
     {id: 'wrong', title: 'Chrysalis Deluxe', score: 100, 'artist-credit': [{name: 'Someone Else'}]},

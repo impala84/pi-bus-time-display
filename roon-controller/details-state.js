@@ -205,7 +205,8 @@ function chooseItem(items, title) {
 }
 
 const request = (service, method, options) => new Promise((resolve, reject) => {
-  service[method](options, (error, result) => error ? reject(new Error(String(error))) : resolve(result || {}));
+  const timer = setTimeout(() => reject(new Error('Roon metadata lookup timed out')), 8000);
+  service[method](options, (error, result) => { clearTimeout(timer); error ? reject(new Error(String(error))) : resolve(result || {}); });
 });
 
 async function searchItem(service, zoneId, query, category, title, session) {
@@ -237,16 +238,21 @@ async function loadDetails(service, zone, enrich = loadMusicBrainzMetadata) {
   const base = {status: 'ready', ...metadata, album_image_key: metadata.image_key, artist_image_key: null, subtitle: '', tracks: []};
   if (!service || (!metadata.album && !metadata.artist)) return base;
   const stamp = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  const [album, artist] = await Promise.all([
+  const enrichment = Promise.resolve().then(() => enrich(metadata.album, metadata.artist, 0)).catch(() => null);
+  const [albumResult, artistResult] = await Promise.allSettled([
     metadata.album ? searchItem(service, zone.zone_id, [metadata.album, metadata.artist].filter(Boolean).join(' '), 'Albums', metadata.album, `${stamp}-album`) : null,
     metadata.artist ? searchItem(service, zone.zone_id, metadata.artist, 'Artists', metadata.artist, `${stamp}-artist`) : null
   ]);
+  const album = albumResult.status === 'fulfilled' ? albumResult.value : null;
+  const artist = artistResult.status === 'fulfilled' ? artistResult.value : null;
   base.album_image_key = album?.image_key || metadata.image_key;
   base.artist_image_key = artist?.image_key || null;
   base.subtitle = album?.subtitle || artist?.subtitle || '';
   try { base.tracks = await albumTracks(service, zone.zone_id, album, `${stamp}-album`); } catch (_) {}
   base.metadata = musicBrainzFacts(null, base.tracks.length);
-  try { base.metadata = await enrich(metadata.album, metadata.artist, base.tracks.length); } catch (_) {}
+  const facts = await enrichment;
+  if (facts) base.metadata = {...facts, track_count: facts.track_count || base.tracks.length};
+  base.metadata_retryable = !facts;
   return base;
 }
 
