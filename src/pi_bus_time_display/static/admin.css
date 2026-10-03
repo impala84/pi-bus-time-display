@@ -13,3 +13,7 @@ body[data-theme="roon"] .primary-tabs button.active,body[data-theme="roon"] .ser
 body[data-theme="roon"] .diagnostic-summary div,body[data-theme="roon"] .process-row,body[data-theme="roon"] .update-feed{background:#242329}
 body[data-theme="roon"] .save-bar,body[data-theme="roon"] #toast{background:#242329;border-color:#575164}
 body[data-theme="roon"] .primary-tabs button[aria-selected="true"],body[data-theme="roon"] .service-tabs button[aria-selected="true"]{background:var(--mint);color:#151515}
+.display-capture{margin-top:24px;padding-top:18px;border-top:1px solid var(--line)}
+.display-capture p{font-size:15px;line-height:1.5}
+#capture-image{display:block;max-width:100%;height:auto;border-radius:8px;margin:14px 0}
+.capture-download{display:inline-block;padding:12px 16px;border-radius:7px;background:var(--mint);color:#151515;font-weight:700;text-decoration:none}

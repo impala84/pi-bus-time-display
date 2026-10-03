@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import hmac
 import json
 import os
@@ -32,6 +33,7 @@ class State:
     def __init__(self, config: Config, state_dir: Path | None = None):
         self.config = config
         self.lock = threading.Lock()
+        self.display_capture = None
         self.data: dict = {"status": "starting", "services": []}
         self.last_success: datetime | None = None
         self.last_roon_playing = 0.0
@@ -69,11 +71,46 @@ class State:
         return result
 
     def controls_snapshot(self) -> dict:
+        with self.lock:
+            capture_id = self.display_capture["id"] if self.display_capture else None
         return {
             "services": [{"name": service, "enabled": service in self.enabled_services} for service in self.config.services],
             "home": self.home_data,
             "display_brightness": self.display_brightness,
+            "capture_request": capture_id,
         }
+
+    def capture_display(self, timeout: float = 15) -> bytes:
+        request = {"id": secrets.token_urlsafe(24), "event": threading.Event(), "image": None, "error": None}
+        with self.lock:
+            if self.display_capture is not None:
+                raise RuntimeError("A display capture is already in progress. Please try again shortly.")
+            self.display_capture = request
+        try:
+            if not request["event"].wait(timeout):
+                raise RuntimeError("The touchscreen did not respond. Check that the display service is running.")
+            if request["error"]:
+                raise RuntimeError(request["error"])
+            return request["image"]
+        finally:
+            with self.lock:
+                if self.display_capture is request:
+                    self.display_capture = None
+
+    def complete_display_capture(self, data: dict) -> None:
+        with self.lock:
+            request = self.display_capture
+            if request is None or not hmac.compare_digest(str(data.get("id", "")), request["id"]) or request["event"].is_set():
+                raise ValueError("No matching display capture request")
+            error = str(data.get("error") or "")[:300]
+            image = None
+            if not error:
+                image = base64.b64decode(data.get("image", ""), validate=True)
+                if len(image) > 8_388_608 or not image.startswith(b"\x89PNG\r\n\x1a\n"):
+                    raise ValueError("Invalid display image")
+            request["image"] = image
+            request["error"] = error
+            request["event"].set()
 
     def save_enabled_services(self) -> None:
         self.state_dir.mkdir(parents=True, exist_ok=True)
@@ -727,11 +764,45 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                 if self.client_address[0] not in {"127.0.0.1", "::1"}:
                     self.send_json(403, b'{"error":"Touchscreen only"}')
                     return
-                self.send_json(200, json.dumps(state.controls_snapshot()).encode())
+                controls = state.controls_snapshot()
+                if any(self.headers.get(name) for name in ("X-Forwarded-For", "Forwarded", "X-Real-IP")):
+                    controls["capture_request"] = None
+                self.send_json(200, json.dumps(controls).encode())
                 return
             super().do_GET()
 
         def do_POST(self):
+            if self.path == "/api/admin/display-capture":
+                if not self.authorised():
+                    return
+                if self.headers.get("Content-Type", "").split(";")[0] != "application/json":
+                    self.send_json(400, b'{"error":"JSON request required"}')
+                    return
+                try:
+                    image = state.capture_display()
+                    self.send_response(200)
+                    self.send_header("Content-Type", "image/png")
+                    self.send_header("Cache-Control", "no-store")
+                    self.send_header("Content-Length", str(len(image)))
+                    self.send_header("Content-Disposition", 'inline; filename="pi-home-display.png"')
+                    self.end_headers()
+                    self.wfile.write(image)
+                except RuntimeError as exc:
+                    self.send_json(503, json.dumps({"error": str(exc)}).encode())
+                return
+            if self.path == "/api/device/display-capture":
+                if self.client_address[0] not in {"127.0.0.1", "::1"} or any(self.headers.get(name) for name in ("X-Forwarded-For", "Forwarded", "X-Real-IP")):
+                    self.send_json(403, b'{"error":"Touchscreen only"}')
+                    return
+                try:
+                    length = int(self.headers.get("Content-Length", "0"))
+                    if not 0 < length <= 11_200_000:
+                        raise ValueError("Invalid display capture size")
+                    state.complete_display_capture(json.loads(self.rfile.read(length)))
+                    self.send_json(200, b'{"ok":true}')
+                except (ValueError, TypeError) as exc:
+                    self.send_json(400, json.dumps({"error": str(exc)}).encode())
+                return
             if self.path.startswith("/roon/"):
                 self.proxy_roon("POST")
                 return

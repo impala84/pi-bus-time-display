@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.11.26 — 3 October 2026
+
+- Add System → Diagnostics → Capture display, with an image preview and timestamped PNG download.
+- Capture the actual Wayland touchscreen output from the native session using grim, installed by the updater. Do not change display mode or write screenshot files to disk.
+- Keep the capture behind web-settings authentication, limit image size and request duration, reject overlapping or unmatched captures, and show clear failures if the display is unavailable or capture is unsupported. No image is sent to central logging.
+
 ## 0.11.25 — 3 October 2026
 
 - Active Roon playback keeps Automatic mode on Roon even during scheduled sleep hours. Explicit manual display modes, including Sleep, remain respected.

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import base64
+import subprocess
 import os
 import re
 import select
@@ -558,6 +560,10 @@ class Display(Gtk.Application):
     def poll(self):
         started = time.monotonic()
         target_response = get_json(BUS + "/api/display-target"); status = get_json(BUS + "/api/status"); roon = get_json(ROON + "/api/state"); device = get_json(BUS + "/api/device/controls") or {}
+        capture_id = device.get("capture_request")
+        if capture_id and capture_id != getattr(self, "last_capture_id", None):
+            self.last_capture_id = capture_id
+            self.capture_display(capture_id)
         now = time.monotonic(); config = None; system = None
         if not self.settings_data or now - self.last_config_fetch >= 60:
             config = get_json(BUS + "/api/admin/config") or {}; self.last_config_fetch = now
@@ -577,6 +583,21 @@ class Display(Gtk.Application):
         elapsed = time.monotonic() - started; self.refresh_count += 1
         if self.refresh_count <= 5 and elapsed > .25:
             print(f"Pi Home core refresh completed in {elapsed:.3f}s", flush=True)
+
+    def capture_display(self, capture_id):
+        # Run in the polling worker with the real Cage session environment.
+        # No elevated privileges, temporary screenshot files or display changes.
+        data = {"id": capture_id}
+        try:
+            result = subprocess.run(["/usr/bin/grim", "-"], capture_output=True, timeout=5, check=True)
+            if len(result.stdout) > 8_388_608 or not result.stdout.startswith(b"\x89PNG\r\n\x1a\n"):
+                raise ValueError("Invalid screenshot")
+            data["image"] = base64.b64encode(result.stdout).decode("ascii")
+        except FileNotFoundError:
+            data["error"] = "Capture support is missing. Install the latest Pi Home update."
+        except (subprocess.SubprocessError, OSError, ValueError):
+            data["error"] = "The display could not be captured. Ensure it is awake; this compositor may not support screenshots."
+        post_json(BUS + "/api/device/display-capture", data, timeout=5)
 
     def apply(self, target, status, roon, config, system, device, image_key, image):
         if status and "display_theme" in status and config is None: self.apply_theme(status["display_theme"])

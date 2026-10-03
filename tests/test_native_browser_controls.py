@@ -3,6 +3,9 @@ import ast
 from pathlib import Path
 from types import SimpleNamespace
 import unittest
+import base64
+import subprocess
+from unittest.mock import Mock
 
 
 SOURCE = Path(__file__).parents[1] / "native-display" / "pi_bus_native.py"
@@ -62,6 +65,24 @@ class NativeBrowserControlsTests(unittest.TestCase):
         self.assertIn('inactivity_due = bool(not playing and inactivity_seconds', code)
         self.assertIn('self.playback_was_active = playing', code)
         self.assertIn('if playing and target != "/sleep.html":', code)
+
+    def test_capture_uses_actual_wayland_output_and_posts_image(self):
+        image = b'\x89PNG\r\n\x1a\nimage'
+        runner = Mock(return_value=SimpleNamespace(stdout=image))
+        posted = Mock()
+        method = native_method('capture_display', {'subprocess':SimpleNamespace(run=runner,SubprocessError=subprocess.SubprocessError),'base64':base64,'BUS':'http://127.0.0.1:8765','post_json':posted})
+        method(SimpleNamespace(), 'ticket')
+        self.assertEqual(runner.call_args.args[0], ['/usr/bin/grim','-'])
+        self.assertEqual(base64.b64decode(posted.call_args.args[1]['image']), image)
+        self.assertEqual(posted.call_args.args[1]['id'], 'ticket')
+
+    def test_missing_capture_support_returns_friendly_error(self):
+        runner = Mock(side_effect=FileNotFoundError())
+        posted = Mock()
+        method = native_method('capture_display', {'subprocess':SimpleNamespace(run=runner,SubprocessError=subprocess.SubprocessError),'base64':base64,'BUS':'http://127.0.0.1:8765','post_json':posted})
+        method(SimpleNamespace(), 'ticket')
+        self.assertIn('Install the latest', posted.call_args.args[1]['error'])
+        self.assertNotIn('image', posted.call_args.args[1])
 
     def test_theme_updates_the_selector_without_triggering_a_save(self):
         calls = []
