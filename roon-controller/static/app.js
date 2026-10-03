@@ -492,26 +492,14 @@ $('browse-tab').onclick = () => setMusicView('browse');
 $('browser-back').onclick = () => browseCommand('back');
 $('browser-surprise').onclick = () => browseCommand('surprise');
 $('browser-search-open').onclick = () => { $('browser-search-panel').hidden = false; $('browser-search-input').focus(); };
-$('browser-search-cancel').onclick = () => { $('browser-search-panel').hidden = true; };
+$('browser-search-input').placeholder = 'Search your library and TIDAL';
+$('browser-search-input').setAttribute('enterkeyhint', 'search');
+$('browser-search-cancel').onclick = () => { $('browser-search-panel').hidden = true; $('browser-search-open').focus(); };
+$('browser-search-panel').onkeydown = event => { if (event.key === 'Escape') { event.preventDefault(); $('browser-search-cancel').click(); } };
 $('browser-search-form').onsubmit = event => {
   event.preventDefault(); const query = $('browser-search-input').value.trim();
   if (query) { $('browser-search-panel').hidden = true; browseCommand('search', {query, source: 'all'}); }
 };
-for (const keys of ['qwertyuiop', 'asdfghjkl', 'zxcvbnm', '1234567890', ['SPACE', '⌫', 'CLEAR']]) {
-  const row = document.createElement('div'); row.className = 'browser-keyboard-row';
-  for (const key of keys) {
-    const button = document.createElement('button'); button.type = 'button'; button.textContent = key.toUpperCase();
-    button.onpointerdown = event => event.preventDefault();
-    button.onclick = () => {
-      const input = $('browser-search-input'); const start = input.selectionStart ?? input.value.length; const end = input.selectionEnd ?? start;
-      if (key === 'CLEAR') { input.value = ''; input.focus(); return; }
-      const removeStart = key === '⌫' && start === end ? Math.max(0, start - 1) : start;
-      const text = key === '⌫' ? '' : key === 'SPACE' ? ' ' : key;
-      input.value = input.value.slice(0, removeStart) + text + input.value.slice(end); input.focus();
-      input.setSelectionRange?.(removeStart + text.length, removeStart + text.length);
-    }; row.append(button);
-  } $('browser-keyboard').append(row);
-}
 document.querySelectorAll('[data-browser-section]').forEach(button => button.onclick = () => browseCommand('section', {section: button.dataset.browserSection}));
 $('browser-scroll').addEventListener('scroll', () => { maybeLoadMore(); syncWebScrubber(); }, {passive: true});
 $('browser-scrub-range').oninput = event => positionWebScrubber(Number(event.target.value));

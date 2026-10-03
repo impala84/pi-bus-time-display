@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.11.32 — 4 October 2026
+
+- Simplify desktop and mobile web search to a large input with Search and Cancel, using the device keyboard instead of a custom on-screen keyboard.
+- Support Enter-to-search and Escape-to-cancel, with clearer library/TIDAL placeholder text. Leave native touchscreen search unchanged.
+
 ## 0.11.31 — 4 October 2026
 
 - Slightly reduce desktop browser clocks without changing mobile or native clock sizing.
