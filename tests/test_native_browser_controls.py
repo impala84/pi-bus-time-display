@@ -57,6 +57,12 @@ class NativeBrowserControlsTests(unittest.TestCase):
         self.assertIn('.artist-albums-heading { font-size: 16px;', code)
         self.assertIn('play.set_halign(Gtk.Align.CENTER); panel.append(play)', code)
 
+    def test_active_playback_is_excluded_from_touchscreen_idle_sleep(self):
+        code = SOURCE.read_text(encoding='utf-8')
+        self.assertIn('inactivity_due = bool(not playing and inactivity_seconds', code)
+        self.assertIn('self.playback_was_active = playing', code)
+        self.assertIn('if playing and target != "/sleep.html":', code)
+
     def test_theme_updates_the_selector_without_triggering_a_save(self):
         calls = []
         owner = SimpleNamespace(settings_data={},window=SimpleNamespace(add_css_class=calls.append,remove_css_class=calls.append),browser_scrubber=SimpleNamespace(queue_draw=lambda:calls.append('draw')))

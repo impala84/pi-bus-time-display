@@ -654,7 +654,17 @@ class Display(Gtk.Application):
             self.last_interaction = time.monotonic()
             print("Pi Home resuming at the scheduled wake boundary", flush=True)
         inactivity_seconds = max(0, int(config.get("daytime_inactivity_seconds", 0) or 0))
-        inactivity_due = bool(inactivity_seconds and time.monotonic() - self.last_interaction >= inactivity_seconds and target != "/sleep.html")
+        playing = ((roon or {}).get("zone") or {}).get("state") == "playing"
+        if playing and target != "/sleep.html":
+            # Playback is activity: keep the panel lit and start a fresh idle
+            # countdown when music stops. Do not override an explicit Sleep.
+            was_sleeping = self.inactivity_sleeping or self.stack.get_visible_child_name() == "sleep"
+            self.inactivity_sleeping = False
+            self.last_interaction = time.monotonic()
+            if target and ":8766/" in target and (was_sleeping or not getattr(self, "playback_was_active", False)) and not self.settings_open:
+                self.set_roon_view("now")
+        self.playback_was_active = playing
+        inactivity_due = bool(not playing and inactivity_seconds and time.monotonic() - self.last_interaction >= inactivity_seconds and target != "/sleep.html")
         if inactivity_due and not self.inactivity_sleeping:
             self.inactivity_sleeping = True
             self.prepare_sleep_wake()

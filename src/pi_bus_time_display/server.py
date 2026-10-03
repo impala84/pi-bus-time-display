@@ -382,7 +382,7 @@ def automatic_display_target(state: State, mode_path: Path, roon: dict | None, n
         state.last_roon_playing
         and monotonic - state.last_roon_playing <= state.config.roon_idle_return_seconds
     )
-    if state.config.auto_switch_to_roon and (zone_state == "playing" or playback_recent):
+    if zone_state == "playing" or (state.config.auto_switch_to_roon and playback_recent):
         return "http://127.0.0.1:8766/" if roon is not None else "/roon-unavailable.html"
     if monotonic < state.awake_until:
         return "http://127.0.0.1:8766/" if state.awake_view == "roon" and roon is not None else "/"

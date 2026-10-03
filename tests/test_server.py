@@ -209,6 +209,15 @@ class DisplayModeTests(unittest.TestCase):
             with patch("pi_bus_time_display.server.time.monotonic", return_value=1400):
                 self.assertEqual(automatic_display_target(state, mode, {"zone": {"state": "paused"}}, morning), "/")
 
+    def test_active_playback_keeps_automatic_display_on_even_overnight(self):
+        with tempfile.TemporaryDirectory() as directory:
+            mode = Path(directory) / "display-mode"
+            mode.write_text("auto\n", encoding="utf-8")
+            state = State(Config(auto_switch_to_roon=False))
+            overnight = datetime(2026, 9, 29, 1, 0, tzinfo=ZoneInfo("Asia/Singapore"))
+            self.assertEqual(automatic_display_target(state, mode, {"zone": {"state": "playing"}}, overnight), "http://127.0.0.1:8766/")
+            self.assertEqual(automatic_display_target(state, mode, {"zone": {"state": "paused"}}, overnight), "/sleep.html")
+
     def test_temporary_wake_expires_during_sleep_hours(self):
         with tempfile.TemporaryDirectory() as directory:
             mode = Path(directory) / "display-mode"

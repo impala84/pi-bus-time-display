@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.11.25 — 3 October 2026
+
+- Active Roon playback keeps Automatic mode on Roon even during scheduled sleep hours. Explicit manual display modes, including Sleep, remain respected.
+- Exclude active playback from native inactivity sleep, wake into Now Playing when playback begins or resumes a sleeping panel, and restart the inactivity countdown after playback stops. Keep browsing available during playback.
+
 ## 0.11.24 — 3 October 2026
 
 - Make ARTIST ALBUMS uppercase and slightly larger (16px) on the native and web displays, without changing album rows or other headings.
