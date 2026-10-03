@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.11.23 — 3 October 2026
+
+- Keep artist album rows and square thumbnails at a consistent size instead of expanding with available space or artwork dimensions.
+- Move the existing Play Artist action beneath the artist portrait and name, and label the adjacent album list Artist albums. Preserve the original Roon action rather than relabelling it Shuffle.
+- Apply the same layout to the native touchscreen and web display. Leave the artist portrait/name panel and other browsing sections intact.
+
 ## 0.11.22 — 3 October 2026
 
 - Use theme-specific purple Home icons in the Roon palette, including refreshing them when the theme changes.

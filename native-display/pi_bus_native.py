@@ -133,6 +133,8 @@ CSS += b"""
 .theme-choice.active { background: #6ed9ae; color: #101714; }
 .theme-roon .theme-choice.active { background: #817aeb; color: #fff; }
 .settings-select label { color: #fff; }
+.artist-play { padding: 12px 18px; border: 0; border-radius: 7px; background: #303030; color: #6ed9ae; font-size: 18px; font-weight: 650; }
+.theme-roon .artist-play { background: #292929; color: #817aeb; }
 .theme-roon .queue-play-badge { background: transparent; color: #817aeb; }
 .theme-roon .queue-row.current, .theme-roon .queue-row:hover, .theme-roon .queue-row:active { background: #292733; }
 .theme-roon .utility, .theme-roon .source-step, .theme-roon .source-mute, .theme-roon .transport button, .theme-roon .browser-key, .theme-roon .browser-search-entry { background: #292929; color: #ddd; }
@@ -837,7 +839,7 @@ class Display(Gtk.Application):
         if distance_x > 90 and distance_x > abs(distance_y) * 2 and (self.browser_state or {}).get("can_back"):
             self.request_browser("back")
 
-    def render_artist_profile(self, profile):
+    def render_artist_profile(self, profile, play_action=None):
         panel = self.browser_artist_panel
         while child := panel.get_first_child(): panel.remove(child)
         panel.set_visible(bool(profile))
@@ -854,6 +856,9 @@ class Display(Gtk.Application):
         else: square.set_child(self.label("♫", "browser-tile-icon", .5))
         name = profile.get("name", "")
         title = self.label(name, "artist-name", .5); title.set_wrap(True); title.set_max_width_chars(20); panel.append(title)
+        if play_action:
+            play = self.button("▶  Play Artist", lambda *_: self.open_browser_item(None, play_action.get("item_key")), "artist-play")
+            play.set_halign(Gtk.Align.CENTER); panel.append(play)
 
     def request_browser(self, action, **payload):
         if self.browser_loading:
@@ -1058,9 +1063,14 @@ class Display(Gtk.Application):
             else: button.remove_css_class("active")
         message = data.get("message") or ""; self.browser_message.set_text(message); self.browser_message.set_visible(bool(message))
         self.browser_pictures = {}; self.browser_artwork_keys = []; self.browser_cards = []
-        self.render_artist_profile(data.get("artist_profile"))
+        artist_play = next((item for item in data.get("items", []) if item.get("action") and item.get("title", "").strip().lower() == "play artist"), None) if data.get("artist_profile") else None
+        self.render_artist_profile(data.get("artist_profile"), artist_play)
         while child := self.browser_list.get_first_child(): self.browser_list.remove(child)
         items = data.get("items") or []
+        if data.get("artist_profile"):
+            self.browser_list.append(self.label("Artist albums", "browser-section"))
+            items = [item for item in items if item is not artist_play]
+        self.browser_list.set_valign(Gtk.Align.START if data.get("layout") == "list" else Gtk.Align.FILL)
         if not items:
             self.browser_list.append(self.label("Roon Browse is unavailable." if data.get("status") == "unavailable" else "Nothing is available here.", "queue-empty", .5))
         layout = data.get("layout") or "list"
@@ -1107,7 +1117,10 @@ class Display(Gtk.Application):
                     action_icon = Gtk.Image.new_from_icon_name(self.browser_action_icon(item.get("title"))); action_icon.set_pixel_size(34)
                     action_frame = Gtk.CenterBox(); action_frame.add_css_class("browser-action-icon"); action_frame.set_size_request(84, 84); action_frame.set_hexpand(False); action_frame.set_halign(Gtk.Align.START); action_frame.set_valign(Gtk.Align.CENTER); action_frame.set_center_widget(action_icon); row.append(action_frame)
                 else:
-                    picture = Gtk.Picture(); picture.add_css_class("queue-art"); picture.set_can_shrink(True); picture.set_size_request(84, 84); picture.set_halign(Gtk.Align.START); picture.set_valign(Gtk.Align.CENTER); picture.set_content_fit(Gtk.ContentFit.COVER); row.append(picture)
+                    picture = Gtk.Picture(); picture.add_css_class("queue-art"); picture.set_can_shrink(True); picture.set_content_fit(Gtk.ContentFit.COVER)
+                    # A fixed viewport prevents the texture's natural dimensions
+                    # or the number of rows from enlarging album thumbnails.
+                    art_slot = Gtk.ScrolledWindow(); art_slot.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.NEVER); art_slot.set_propagate_natural_width(False); art_slot.set_propagate_natural_height(False); art_slot.set_min_content_width(84); art_slot.set_max_content_width(84); art_slot.set_min_content_height(84); art_slot.set_max_content_height(84); art_slot.set_size_request(84, 84); art_slot.set_halign(Gtk.Align.START); art_slot.set_valign(Gtk.Align.CENTER); art_slot.set_child(picture); row.append(art_slot)
                     self.browser_artwork_keys.append(key)
                     if key:
                         self.browser_pictures.setdefault(key, []).append(picture)
@@ -1118,6 +1131,7 @@ class Display(Gtk.Application):
                 subtitle = self.label(item.get("subtitle") or "Roon", "queue-meta"); subtitle.set_ellipsize(Pango.EllipsizeMode.END); copy.append(subtitle); row.append(copy)
                 row.append(self.label(item.get("duration") or "", "browser-arrow", 1))
                 button = Gtk.Button(); button.add_css_class("browser-row"); button.set_child(row); button.set_sensitive(bool(item.get("item_key")))
+                button.set_vexpand(False); button.set_valign(Gtk.Align.START)
                 if item.get("action"): button.add_css_class("browser-action")
                 button.connect("clicked", self.open_browser_item, item.get("item_key")); self.browser_list.append(button)
         GLib.timeout_add(100, self.load_visible_browser_artwork)

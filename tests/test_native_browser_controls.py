@@ -44,10 +44,17 @@ class NativeBrowserControlsTests(unittest.TestCase):
         self.assertIn("'artist-name'", code)
         self.assertNotIn('artist_bio', code)
         self.assertNotIn('get_json', code)
-        self.assertIn('self.render_artist_profile(data.get("artist_profile"))', SOURCE.read_text(encoding="utf-8"))
+        self.assertIn('self.render_artist_profile(data.get("artist_profile"), artist_play)', SOURCE.read_text(encoding="utf-8"))
         web = (SOURCE.parents[1] / "roon-controller" / "static" / "app.js").read_text(encoding="utf-8")
-        self.assertIn('renderArtistProfile(data.artist_profile)', web)
+        self.assertIn('renderArtistProfile(data.artist_profile, artistPlay)', web)
         self.assertNotIn('Artist background is unavailable.', web)
+
+    def test_artist_rows_have_fixed_artwork_and_play_is_beneath_the_portrait(self):
+        code = SOURCE.read_text(encoding='utf-8')
+        self.assertIn('art_slot.set_max_content_height(84)', code)
+        self.assertIn('art_slot.set_max_content_width(84)', code)
+        self.assertIn('"Artist albums", "browser-section"', code)
+        self.assertIn('play.set_halign(Gtk.Align.CENTER); panel.append(play)', code)
 
     def test_theme_updates_the_selector_without_triggering_a_save(self):
         calls = []

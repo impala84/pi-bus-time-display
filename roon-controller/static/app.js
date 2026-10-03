@@ -304,18 +304,23 @@ function browserCard(item, layout, showLabels, section, showSubtitles = true) {
   button.setAttribute('aria-label', [item.title, item.subtitle].filter(Boolean).join(', ')); button.onclick = () => browseCommand('open', {item_key: item.item_key}); return button;
 }
 
-function renderArtistProfile(profile) {
+function renderArtistProfile(profile, playAction) {
   const panel = $('browser-artist'); panel.replaceChildren(); panel.hidden = !profile;
   $('browser-view').classList.toggle('artist-takeover', Boolean(profile));
   if (!profile) return;
   if (profile.image_key) { const image = document.createElement('img'); image.alt = profile.name; image.src = api('/api/image?key=' + encodeURIComponent(profile.image_key) + '&size=400'); panel.append(image); }
   const title = document.createElement('h2'); title.textContent = profile.name; panel.append(title);
+  if (playAction) {
+    const play = document.createElement('button'); play.className = 'artist-play'; play.textContent = '▶  Play Artist';
+    play.onclick = () => browseCommand('open', {item_key: playAction.item_key}); panel.append(play);
+  }
 }
 
 function renderBrowser(data) {
   browserRendering = true; browserState = data; browserLoading = false;
   $('browser-view').classList.toggle('surprise-takeover', Boolean(data.surprise_preview));
-  renderArtistProfile(data.artist_profile);
+  const artistPlay = data.artist_profile ? data.items?.find(item => item.action && /^play artist$/i.test(item.title.trim())) : null;
+  renderArtistProfile(data.artist_profile, artistPlay);
   document.querySelector('.browser-sidebar').append($('browser-back'));
   $('browser-back').hidden = !data.can_back || Boolean(data.surprise_preview); $('browser-back').disabled = !data.can_back; $('browser-loading-more').hidden = true;
   const activeSection = data.surprise_preview ? 'surprise' : (data.section || 'albums');
@@ -328,6 +333,7 @@ function renderBrowser(data) {
   $('browser-message').hidden = !data.message; $('browser-message').textContent = data.message || ''; $('browser-message').classList.toggle('error', Boolean(data.error));
   const list = $('browser-list'); list.replaceChildren(); list.className = `browser-list layout-${data.layout || 'list'}`;
   list.classList.toggle('genre-grid', data.layout === 'tiles' && data.section === 'genres');
+  if (data.artist_profile) { const heading = document.createElement('h3'); heading.className = 'browser-section'; heading.textContent = 'Artist albums'; list.append(heading); }
   if (data.status === 'unavailable') { const empty = document.createElement('p'); empty.className = 'queue-empty'; empty.textContent = 'Roon Browse is unavailable.'; list.append(empty); browserRendering = false; return; }
   if (data.surprise_preview && data.items?.length) {
     const album = data.items[0]; const preview = document.createElement('div'); preview.className = 'surprise-preview';
@@ -344,7 +350,7 @@ function renderBrowser(data) {
       const caption = document.createElement('span'); caption.textContent = action === 'surprise' ? 'Surprise' : 'Play Now'; controls.append(button, caption); buttons.push(controls);
     }
     stage.append(buttons[0], art, buttons[1]); preview.append(stage, title, artist); list.append(preview);
-  } else (data.items || []).forEach(item => list.append(item.action ? browserRow(item) : (['home', 'menu', 'covers', 'tiles'].includes(data.layout) ? browserCard(item, data.layout, Boolean(data.show_labels), data.section, data.show_subtitles !== false) : browserRow(item))));
+  } else (data.items || []).filter(item => item !== artistPlay).forEach(item => list.append(item.action ? browserRow(item) : (['home', 'menu', 'covers', 'tiles'].includes(data.layout) ? browserCard(item, data.layout, Boolean(data.show_labels), data.section, data.show_subtitles !== false) : browserRow(item))));
   if (!(data.items || []).length) { const empty = document.createElement('p'); empty.className = 'queue-empty'; empty.textContent = 'Nothing is available here.'; list.append(empty); }
   requestAnimationFrame(() => {
     if (browserPreviousHeight !== null) { browserScrollRestore += $('browser-scroll').scrollHeight - browserPreviousHeight; browserPreviousHeight = null; }
