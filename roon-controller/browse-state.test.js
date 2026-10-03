@@ -136,12 +136,13 @@ test('Shuffle Genre executes only the native Shuffle action in the chosen zone',
   assert.ok(calls.every(call => call.zone_or_output_id === 'zone'));
 });
 
-test('Surprise Me plays a whole random album and avoids repeating it immediately', async () => {
+test('Surprise Me previews artwork without playback, rerolls, and plays only on confirmation', async () => {
   const manager = new BrowseManager(() => service, () => ({zone_id: 'zone'}));
-  const offsets = []; const played = []; let stage = 'albums';
+  const offsets = []; const played = []; const browsed = []; let stage = 'albums';
   const service = {
     browse(options, callback) {
       assert.equal(options.zone_or_output_id, 'zone');
+      browsed.push(options.item_key);
       if (options.item_key?.startsWith('album-')) stage = 'tracks';
       else if (options.item_key === 'play-album') stage = 'actions';
       else if (options.item_key === 'play-now') { played.push(options); return callback(false, {action: 'none'}); }
@@ -149,19 +150,24 @@ test('Surprise Me plays a whole random album and avoids repeating it immediately
     },
     load(options, callback) {
       if (options.count === 1) { offsets.push(options.offset); stage = 'albums'; }
-      const items = stage === 'albums' ? [{title: `Album ${options.offset}`, item_key: `album-${options.offset}`}]
+      const items = stage === 'albums' ? [{title: `Album ${options.offset}`, subtitle: 'Album artist', image_key: 'cover', item_key: `album-${options.offset}`}]
         : stage === 'tracks' ? [{title: 'Play Album', item_key: 'play-album', hint: 'action_list'}]
         : [{title: 'Play Now', item_key: 'play-now', hint: 'action'}];
       callback(false, {items});
     }
   };
   manager.openSection = async () => ({count: 5, level: 2});
-  const original = {section: 'albums', items: [{title: 'Unchanged browse page'}]}; manager.sessions.set(safeSession('touch'), original);
+  const original = {section: 'albums', items: [{title: 'Unchanged browse page'}]}; manager.sessions.set(`${safeSession('touch')}-albums`, original);
   const first = await manager.run('touch', 'surprise');
   const second = await manager.run('touch', 'surprise');
-  assert.notEqual(offsets[0], offsets[1]); assert.equal(played.length, 2);
-  assert.equal(first.items, original.items); assert.equal(second.items, original.items);
-  assert.match(second.message, /Playing Album/);
+  assert.notEqual(offsets[0], offsets[1]); assert.equal(played.length, 0); assert.equal(browsed.length, 0);
+  assert.equal(first.surprise_preview, true); assert.equal(second.items[0].image_key, 'cover');
+  assert.equal(second.items[0].subtitle, 'Album artist'); assert.equal(second.has_more, false);
+  const result = await manager.run('touch', 'surprise_play');
+  assert.equal(played.length, 1); assert.match(result.message, /Playing Album/);
+  assert.equal(result.surprise_preview, true); assert.equal(result.surprise_album, second.surprise_album);
+  assert.equal(await manager.run('touch', 'back'), original);
+  await assert.rejects(manager.run('touch', 'surprise_play'), /Choose a surprise album first/);
 });
 
 test('alphabet indexing respects Roon offsets and can load previous results', async () => {

@@ -305,6 +305,7 @@ function browserCard(item, layout, showLabels, section, showSubtitles = true) {
 
 function renderBrowser(data) {
   browserRendering = true; browserState = data; browserLoading = false;
+  $('browser-view').classList.toggle('surprise-takeover', Boolean(data.surprise_preview));
   $('browser-back').hidden = !data.can_back; $('browser-back').disabled = !data.can_back; $('browser-loading-more').hidden = true;
   document.querySelectorAll('[data-browser-section]').forEach(button => button.classList.toggle('active', button.dataset.browserSection === (data.section || 'albums')));
   $('browser-search-open').classList.toggle('active', data.section === 'search');
@@ -315,7 +316,19 @@ function renderBrowser(data) {
   const list = $('browser-list'); list.replaceChildren(); list.className = `browser-list layout-${data.layout || 'list'}`;
   list.classList.toggle('genre-grid', data.layout === 'tiles' && data.section === 'genres');
   if (data.status === 'unavailable') { const empty = document.createElement('p'); empty.className = 'queue-empty'; empty.textContent = 'Roon Browse is unavailable.'; list.append(empty); browserRendering = false; return; }
-  (data.items || []).forEach(item => list.append(item.action ? browserRow(item) : (['home', 'menu', 'covers', 'tiles'].includes(data.layout) ? browserCard(item, data.layout, Boolean(data.show_labels), data.section, data.show_subtitles !== false) : browserRow(item))));
+  if (data.surprise_preview && data.items?.length) {
+    const album = data.items[0]; const preview = document.createElement('div'); preview.className = 'surprise-preview';
+    const art = document.createElement('div'); art.className = 'surprise-art';
+    if (album.image_key) { const image = document.createElement('img'); image.alt = `${album.title} album cover`; image.src = api(`/api/image?key=${encodeURIComponent(album.image_key)}&size=600`); art.append(image); }
+    else art.textContent = '♫';
+    const title = document.createElement('h2'); title.textContent = album.title;
+    const artist = document.createElement('p'); artist.textContent = album.subtitle || '';
+    const controls = document.createElement('div'); controls.className = 'surprise-controls';
+    for (const [label, action] of [['▶ Play Album', 'surprise_play'], ['Surprise Again', 'surprise']]) {
+      const button = document.createElement('button'); button.textContent = label; button.onclick = () => browseCommand(action); controls.append(button);
+    }
+    preview.append(art, title, artist, controls); list.append(preview);
+  } else (data.items || []).forEach(item => list.append(item.action ? browserRow(item) : (['home', 'menu', 'covers', 'tiles'].includes(data.layout) ? browserCard(item, data.layout, Boolean(data.show_labels), data.section, data.show_subtitles !== false) : browserRow(item))));
   if (!(data.items || []).length) { const empty = document.createElement('p'); empty.className = 'queue-empty'; empty.textContent = 'Nothing is available here.'; list.append(empty); }
   requestAnimationFrame(() => {
     if (browserPreviousHeight !== null) { browserScrollRestore += $('browser-scroll').scrollHeight - browserPreviousHeight; browserPreviousHeight = null; }
@@ -353,13 +366,15 @@ function maybeLoadMore() {
 async function browseCommand(action, data = {}) {
   if (browserLoading || browserRendering) { if (['jump', 'section', 'search'].includes(action)) browserPendingRequest = {action, data}; return; }
   browserLoading = true;
+  if (action === 'surprise' && !browserState?.surprise_preview) browserSectionScrolls.set(browserState?.section || 'albums', $('browser-scroll').scrollTop);
   if (['section', 'search'].includes(action)) {
     browserSectionScrolls.set(browserState?.section || 'albums', $('browser-scroll').scrollTop);
     browserScrollRestore = action === 'section' ? (browserSectionScrolls.get(data.section) || 0) : 0;
   }
-  else if (['more', 'surprise'].includes(action)) { browserScrollRestore = $('browser-scroll').scrollTop; }
+  else if (action === 'more') { browserScrollRestore = $('browser-scroll').scrollTop; }
   else if (action === 'previous') { browserScrollRestore = $('browser-scroll').scrollTop; browserPreviousHeight = $('browser-scroll').scrollHeight; }
-  else if (['jump', 'open', 'back'].includes(action)) browserScrollRestore = 0;
+  else if (action === 'back' && browserState?.surprise_preview) browserScrollRestore = browserSectionScrolls.get('albums') || 0;
+  else if (['jump', 'open', 'back', 'surprise'].includes(action)) browserScrollRestore = 0;
   try {
     const options = action === 'current' ? {method: 'GET', cache: 'no-store'} : {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({session: browserSession, action, ...data})};
     const url = action === 'current' ? api(`/api/browse?session=${encodeURIComponent(browserSession)}`) : api('/api/browse');

@@ -99,6 +99,7 @@ class BrowseManager {
     const previous = this.pending.get(session) || Promise.resolve();
     const current = previous.catch(() => {}).then(() => {
       if (command === 'surprise') return this.surprise(session);
+      if (command === 'surprise_play') return this.playSurprise(session);
       let active = this.activeSessions.get(session) || session;
       if (command === 'section' || command === 'root') {
         const section = ['albums', 'artists', 'genres', 'playlists'].includes(data.section) ? data.section : 'albums';
@@ -107,7 +108,7 @@ class BrowseManager {
         if (this.sessions.has(active)) return this.sessions.get(active);
       } else if (command === 'search') {
         active = `${session}-search`; this.sections.set(active, 'search'); this.activeSessions.set(session, active);
-      } else if (command === 'back' && this.sessions.get(active)?.hierarchy === 'search' && this.sessions.get(active)?.level === 0) {
+      } else if (command === 'back' && (this.sessions.get(active)?.surprise_preview || (this.sessions.get(active)?.hierarchy === 'search' && this.sessions.get(active)?.level === 0))) {
         active = `${session}-albums`; this.activeSessions.set(session, active);
         return this.sessions.get(active) || this._run(active, 'root', {section: 'albums'});
       } else if (command === 'current' && !this.activeSessions.has(session) && !this.sessions.has(session)) {
@@ -167,10 +168,28 @@ class BrowseManager {
     const loaded = await request(service, 'load', {hierarchy: 'browse', multi_session_key: session, level: albums.level, offset, count: 1});
     const album = loaded.items?.[0];
     if (!album?.item_key) throw new Error('The selected album is unavailable');
+    this.lastSurprises.set(baseSession, offset);
+    this.activeSessions.set(baseSession, session);
+    return this.save(session, {...albums, section: 'albums', section_root: false,
+      items: [publicItem(album)], layout: 'covers', show_labels: true, show_subtitles: true,
+      count: 1, offset: 0, has_more: false, alpha_scrub: false, can_back: true,
+      surprise_album: album.title, surprise_preview: true, message: ''});
+  }
+
+  async playSurprise(baseSession) {
+    const preview = this.sessions.get(this.activeSessions.get(baseSession));
+    if (!preview?.surprise_preview) throw new Error('Choose a surprise album first');
+    const service = this.service(); const zone = this.zone();
+    if (!service || !zone) throw new Error('Roon is not connected');
+    const session = `${baseSession}-surprise-play`;
+    const albums = await this.openSection(service, zone, session, 'albums');
     const options = {hierarchy: 'browse', multi_session_key: session, zone_or_output_id: zone.zone_id};
+    const selected = await request(service, 'load', {...options, level: albums.level, offset: this.lastSurprises.get(baseSession), count: 1});
+    const album = selected.items?.[0];
+    if (!album?.item_key || album.title !== preview.surprise_album) throw new Error('The library changed. Choose another surprise album.');
     const opened = await request(service, 'browse', {...options, item_key: album.item_key});
-    if (opened.action !== 'list' || !opened.list || opened.is_error) throw new Error(String(opened.message || 'Roon could not open the selected album'));
-    const tracks = await request(service, 'load', {...options, level: opened.list?.level, offset: 0, count: 30});
+    if (opened.action !== 'list' || opened.is_error) throw new Error('Roon could not open the album');
+    const tracks = await request(service, 'load', {...options, level: opened.list.level, offset: 0, count: 30});
     const play = tracks.items?.find(item => /^play album$/i.test(item.title));
     if (!play?.item_key) throw new Error('Roon has no Play Album action for this album');
     let result = await request(service, 'browse', {...options, item_key: play.item_key});
@@ -181,10 +200,7 @@ class BrowseManager {
       result = await request(service, 'browse', {...options, item_key: now.item_key});
     }
     if (result.is_error) throw new Error(String(result.message || 'Roon could not play the album'));
-    this.lastSurprises.set(baseSession, offset);
-    const active = this.activeSessions.get(baseSession) || baseSession;
-    const state = this.sessions.get(active) || await this.openSection(service, zone, active, 'albums');
-    return this.save(active, {...state, surprise_album: album.title, message: `Playing ${album.title}${album.subtitle ? ` · ${album.subtitle}` : ''}.`});
+    return this.save(this.activeSessions.get(baseSession), {...preview, message: `Playing ${preview.surprise_album}.`});
   }
 
   async openNamed(service, zone, session, result, title) {

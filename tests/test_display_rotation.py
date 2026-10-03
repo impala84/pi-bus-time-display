@@ -79,6 +79,17 @@ class DisplayRotationTests(unittest.TestCase):
         self.assertIn(".nav-label-compact { display: inline; }", css)
         self.assertIn("text-transform: uppercase", css)
 
+    def test_mobile_navigation_and_surprise_preview_layout(self):
+        css = (ROOT / "roon-controller" / "static" / "refinements.css").read_text(encoding="utf-8")
+        app = (ROOT / "roon-controller" / "static" / "app.js").read_text(encoding="utf-8")
+        display = (ROOT / "native-display" / "pi_bus_native.py").read_text(encoding="utf-8")
+        self.assertNotIn("#browser-surprise { font-size:", css)
+        self.assertIn("left: 62px; right: 10px; width: auto; transform: none", css)
+        self.assertIn(".browser-view.surprise-takeover .browser-list { display: block; }", css)
+        self.assertIn("['▶ Play Album', 'surprise_play']", app)
+        self.assertIn('self.browser_sidebar.set_visible(not data.get("surprise_preview"))', display)
+        self.assertIn('self.request_browser("surprise_play")', display)
+
     def test_roon_browser_reuses_protected_scroll_layout(self):
         display = (ROOT / "native-display" / "pi_bus_native.py").read_text(encoding="utf-8")
         html = (ROOT / "roon-controller" / "static" / "index.html").read_text(encoding="utf-8")

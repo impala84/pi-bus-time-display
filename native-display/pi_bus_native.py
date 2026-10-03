@@ -318,7 +318,7 @@ class Display(Gtk.Application):
         self.browser_search_button = self.button("SEARCH", self.show_browser_search, "browser-filter"); sidebar.append(self.browser_search_button)
         self.browser_surprise_button = self.button("SURPRISE\nME", lambda *_: self.request_browser("surprise"), "browser-filter"); self.browser_surprise_button.add_css_class("browser-surprise"); sidebar.append(self.browser_surprise_button)
         self.browser_back = self.button("BACK", lambda *_: self.request_browser("back"), "browser-back"); self.browser_back.set_visible(False); self.browser_back.set_halign(Gtk.Align.END); self.browser_back.set_valign(Gtk.Align.START); browser.add_overlay(self.browser_back)
-        browser_body.append(sidebar)
+        self.browser_sidebar = sidebar; browser_body.append(sidebar)
         browser_main = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2); browser_main.add_css_class("browser-main"); browser_main.set_vexpand(True); browser_main.set_hexpand(True)
         self.browser_message = self.label("", "browser-message"); self.browser_message.set_ellipsize(Pango.EllipsizeMode.END); self.browser_message.set_visible(False); browser_main.append(self.browser_message)
         self.browser_list = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2); self.browser_list.add_css_class("queue-list")
@@ -747,20 +747,23 @@ class Display(Gtk.Application):
         if self.browser_loading:
             if action in {"jump", "section", "search"}: self.browser_pending_request = (action, payload)
             return
+        if action == "surprise" and not (self.browser_state or {}).get("surprise_preview"):
+            self.browser_section_scrolls[(self.browser_state or {}).get("section", "albums")] = self.browser_scroll.get_vadjustment().get_value()
         if action in {"section", "search"}:
             self.browser_section_scrolls[(self.browser_state or {}).get("section", "albums")] = self.browser_scroll.get_vadjustment().get_value()
             self.browser_scroll_restore = self.browser_section_scrolls.get(payload.get("section", "search"), 0.0) if action == "section" else 0.0
-        elif action in {"more", "surprise"}: self.browser_scroll_restore = self.browser_scroll.get_vadjustment().get_value()
+        elif action == "more": self.browser_scroll_restore = self.browser_scroll.get_vadjustment().get_value()
         elif action == "previous":
             self.browser_previous_height = self.browser_scroll.get_vadjustment().get_upper()
             self.browser_scroll_restore = self.browser_scroll.get_vadjustment().get_value()
-        elif action in {"jump", "open", "back"}: self.browser_scroll_restore = 0.0
+        elif action == "back" and (self.browser_state or {}).get("surprise_preview"): self.browser_scroll_restore = self.browser_section_scrolls.get("albums", 0.0)
+        elif action in {"jump", "open", "back", "surprise"}: self.browser_scroll_restore = 0.0
         self.browser_loading = True; self.browser_message.set_visible(False)
         threading.Thread(target=self._request_browser, args=(action, payload), daemon=True).start()
 
     def _request_browser(self, action, payload):
         if action == "current": result = get_json(f"{ROON}/api/browse?session=touch", timeout=3.0)
-        else: result = post_json(ROON + "/api/browse", {"session": "touch", "action": action, **payload}, timeout=15.0 if action in {"jump", "section", "search", "surprise", "open"} else 4.0)
+        else: result = post_json(ROON + "/api/browse", {"session": "touch", "action": action, **payload}, timeout=15.0 if action in {"jump", "section", "search", "surprise", "surprise_play", "open"} else 4.0)
         GLib.idle_add(self.render_browser, result or {"status": "ready", "title": "Browse", "items": [], "message": "Roon Browse did not respond.", "error": True})
 
     def browser_scrub_changed(self, scale):
@@ -913,6 +916,7 @@ class Display(Gtk.Application):
     def render_browser(self, data):
         self.browser_rendering = True; self.browser_loading = True; self.browser_state = data; self.browser_back.set_visible(bool(data.get("can_back"))); self.browser_back.set_sensitive(bool(data.get("can_back"))); self.browser_scrubber.set_visible(bool(data.get("alpha_scrub")))
         active_section = data.get("section") or "albums"
+        self.browser_sidebar.set_visible(not data.get("surprise_preview"))
         self.browser_surprise_button.set_visible(active_section == "albums"); self.browser_surprise_button.set_label("SURPRISE\nAGAIN" if data.get("surprise_album") else "SURPRISE\nME")
         if active_section == "search": self.browser_search_button.add_css_class("active")
         else: self.browser_search_button.remove_css_class("active")
@@ -926,7 +930,24 @@ class Display(Gtk.Application):
         if not items:
             self.browser_list.append(self.label("Roon Browse is unavailable." if data.get("status") == "unavailable" else "Nothing is available here.", "queue-empty", .5))
         layout = data.get("layout") or "list"
-        if items and layout in {"home", "menu"}:
+        if items and data.get("surprise_preview"):
+            album = items[0]; preview = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12); preview.set_halign(Gtk.Align.CENTER); preview.set_hexpand(True)
+            preview.set_margin_top(50)
+            size = max(140, min(380, self.browser_scroll.get_allocated_height() - 270))
+            picture = Gtk.Picture(); picture.set_can_shrink(True); picture.set_content_fit(Gtk.ContentFit.COVER)
+            square = Gtk.AspectFrame(xalign=.5, yalign=.5, ratio=1, obey_child=False); square.set_size_request(size, size); square.set_halign(Gtk.Align.CENTER); square.set_child(picture); preview.append(square)
+            key = album.get("image_key"); self.browser_artwork_keys.append(key)
+            if key:
+                self.browser_pictures.setdefault(key, []).append(picture)
+                if texture := self.queue_thumbnail_cache.get(key): picture.set_paintable(texture)
+                self.retry_visible_thumbnail(key)
+            else: square.set_child(self.label("♫", "browser-tile-icon", .5))
+            title = self.label(album.get("title") or "Untitled", "queue-title", .5); title.set_wrap(True); title.set_lines(2); title.set_max_width_chars(40); title.set_ellipsize(Pango.EllipsizeMode.END); title.set_justify(Gtk.Justification.CENTER); preview.append(title)
+            preview.append(self.label(album.get("subtitle") or "", "queue-meta", .5))
+            controls = Gtk.Box(spacing=12); controls.set_halign(Gtk.Align.CENTER)
+            controls.append(self.button("▶ Play Album", lambda *_: self.request_browser("surprise_play"), "browser-filter"))
+            controls.append(self.button("Surprise Again", lambda *_: self.request_browser("surprise"), "browser-filter")); preview.append(controls); self.browser_list.append(preview)
+        elif items and layout in {"home", "menu"}:
             grid = Gtk.Grid(column_spacing=12, row_spacing=12); grid.add_css_class("browser-home-grid"); grid.set_column_homogeneous(True); grid.set_row_homogeneous(True); columns = 4
             for index, item in enumerate(item for item in items if item.get("hint") != "header"): grid.attach(self.browser_menu_card(item, layout == "menu"), index % columns, index // columns, 1, 1)
             self.browser_list.append(grid)

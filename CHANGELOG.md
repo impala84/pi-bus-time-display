@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.11.15 — 3 October 2026
+
+- Match Surprise Me / Again to the other mobile sidebar labels and centre the top navigation in the space beside Settings.
+- Make Surprise Me a dedicated album preview takeover on web and touchscreen, with large centred square artwork, album title and artist.
+- Keep playback unchanged until Play Album is pressed; Surprise Again chooses a different album without interrupting the current music.
+- Restore the existing album browse page and scroll position when leaving the preview.
+- Add regression coverage for preview-only selection, explicit playback and returning to browsing.
+
 ## 0.11.14 — 3 October 2026
 
 - Make Search a full-size sidebar menu item on both displays.
