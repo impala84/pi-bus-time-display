@@ -175,6 +175,7 @@ function render(next) {
   }
 }
 
+function sourcePlayerName(amplifier, zone) {return amplifier.player?.name || zone?.name || amplifier.player?.model || 'Player';}
 function renderAmplifier(amplifier, zone) {
   const inputs = amplifier.inputs || [];
   const signature = JSON.stringify([amplifier.connected, amplifier.active_input?.id, inputs.map(item => [item.id, item.name])]);
@@ -186,6 +187,7 @@ function renderAmplifier(amplifier, zone) {
   const active = amplifier.active_input;
   $('now-tab').classList.toggle('active', musicView === 'now'); $('queue-tab').classList.toggle('active', musicView === 'queue'); $('browse-tab').classList.toggle('active', musicView === 'browse');
   $('source-title').textContent = active?.name || 'External input';
+  $('source-zone').textContent = sourcePlayerName(amplifier,zone);
   $('source-subtitle').textContent = amplifier.playback?.format || '';
   $('source-subtitle').hidden = !$('source-subtitle').textContent;
   const volume = amplifier.volume;
@@ -596,7 +598,7 @@ function restoreMusicRoute() {
   if(view==='discover') {
     const params=new URLSearchParams(queryString);
     if(section==='item'){setMusicView('discover',false);openDiscoveryItem(params.get('key'),false,params.get('section')||'recent',params.get('mix')||'');return;}
-    openDiscover(section,params.get('mix')||'',false);return;
+    openDiscover(section,params.get('mix')||'',false,params.get('view')==='picks'?'picks':params.get('mode')||'listened');return;
   }
   setMusicView(['now', 'queue', 'browse', 'details', 'source'].includes(view) ? view : 'now', false);
   if (view === 'browse' && section) {

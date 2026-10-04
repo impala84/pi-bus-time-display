@@ -1,6 +1,74 @@
 'use strict';
 const model = require('./discovery-model');
 const namespace = 'Sooloos.Broker.Api';
+async function waitFor(read, timeoutMs = 5000) {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const value = read();
+    if (value !== undefined) return value;
+    if (Date.now() >= deadline) throw new Error('Discover data did not finish loading');
+    await new Promise(resolve => setTimeout(resolve, 25));
+  }
+}
+// Wait for the requested graph, not an arbitrary one-second sleep. Referenced
+// objects arrive asynchronously after the RPC reply, including image metadata.
+async function waitForGraph(graph, root) {
+  return waitFor(() => {
+    const seen = new Set();
+    const ready = value => {
+      if (!value || typeof value !== 'object' || Buffer.isBuffer(value)) return true;
+      if (value.$ref !== undefined) {
+        const key = String(value.$ref); if (seen.has(key)) return true;
+        seen.add(key); const object = graph.getObject(BigInt(value.$ref));
+        return !!object && ready(object.fields);
+      }
+      if (Array.isArray(value)) return value.every(ready);
+      if (value.$count !== undefined && (!Array.isArray(value.$items) || value.$items.length < value.$count)) return false;
+      return Object.entries(value).filter(([key]) => key === '$items' || /::(Album|SeedAlbum|Albums|Tracks|Image|Avatar|Images|Data|PerformerMixDescription|GenreMixDescription|Touchstones)$/.test(key)).every(([,item])=>ready(item));
+    };
+    return ready(root) ? true : undefined;
+  });
+}
+async function recentlyAdded(client, sdk) {
+  const {Arg, buildArgs, BinaryWriter} = sdk;
+  // Installed API metadata: AlbumOrdering.ImportDate=1, Descending=2.
+  const ordering = client.structArg(`${namespace}.AlbumQueryOrdering`, [
+    {name:'Ordering',propType:9,value:buildArgs([Arg.enum_(1)])},
+    {name:'Direction',propType:9,value:buildArgs([Arg.enum_(2)])}]);
+  const criteria = client.structArg(`${namespace}.AlbumQueryCriteria`, [{name:'Ordering',propType:23,value:ordering}]);
+  const params = client.structArg(`${namespace}.VirtualQueryParameters`, [{name:'PageSize',propType:0,value:new BinaryWriter().integer(20).toBuffer()}]);
+  const result = await client.remoting.callMethod(client.serviceOid('Library'),
+    `${namespace}.Library::VirtualAlbumQuery(System.Sooid, ${namespace}.AlbumQueryCriteria, ${namespace}.VirtualQueryParameters, Base.ResultCallback<${namespace}.VirtualAlbumLiteQuery>)`,
+    Buffer.concat([buildArgs([Arg.sooid(client.profile())]),criteria,params]));
+  if (!result.success) throw new Error('Recently added albums are unavailable');
+  const root = client.graph.decodeReturnValue(Uint8Array.from(result.payload));
+  if (root?.$ref === undefined) throw new Error('Invalid album query');
+  const oid = BigInt(root.$ref), type = `${namespace}.VirtualAlbumLiteQuery`;
+  let retained = false;
+  try {
+    const count = await waitFor(() => model.field(client.graph.getObject(oid),'Count'));
+    if (!Number.isSafeInteger(count) || count < 0) throw new Error('Invalid album count');
+    if (!count) return {items:[],total:0};
+    const before = new Set(client.graph.objects.keys());
+    const page = await client.remoting.callMethod(oid,`${type}::RetainPage(int, Base.ResultCallback)`,buildArgs([Arg.int(0)]));
+    if (!page.success) throw new Error('Album page unavailable');
+    retained = true;
+    // A fresh, isolated worker retains just one page. Page elements are pushed
+    // in query order; never collect unrelated AlbumLite objects from the graph.
+    const elements = await waitFor(() => {
+      const values = [...client.graph.objects.values()].filter(o => !before.has(o.oid) && o.typeName === `${namespace}.VirtualQueryElement<${namespace}.AlbumLite>`);
+      const page = values.slice(0,20);
+      return page.length >= Math.min(count,20) && page.every(o=>model.field(o,'Data') && model.item(client.graph,model.field(o,'Data'))) ? page : undefined;
+    });
+    await waitForGraph(client.graph,{$items:elements.map(o=>model.field(o,'Data'))});
+    const items = elements.map(o=>model.item(client.graph,model.field(o,'Data')));
+    if (items.some(item=>!item)) throw new Error('Album metadata incomplete');
+    return {items,total:count};
+  } finally {
+    if (retained) client.remoting.callMethodNoReply(oid,`${type}::ReleasePage(int, Base.ResultCallback)`,buildArgs([Arg.int(0)]));
+    client.remoting.callMethodNoReply(oid,`${type}::Dispose()`,Buffer.alloc(0));
+  }
+}
 async function dailyPicks(client, sdk, time) {
   const {BinaryWriter, Arg, buildArgs} = sdk;
   const type = `${namespace}.DailyPicksParameters`;
@@ -20,23 +88,27 @@ async function readDiscovery(client, sdk, section, id) {
   const {Arg, buildArgs, exportPlayHistory} = sdk;
   const call = (method, args, result) => client.remoting.callMethod(client.serviceOid('Library'), `${namespace}.Library::${method}(System.Sooid, ${result})`, args);
   let result;
+  if (section === 'added') return recentlyAdded(client,sdk);
   if (section === 'recent') {
     const history = await exportPlayHistory(client, {limit: 100, pageSize: 50, timeoutMs: 5000});
     return {items: model.recentAlbums(client.graph, history.events)};
   }
-  if (section === 'daily') {
+  if (section === 'picks') {
     result = await dailyPicks(client, sdk, new Date().toISOString());
     if (!result.success) throw new Error('Personalised recommendations are unavailable in this Roon version');
     const root = client.graph.decodeReturnValue(Uint8Array.from(result.payload));
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await waitForGraph(client.graph, root);
     const groups = model.picks(client.graph, root);
+    return {items:[],groups};
+  }
+  if (section === 'daily') {
     result = await client.remoting.callMethod(client.serviceOid('Library'),
       `${namespace}.Library::GetMixes(System.Sooid, string, Base.ResultCallback<${namespace}.DataList<${namespace}.Mix>>)`,
       buildArgs([Arg.sooid(client.profile()), Arg.str(new Date().toISOString())]));
     if (!result.success) throw new Error('Daily mixes are unavailable in this Roon version');
     const mixRoot = client.graph.decodeReturnValue(Uint8Array.from(result.payload));
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    return {items: model.mixes(client.graph, mixRoot), groups};
+    await waitForGraph(client.graph, mixRoot);
+    return {items: model.mixes(client.graph, mixRoot)};
   }
   if (section === 'mix') {
     if (!/^[a-f0-9]{2,160}$/i.test(id || '') || id.length % 2) throw new Error('Invalid mix reference');
@@ -48,14 +120,14 @@ async function readDiscovery(client, sdk, section, id) {
     result = await client.remoting.callMethod(BigInt(root.$ref), `${namespace}.Mix::GetItems(Base.ResultCallback<${namespace}.DataList<${namespace}.MixItem>>)`, Buffer.alloc(0));
     if (!result.success) throw new Error('The mix track list could not be loaded');
     const tracks = client.graph.decodeReturnValue(Uint8Array.from(result.payload));
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await waitForGraph(client.graph, tracks);
     return {mix: model.mixes(client.graph, {$items:[root]}, 1)[0] || null, items: model.list(client.graph, tracks, 20).flatMap(group => model.list(client.graph, model.field(group, 'Tracks'), 5).map(track => model.item(client.graph, track, 'track'))).filter(Boolean), total: Number(model.field(model.resolve(client.graph, tracks), '$count') || 0)};
   }
   if (section !== 'releases') throw new Error('Unknown Discover section');
   result = await call('GetNewReleasesForYou', buildArgs([Arg.sooid(client.profile())]), `Base.ResultCallback<${namespace}.DataList<${namespace}.AlbumWithExtras>>`);
   if (!result.success) throw new Error('New Releases are unavailable in this Roon version');
   const root = client.graph.decodeReturnValue(Uint8Array.from(result.payload));
-  await new Promise(resolve => setTimeout(resolve, 1000));
+  await waitForGraph(client.graph, root);
   return {items: model.list(client.graph, root, 20).map(wrapper => model.item(client.graph, model.field(wrapper, 'Album'))).filter(Boolean)};
 }
-module.exports = {dailyPicks, readDiscovery};
+module.exports = {dailyPicks, readDiscovery, waitFor, waitForGraph, recentlyAdded};

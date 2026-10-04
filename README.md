@@ -2,7 +2,7 @@
 
 Pi Home is an independent Raspberry Pi touchscreen interface for Roon, with optional Singapore bus arrivals and Home Assistant controls. It runs a native GTK4 display in Cage/Wayland, alongside a phone/desktop web interface. Chromium is not required.
 
-The Stable baseline is **v1.0.0**. The separate **v1.1.0-beta.5** candidate polishes portrait Browse, compact mobile navigation, consistent loading notices and mix controls; select the Beta update channel to try it. Actual-server discovery reads and local browser previews were verified. Physical GTK acceptance, audio-confirmed Discover playback and fresh installation remain unverified; this is not stable v1.1.
+The Stable baseline is **v1.0.0**. The separate **v1.1.0-beta.6** candidate loads mixes before optional recommendations, adds Recently Listened/Recently Added, lazy-loads touchscreen artwork and refines web menus and player labels; select the Beta update channel to try it. Actual-server discovery reads and local browser previews were verified. Physical GTK acceptance, audio-confirmed Discover playback and fresh installation remain unverified; this is not stable v1.1.
 
 ## Features
 

@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.1.0-beta.6 — 4 October 2026
+
+- Load Daily Mixes independently; fetch Daily Picks only when More Recommendations is requested, on web and touchscreen. Keep mix tracks and whole-mix controls.
+- Replace fixed read-only connection/graph sleeps with bounded readiness checks. Skip obsolete queued page requests per client without dropping another device's work; retain cache/coalescing, read serialization and isolated playback safeguards.
+- Add Recently Listened and Recently Added modes under Recent. Added uses an actual import-date-descending library query, retains only the first 20-album page and releases/disposes it. Web mode URLs support Back/Forward.
+- Fetch native Discover artwork only for visible/nearby cards; web artwork remains lazy-loaded.
+- Show player/zone names rather than a hard-coded BluOS label on external-input screens.
+- Use consistent 14px desktop music/Discover menus and larger, centred portrait Browse categories, with a narrower-phone adjustment. Native menu sizes remain unchanged.
+
+Verification: 122 Python and 91 Node checks pass. Read-only live Core checks returned five mixes, 20 Added albums, 20 recent albums, 20 New Releases and five recommendation groups. One measured run: Mixes 0.51s, Added 0.42s, Recent 0.68s, Picks 0.70s, New Releases 2.05s; these are local reader timings, not guaranteed end-to-end UI timings. New Releases still fetches Roon's full data response because its API lacks page arguments. Local browser fixtures verify phone/desktop navigation and labels; physical GTK/audio acceptance remains pending. No remote installation, restart or playback during verification.
+
 ## 1.1.0-beta.5 — 4 October 2026
 
 - Optimise portrait web Browse with a horizontal category row above two wider artwork columns; preserve landscape/native Browse.

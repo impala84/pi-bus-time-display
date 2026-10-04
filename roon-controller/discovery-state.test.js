@@ -31,3 +31,10 @@ test('public data replaces private artwork URLs with bounded keys and validates 
   manager.images.set('invalid','https://[');assert.equal(manager.imageUrl('invalid'),null);
   assert.equal(manager.imageUrl('unregistered'),null);
 });
+test('obsolete queued pages are skipped per client, without cancelling another device',async()=>{
+  const manager=new DiscoveryManager();manager.setTarget({host:'example'});const calls=[];
+  manager.run=async(_target,section)=>{calls.push(section);return {status:'ready',items:[]};};
+  manager.state('daily','','phone');manager.state('daily','','touch');manager.state('releases','','phone');manager.state('added','','phone');
+  await manager.tail;assert.deepEqual(calls,['daily','added']);assert.equal(manager.pending.size,0);
+});
+test('Discover session interests and caches remain bounded',()=>{const manager=new DiscoveryManager();manager.setTarget({host:'example'});manager.actionBusy=true;for(let i=0;i<100;i++)manager.state('recent','',`client-${i}`);assert.equal(manager.interests.size,64);assert.throws(()=>manager.state('recent','','invalid session'),/Invalid/);});

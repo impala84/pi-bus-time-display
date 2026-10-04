@@ -7,27 +7,38 @@ class DiscoveryManager {
     this.spawn = spawn; this.now = now; this.timeoutMs = timeoutMs;
     this.target = null; this.cache = new Map(); this.pending = new Map(); this.tail = Promise.resolve(); this.child = null; this.images = new Map();
     this.actions = new Map(); this.actionBusy = false;
+    this.interests = new Map(); this.activeKey = null;
   }
   setTarget(target) {
     if (JSON.stringify(target) === JSON.stringify(this.target)) return;
-    this.target = target; this.cache.clear(); this.images.clear(); this.pending.clear(); this.child?.kill();
+    this.target = target; this.cache.clear(); this.images.clear(); this.pending.clear(); this.interests.clear(); this.child?.kill();
   }
-  state(section, id = '') {
-    if (!['recent', 'daily', 'releases', 'mix'].includes(section)) throw new Error('Unknown Discover section');
+  state(section, id = '', client = '') {
+    if (!['recent', 'added', 'daily', 'picks', 'releases', 'mix'].includes(section)) throw new Error('Unknown Discover section');
     if (section === 'mix' && (!/^[a-f0-9]{2,160}$/i.test(id) || id.length % 2)) throw new Error('Invalid mix reference');
     if (!this.target) return {status: 'unavailable', message: 'Connect and authorise Roon to use Discover.', items: []};
     const key = `${section}:${id}`; const cached = this.cache.get(key);
+    if (client) {
+      if (!/^[\w-]{1,80}$/.test(client)) throw new Error('Invalid Discover session');
+      this.interests.set(client,{key,at:this.now()});
+      while(this.interests.size>64)this.interests.delete(this.interests.keys().next().value);
+    }
+    const wanted = () => !client || [...this.interests.values()].some(value=>value.key===key && this.now()-value.at<60000);
     if ((!cached || cached.expires <= this.now()) && !this.actionBusy && !this.pending.has(key) && this.pending.size < 4) {
       const target = this.target;
-      const job = this.tail.catch(() => {}).then(() => target === this.target ? this.run(target, section, id) : null).then(data => {
+      const job = this.tail.catch(() => {}).then(() => {
+        if (target !== this.target || !wanted()) return null;
+        this.activeKey = key;
+        return this.run(target, section, id);
+      }).then(data => {
         if (!data || target !== this.target) return;
         this.cache.set(key, {...this.decorate(data), expires: this.now() + (data.status === 'ready' ? 300000 : 60000)});
         while (this.cache.size > 24) this.cache.delete(this.cache.keys().next().value);
-      }).finally(() => {if (this.pending.get(key) === job) this.pending.delete(key);});
+      }).finally(() => {if(this.activeKey===key)this.activeKey=null;if (this.pending.get(key) === job) this.pending.delete(key);});
       this.pending.set(key, job); this.tail = job;
     }
     if (cached) {const {expires, ...data} = cached; return {...data, refreshing: this.pending.has(key)};}
-    return {status: 'loading', message: 'Loading your Roon recommendations…', items: []};
+    return {status: 'loading', message: 'Loading…', items: []};
   }
   decorate(data) {
     const visit = value => {

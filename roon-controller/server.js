@@ -338,7 +338,7 @@ http.createServer(async (request, response) => {
         response.writeHead(200, {'Content-Type': type || 'image/jpeg', 'Cache-Control': 'private, max-age=3600'}); response.end(data);
       });
     }
-    if (request.method === 'GET' && url.pathname === '/api/discovery') return json(response,200,discovery.state(url.searchParams.get('section') || 'recent',url.searchParams.get('id') || ''));
+    if (request.method === 'GET' && url.pathname === '/api/discovery') return json(response,200,discovery.state(url.searchParams.get('section') || 'recent',url.searchParams.get('id') || '',url.searchParams.get('client') || ''));
     if (request.method === 'GET' && url.pathname === '/api/discovery/image') {
       const imageUrl = discovery.imageUrl(url.searchParams.get('key'));
       if(!imageUrl) return response.writeHead(404).end();

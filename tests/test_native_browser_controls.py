@@ -31,6 +31,27 @@ class Entry:
 
 
 class NativeBrowserControlsTests(unittest.TestCase):
+    def test_discover_artwork_only_queues_visible_and_nearby_cards(self):
+        jobs = Mock()
+        def card(y):
+            return SimpleNamespace(compute_bounds=lambda _list: (True, SimpleNamespace(get_y=lambda:y, get_height=lambda:100)))
+        owner = SimpleNamespace(discovery_active=True, roon_views=SimpleNamespace(get_visible_child_name=lambda:"discover"), discovery_scroll=SimpleNamespace(get_vadjustment=lambda:SimpleNamespace(get_value=lambda:0, get_page_size=lambda:500)), discovery_list=object(), discovery_cards=[(card(0),"visible"),(card(600),"nearby"),(card(1200),"offscreen")], queue_thumbnail_cache={}, queue_thumbnail_pending=set(), queue_thumbnail_jobs=jobs)
+        native_method("load_visible_discovery_artwork")(owner)
+        self.assertEqual(owner.queue_thumbnail_pending, {"visible", "nearby"})
+        self.assertEqual(jobs.put.call_count, 2)
+        native_method("load_visible_discovery_artwork")(owner)
+        self.assertEqual(jobs.put.call_count, 2)
+
+    def test_recent_mode_switch_stays_on_recent_and_uses_added_endpoint(self):
+        owner = SimpleNamespace(open_discover=Mock())
+        native_method("open_recent")(owner,"added")
+        self.assertEqual(owner.discovery_recent_mode,"added")
+        owner.open_discover.assert_called_once_with("recent")
+        code = SOURCE.read_text(encoding="utf-8")
+        self.assertIn('section = "added"',code)
+        self.assertIn('client=touch',code)
+        self.assertIn('MORE RECOMMENDATIONS',code)
+
     def test_mix_duotone_preserves_alpha_and_maps_black_white_and_coloured_pixels(self):
         tree = ast.parse(SOURCE.read_text(encoding="utf-8"))
         function = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == "mix_duotone_matrix")
