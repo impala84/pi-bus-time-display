@@ -1,7 +1,7 @@
 # v1.1 Discover beta — 4 October 2026
 
 Development branch: `discover-v1.1`. Production `main` and `v1.0.0` remain unchanged.
-This branch contains the v1.1.0-beta.1 candidate, not completed stable v1.1.
+This branch contains the v1.1.0-beta.2 candidate, not completed stable v1.1. Beta.2 fixes the production static handler failing to serve Discover JS/CSS: the permissive local preview did not expose this omission. Regression tests now exercise the production asset handler rather than relying solely on the preview.
 
 ## Starting point and isolation
 

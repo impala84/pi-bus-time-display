@@ -5,7 +5,7 @@ let discoveryMix = '';
 let discoverySignature = '';
 const discoverTabs = [['recent','RECENT'],['browse','BROWSE'],['daily','DAILY MIXES'],['releases','NEW'],['surprise','SURPRISE']];
 function initDiscover() {
-  const css=document.createElement('link');css.rel='stylesheet';css.href='discovery.css?v=1101';document.head.append(css);
+  const css=document.createElement('link');css.rel='stylesheet';css.href='discovery.css?v=1102';document.head.append(css);
   const nav=document.createElement('nav');nav.id='discover-nav';nav.className='music-subnav';nav.setAttribute('aria-label','Discover');nav.hidden=true;
   for(const [id,label] of discoverTabs){const button=document.createElement('button');button.textContent=label;button.dataset.discover=id;button.onclick=()=>openDiscover(id);nav.append(button);} document.body.append(nav);
   const panel=document.createElement('section');panel.id='discovery-view';panel.className='discovery-view';panel.hidden=true;document.body.append(panel);

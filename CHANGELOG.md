@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.0-beta.2 — 4 October 2026
+
+- Serve the Discover JavaScript and stylesheet through the production controller asset allow-list. Their missing routes previously stopped web initialisation, leaving the default Mint theme, three-section navigation and a misleading Waiting for Roon message even when Roon was authorised.
+- Refresh web asset versions and add regression checks against the production static handler for every referenced script/stylesheet and dynamically loaded Discover CSS.
+
+Verification: 117 Python and 74 Node checks pass. No pairing identity, saved configuration or authentication changes; no remote installation or restart.
+
 ## 1.1.0-beta.1 — 4 October 2026
 
 - Add Discover to web and native navigation, with Recent, Browse, Daily Mixes, NEW and Surprise; move existing exploration out of Now Playing without changing clock placement.

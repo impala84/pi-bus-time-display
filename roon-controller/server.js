@@ -295,7 +295,7 @@ function body(request) {
 }
 
 function serveStatic(request, response) {
-  const names = {'/': 'index.html', '/app.js': 'app.js', '/style.css': 'style.css', '/refinements.css': 'refinements.css', '/favicon.svg': 'favicon.svg'};
+  const names = {'/': 'index.html', '/app.js': 'app.js', '/discovery.js': 'discovery.js', '/discovery.css': 'discovery.css', '/style.css': 'style.css', '/refinements.css': 'refinements.css', '/favicon.svg': 'favicon.svg'};
   const name = names[new URL(request.url, 'http://localhost').pathname];
   if (!name) return false;
   const types = {'.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml'};
