@@ -217,13 +217,14 @@ function queueRow(item) {
 
 function renderQueue(queue) {
   const items = queue.items || [];
-  const signature = JSON.stringify(items.map(item => [item.queue_item_id, item.is_current, item.is_previous]));
+  const signature = JSON.stringify([queue.status,items.map(item => [item.queue_item_id, item.is_current, item.is_previous])]);
   if (signature === queueSignature) return;
   queueSignature = signature;
   const list = $('queue-list'); list.replaceChildren();
   if (!items.length) {
+    if(queue.status === 'loading'){list.append(loadingNotice());return;}
     const empty = document.createElement('p'); empty.className = 'queue-empty';
-    empty.textContent = queue.status === 'loading' ? 'Queue is loading…' : queue.status === 'disabled' ? 'Queue is disabled in Settings' : 'Nothing is queued';
+    empty.textContent = queue.status === 'disabled' ? 'Queue is disabled in Settings' : 'Nothing is queued';
     list.append(empty); return;
   }
   items.forEach(item => list.append(queueRow(item)));
@@ -381,7 +382,7 @@ function renderBrowser(data) {
     for (const [symbol, label, action] of [['↻', 'Surprise me again', 'surprise'], ['▶', 'Play this album', 'surprise_play']]) {
       const controls = document.createElement('div'); controls.className = 'surprise-control';
       const button = document.createElement('button'); button.className = 'surprise-action'; button.textContent = symbol; button.title = label; button.setAttribute('aria-label', label); button.onclick = () => browseCommand(action);
-      const caption = document.createElement('span'); caption.textContent = action === 'surprise' ? 'Surprise' : 'Play Now'; controls.append(button, caption); buttons.push(controls);
+      const caption = document.createElement('span'); caption.textContent = action === 'surprise' ? 'Surprise Me' : 'Play Now'; controls.append(button, caption); buttons.push(controls);
     }
     stage.append(buttons[0], art, buttons[1]); preview.append(stage, title, artist); list.append(preview);
   } else if (data.search_routes) {
@@ -428,11 +429,11 @@ function maybeLoadMore() {
 }
 
 async function browseCommand(action, data = {}) {
-  if (action === 'search' || action === 'route') showBrowseLoading(data.query ? `Searching for “${data.query}”…` : 'Loading page…');
+  if (action === 'search' || action === 'route') showBrowseLoading();
   if (browserLoading || browserRendering) { if (['jump', 'section', 'search', 'route'].includes(action)) browserPendingRequest = {action, data}; return; }
   const opened = action === 'open' ? browserState?.items?.find(item => item.item_key === data.item_key) : null;
   if (action !== 'route') recordBrowseRoute(action, data, opened);
-  if (['section', 'open', 'back'].includes(action) && !opened?.action) showBrowseLoading('Loading page…');
+  if (['section', 'open', 'back', 'surprise'].includes(action) && !opened?.action) showBrowseLoading();
   browserLoading = true;
   if (action === 'surprise' && !browserState?.surprise_preview) browserSectionScrolls.set(browserState?.section || 'albums', $('browser-scroll').scrollTop);
   if (['section', 'search'].includes(action)) {
@@ -474,11 +475,11 @@ function recordBrowseRoute(action, data, opened) {
   const hash = browseHash(browserPlan); lastRestoredHash = hash;
   if (location.hash !== hash) history.pushState(null, '', hash);
 }
-function showBrowseLoading(message) {
+function showBrowseLoading() {
   $('browser-search-panel').hidden = true;
   $('browser-artist').hidden = true; $('browser-scrubber').hidden = true;
   const list = $('browser-list'); list.className = 'browser-list'; list.replaceChildren();
-  const status = document.createElement('p'); status.className = 'search-loading'; status.setAttribute('role', 'status'); status.textContent = message; list.append(status);
+  list.append(loadingNotice());
   $('browser-message').hidden = true;
   $('browser-search-open').classList.toggle('active', Boolean(browserPlan.query));
   document.querySelectorAll('[data-browser-section]').forEach(button => button.classList.toggle('active', !browserPlan.query && button.dataset.browserSection === browserPlan.section));
@@ -489,7 +490,8 @@ function renderDetails(info) {
   const fallback = zone?.now_playing?.three_line || zone?.now_playing?.two_line || zone?.now_playing?.one_line || {};
   $('details-title').textContent = info.album || fallback.line3 || fallback.line1 || 'Nothing playing';
   $('details-artist').textContent = info.artist || fallback.line2 || '';
-  $('details-subtitle').textContent = info.status === 'loading' ? 'Loading available Roon information…' : (info.subtitle || '');
+  $('details-subtitle').textContent = info.status === 'loading' ? 'Loading…' : (info.subtitle || '');
+  $('details-subtitle').classList.toggle('loading-notice',info.status === 'loading');
   const metadata = info.metadata || {}; const facts = $('details-facts'); facts.replaceChildren();
   $('details-writeup').textContent = metadata.writeup || '';
   $('details-source').textContent = metadata.writeup_source ? `Source · ${metadata.writeup_source}` : '';

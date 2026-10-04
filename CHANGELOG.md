@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.1.0-beta.5 — 4 October 2026
+
+- Optimise portrait web Browse with a horizontal category row above two wider artwork columns; preserve landscape/native Browse.
+- Hide the phone clock and centre a compact Discover menu beside the settings cog. Phone labels use Playing, Mixes and New; desktop/native retain their full labels.
+- Rename Surprise to Surprise Me, including its reroll caption.
+- Show mix tracks immediately again, retaining prominent Play This Mix and Queue This Mix controls.
+- Replace differing music-page loading banners with one discreet Loading… status. Discover Back is in normal layout flow, preventing overlap with loading content. Queue status changes now refresh even while the queue is empty.
+
+Verification: 120 Python and 83 Node checks pass. Browser-verification skills checked synthetic preview layouts at 320×740, 390×844 and 1280×720, including menu fit, larger Browse artwork, visible mix tracks and non-overlapping loading/Back. No browser errors detected. Native GTK acceptance remains pending; no remote installation/restart or audio playback.
+
 ## 1.1.0-beta.4 — 4 October 2026
 
 - Keep music and Discover menus mutually exclusive across native periodic settings refreshes; remove Browse from Now Playing.

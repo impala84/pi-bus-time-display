@@ -204,6 +204,7 @@ CSS += b"""
 .discovery-card .queue-title { font-size: 18px; }.discovery-card .queue-subtitle { font-size: 14px; color: #aaa; }
 .discovery-scroll scrollbar { background: transparent; min-width: 6px; }.discovery-scroll scrollbar slider { background: #a7a5ac; min-width: 6px; border-radius: 4px; }
 .theme-roon .discovery-scroll scrollbar slider { background: #aaa3ed; }
+.loading-notice { font-size: 14px; font-weight: normal; color: #aaa; background: transparent; padding: 4px 0; }
 """
 
 
@@ -398,7 +399,7 @@ class Display(Gtk.Application):
         header_overlay.add_overlay(subnav); page.append(header_overlay)
         self.discover_subnav = Gtk.Box(spacing=8); self.discover_subnav.add_css_class("roon-subnav"); self.discover_subnav.set_halign(Gtk.Align.CENTER); self.discover_subnav.set_valign(Gtk.Align.START)
         self.discover_tabs = {}
-        for section, title in (("recent", "RECENT"), ("browse", "BROWSE"), ("daily", "DAILY MIXES"), ("releases", "NEW RELEASES"), ("surprise", "SURPRISE")):
+        for section, title in (("recent", "RECENT"), ("browse", "BROWSE"), ("daily", "DAILY MIXES"), ("releases", "NEW RELEASES"), ("surprise", "SURPRISE ME")):
             button = self.button(title, lambda _button, value=section: self.open_discover(value), "")
             self.discover_tabs[section] = button; self.discover_subnav.append(button)
         header_overlay.add_overlay(self.discover_subnav); self.discover_subnav.set_visible(False); self.browser_tab.set_visible(False)
@@ -977,7 +978,7 @@ class Display(Gtk.Application):
             self.request_browser("surprise")
         else:
             while child := self.discovery_list.get_first_child(): self.discovery_list.remove(child)
-            self.discovery_list.append(self.label("Loading your mix…" if mix else "Loading your Roon recommendations…", "browser-section"))
+            self.discovery_list.append(self.label("Loading…", "loading-notice"))
             self.discovery_scroll.get_vadjustment().set_value(0)
             self.start_poll()
 
@@ -992,7 +993,7 @@ class Display(Gtk.Application):
         if self.discovery_mix:
             back = self.button("BACK", lambda *_: self.open_discover("daily"), "browser-back"); back.set_halign(Gtk.Align.START); self.discovery_list.append(back)
         if data.get("status") != "ready":
-            self.discovery_list.append(self.label("Loading your mix…" if self.discovery_mix and data.get("status") == "loading" else data.get("message", "Loading…"), "browser-section")); return False
+            self.discovery_list.append(self.label("Loading…" if data.get("status") == "loading" else data.get("message", "Discover is unavailable."), "loading-notice" if data.get("status") == "loading" else "browser-message")); return False
         if self.discovery_mix:
             title = self.label((data.get("mix") or {}).get("title", "Your Daily Mix"), "queue-title")
             self.discovery_list.append(title)
@@ -1006,10 +1007,6 @@ class Display(Gtk.Application):
         columns = 4 if monitor and monitor.get_geometry().width >= 1200 else 2
         size = 220 if columns == 4 else 180
         content = self.discovery_list
-        if self.discovery_mix:
-            preview = Gtk.Expander(label="VIEW TRACKS")
-            content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
-            preview.set_child(content); self.discovery_list.append(preview)
         def group(title, items):
             if title:
                 heading = self.label(title, "browser-section"); heading.set_wrap(True); content.append(heading)
@@ -1047,7 +1044,7 @@ class Display(Gtk.Application):
         child = controls.get_first_child()
         while child:
             child.set_sensitive(False); child = child.get_next_sibling()
-        message = self.label("Requesting your mix…", "browser-message"); self.discovery_list.append(message)
+        message = self.label("Loading…", "loading-notice"); self.discovery_list.append(message)
         def load():
             result = post_json(ROON + "/api/discovery/mix-action", {"id": mix, "action": action, "nonce": str(uuid.uuid4())}, timeout=25.0)
             GLib.idle_add(finish, result)
@@ -1066,7 +1063,7 @@ class Display(Gtk.Application):
         request = self.discovery_request = self.discovery_request + 1
         self.discovery_signature = None
         while child := self.discovery_list.get_first_child(): self.discovery_list.remove(child)
-        self.discovery_list.append(self.label("Finding this item in Roon…", "browser-section"))
+        self.discovery_list.append(self.label("Loading…", "loading-notice"))
         def load():
             result = post_json(ROON + "/api/discovery/open", {"session": "touch", "key": key}, timeout=20.0)
             GLib.idle_add(self.apply_discovery_item, request, result)
@@ -1110,7 +1107,7 @@ class Display(Gtk.Application):
             self.browser_search_columns.set_visible(False); self.browser_scroll.set_visible(True)
             while child := self.browser_list.get_first_child(): self.browser_list.remove(child)
             self.browser_list.set_orientation(Gtk.Orientation.VERTICAL)
-            self.browser_list.append(self.label("Searching…", "browser-section"))
+            self.browser_list.append(self.label("Loading…", "loading-notice"))
             self.browser_artist_scroll.set_visible(False); self.browser_scrubber.set_visible(False)
             self.browser_search_button.add_css_class("active")
             for button in self.browser_section_buttons.values(): button.remove_css_class("active")
@@ -1355,7 +1352,7 @@ class Display(Gtk.Application):
             picture = Gtk.Picture(); picture.set_can_shrink(True); picture.set_content_fit(Gtk.ContentFit.COVER)
             square = Gtk.AspectFrame(xalign=.5, yalign=.5, ratio=1, obey_child=False); square.set_size_request(size, size); square.set_halign(Gtk.Align.CENTER); square.set_child(picture)
             stage = Gtk.Box(spacing=40); stage.set_halign(Gtk.Align.CENTER); stage.set_valign(Gtk.Align.CENTER)
-            for caption, icon, action in (("Surprise", "view-refresh-symbolic", "surprise"), ("Play Now", "media-playback-start-symbolic", "surprise_play")):
+            for caption, icon, action in (("Surprise Me", "view-refresh-symbolic", "surprise"), ("Play Now", "media-playback-start-symbolic", "surprise_play")):
                 controls = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10); controls.set_size_request(120, -1); controls.set_valign(Gtk.Align.CENTER); controls.set_halign(Gtk.Align.CENTER)
                 button = self.icon_button(icon, lambda _button, value=action: self.request_browser(value), "surprise-action"); button.set_tooltip_text(caption); button.set_halign(Gtk.Align.CENTER); controls.append(button); controls.append(self.label(caption, "surprise-caption", .5)); stage.append(controls)
                 if action == "surprise": stage.append(square)
@@ -1478,7 +1475,7 @@ class Display(Gtk.Application):
         self.detail_signature = signature
         self.detail_title.set_text(details.get("album") or details.get("track") or "Nothing playing")
         self.detail_artist.set_text(details.get("artist") or "")
-        self.detail_subtitle.set_text("Loading available Roon information…" if details.get("status") == "loading" else (details.get("subtitle") or ""))
+        self.detail_subtitle.set_text("Loading…" if details.get("status") == "loading" else (details.get("subtitle") or ""))
         metadata = details.get("metadata") or {}
         writeup = metadata.get("writeup") or ""; self.detail_writeup.set_text(writeup); self.detail_writeup.set_visible(bool(writeup))
         source = metadata.get("writeup_source") or ""; self.detail_source.set_text(f"SOURCE  {source.upper()}" if source else ""); self.detail_source.set_visible(bool(source))
@@ -1507,7 +1504,7 @@ class Display(Gtk.Application):
         self.queue_signature = signature; self.queue_pictures = {}; self.queue_artwork_keys = []
         while child := self.queue_list.get_first_child(): self.queue_list.remove(child)
         if not items:
-            message = "Queue is loading…" if queue.get("status") == "loading" else "Nothing is queued"
+            message = "Loading…" if queue.get("status") == "loading" else "Nothing is queued"
             self.queue_list.append(self.label(message, "queue-empty", .5)); return
         self.queue_current_index = 0
         for index, item in enumerate(items):

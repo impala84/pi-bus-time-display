@@ -99,7 +99,7 @@ class NativeBrowserControlsTests(unittest.TestCase):
         fn,result=callbacks.pop(); fn(result)
         message.set_text.assert_not_called()
         code=SOURCE.read_text(encoding='utf-8')
-        self.assertIn('Gtk.Expander(label="VIEW TRACKS")',code)
+        self.assertNotIn('Gtk.Expander(label="VIEW TRACKS")',code)
         self.assertIn('"PLAY THIS MIX"',code)
 
     def test_grouped_results_have_separate_scrollers_not_nested_in_browser_viewport(self):

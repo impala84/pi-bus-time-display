@@ -2,7 +2,7 @@
 
 Pi Home is an independent Raspberry Pi touchscreen interface for Roon, with optional Singapore bus arrivals and Home Assistant controls. It runs a native GTK4 display in Cage/Wayland, alongside a phone/desktop web interface. Chromium is not required.
 
-The Stable baseline is **v1.0.0**. The separate **v1.1.0-beta.4** candidate polishes Discover navigation, artwork and mix controls; select the Beta update channel to try it. Actual-server discovery reads and a local browser preview were verified. Physical GTK acceptance, audio-confirmed Discover playback and fresh installation remain unverified; this is not stable v1.1.
+The Stable baseline is **v1.0.0**. The separate **v1.1.0-beta.5** candidate polishes portrait Browse, compact mobile navigation, consistent loading notices and mix controls; select the Beta update channel to try it. Actual-server discovery reads and local browser previews were verified. Physical GTK acceptance, audio-confirmed Discover playback and fresh installation remain unverified; this is not stable v1.1.
 
 ## Features
 
@@ -15,7 +15,7 @@ The Stable baseline is **v1.0.0**. The separate **v1.1.0-beta.4** candidate poli
 - Scheduled sleep, touch wake, brightness/orientation controls and playback-aware wake behaviour. TV/record inputs do not independently hold the display awake.
 - Password-protected web settings, diagnostics, actual display capture and controlled system actions.
 - Published-release updates with Stable/Beta selection, preserving appliance configuration and credentials.
-- In v1.1 Beta: artwork-led Recent, personalised mixes and Daily Picks, New Releases for You, with existing Browse/Surprise under Discover. Its five tabs are Recent, Browse, Daily Mixes, New Releases and Surprise. Mix detail offers experimental Play This Mix and Queue This Mix controls, with a collapsed bounded track preview.
+- In v1.1 Beta: artwork-led Recent, personalised mixes and Daily Picks, New Releases for You, with existing Browse/Surprise Me under Discover. Its five tabs are Recent, Browse, Daily Mixes, New Releases and Surprise Me (Mixes/New on phones). Mix detail offers experimental Play This Mix and Queue This Mix controls above its visible bounded track preview.
 
 Pi Home is not affiliated with Roon Labs. Roon Server and a Roon subscription are separate requirements. Roon Bridge is optional: it makes the Pi an audio endpoint, but is not needed to control an existing Roon zone.
 

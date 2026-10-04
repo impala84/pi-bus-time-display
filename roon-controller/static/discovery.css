@@ -12,7 +12,7 @@ body[data-theme="roon"] .discovery-art.mix-duotone{background:#9690ed;isolation:
 .discovery-card strong{min-height:2.4em;text-align:center;width:100%;}
 .discovery-view{--discovery-scroll:#b6b8bd;scrollbar-color:var(--discovery-scroll) transparent;scrollbar-width:thin;}body[data-theme="roon"] .discovery-view{--discovery-scroll:#aaa3ed;}
 .discovery-view::-webkit-scrollbar{width:6px}.discovery-view::-webkit-scrollbar-thumb{background:var(--discovery-scroll);border-radius:4px}
-.discovery-view>.browser-back{width:auto;display:inline-block;margin:0 0 16px;}
+.discovery-view>.browser-back{position:static;width:auto;display:inline-block;margin:0 0 16px;}
 .mix-controls{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:20px}.mix-controls button{min-height:48px;padding:12px 20px;border-radius:8px;background:var(--mint);color:#151515;font-weight:750;cursor:pointer}.mix-controls .browser-message{width:100%;}
 .mix-controls button+button{background:var(--panel,#262626);color:var(--text,#eee)}.mix-controls button:disabled{opacity:.5}.discovery-view summary{cursor:pointer;padding:12px 0;margin-bottom:12px;color:var(--muted,#999)}
 .discovery-view .mix-title{font-size:32px;margin:8px 0 24px;text-align:left}
@@ -22,3 +22,33 @@ body[data-theme="roon"] .browser-message{background:rgba(129,122,235,.09);color:
 .browser-view.surprise-takeover .surprise-stage{width:100%;max-width:760px;margin-inline:auto;}
 @media(max-width:900px){.discovery-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}#discover-nav{gap:2px;max-width:calc(100% - 40px);flex-wrap:wrap;justify-content:center}#discover-nav button{font-size:13px;padding-inline:8px;min-height:44px}.discovery-view{inset:118px 18px 92px}.discovery-card strong{font-size:17px}}
 @media(max-width:600px){#discover-nav{max-width:none;gap:2px 8px}#discover-nav button{flex:0 0 auto;min-width:80px}.discovery-view{top:164px}body:has(#discover-nav:not([hidden])) .browser-view{top:164px}}
+.loading-notice{display:flex;align-items:center;gap:9px;margin:8px 0 16px;padding:0;min-height:24px;background:transparent;color:var(--muted);font-size:14px;font-weight:400;}
+.loading-notice::before{content:"";width:12px;height:12px;flex-shrink:0;border:2px solid var(--mint);border-right-color:transparent;border-radius:50%;animation:loading-turn 1s linear infinite;}
+@keyframes loading-turn{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){.loading-notice::before{animation:none}}
+@media(max-width:700px) and (orientation:portrait){
+  #dashboard-clock{display:none;}
+  .music-subnav,#discover-nav{top:max(6px,env(safe-area-inset-top));left:58px;right:10px;width:auto;max-width:none;transform:none;gap:2px;justify-content:center;flex-wrap:nowrap;}
+  #discover-nav{display:grid;grid-template-columns:1fr 1fr .85fr .6fr 1.6fr;}
+  #discover-nav[hidden]{display:none;}
+  #discover-nav button{min-width:0;min-height:44px;padding:10px 2px;font-size:clamp(10px,2.8vw,11px);letter-spacing:.035em;white-space:nowrap;}
+  .music-subnav button.active::after{left:2px;right:2px;}
+  .discovery-view{inset:66px 16px 82px;}
+  .browser-view,body:has(#discover-nav:not([hidden])) .browser-view{top:62px;bottom:82px;padding:0 16px;grid-template-columns:minmax(0,1fr) 24px;grid-template-rows:48px minmax(0,1fr);gap:10px 8px;}
+  .browser-sidebar{grid-column:1/-1;grid-row:1;flex-direction:row;align-items:center;gap:2px;overflow-x:auto;padding:0!important;scrollbar-width:none;}
+  .browser-sidebar button{flex:0 0 auto;min-height:44px;padding:8px;font-size:10px;text-align:center;white-space:nowrap;}
+  .browser-sidebar .browser-back{order:-1;margin:0;align-self:center;width:auto;min-width:54px;min-height:40px;}
+  .browser-shell{grid-column:1;grid-row:2;}
+  .browser-scrubber{grid-column:2;grid-row:2;}
+  .browser-list.layout-covers,.browser-list.layout-tiles{gap:16px 12px;}
+  .browser-view.artist-takeover{grid-template-columns:minmax(0,1fr) 24px;grid-template-rows:48px auto minmax(0,1fr);}
+  .artist-takeover .browser-sidebar{grid-row:1;}
+  .artist-takeover .artist-profile{grid-column:1/-1;grid-row:2;max-height:150px;padding:0;}
+  .artist-takeover .browser-shell{grid-column:1;grid-row:3;}
+  .artist-takeover .browser-scrubber{grid-row:3;}
+  .browser-view.surprise-takeover{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr);}
+  .surprise-takeover .browser-shell{grid-column:1;grid-row:1;}
+  .web-nav a{white-space:nowrap;font-size:12px;}
+  .discovery-view>.browser-back{min-height:44px;}
+  .queue-view,.details-view{top:62px;}
+  .source-view{top:66px;}
+}
