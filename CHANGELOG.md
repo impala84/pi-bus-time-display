@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.1.0-beta.1 — 4 October 2026
+
+- Add Discover to web and native navigation, with Recent, Browse, Daily Mixes, NEW and Surprise; move existing exploration out of Now Playing without changing clock placement.
+- Retrieve actual Roon listening history, personalised mixes, Daily Picks with seed/context, and New Releases for You through a pinned MIT research client. Preserve the official API for playback and queue actions; no RoonMCP.
+- Isolate private-protocol reads in short-lived, memory-limited workers with a 20-second deadline, serial/coalesced requests, five-minute successful cache and one-minute failure backoff. Unpairing clears personal discovery data.
+- Proxy registered artwork references locally, keep signed URLs/internal object references out of public responses, and retain neutral artwork placeholders on failure.
+- Match selections by exact title/artist/category into official Roon controls. Ambiguous editions require manual selection; simply opening a result never selects Play.
+- Give Discover tabs distinct routes with Back/Forward restoration, explicit loading/unavailable states, four-column landscape cards and two-column mobile cards. Shorten New Releases to NEW and prevent mobile navigation overlap.
+- Apply matching black-to-purple duotone to Daily Mix artist portraits in the Roon theme only, using a web presentation filter and native GTK colour matrix; keep Fresh Mint portraits, album covers and shared artwork in full colour.
+
+Verification: 117 Python and 72 Node checks passed; real-server read-only data and sample official action menus resolved; local browser checks passed at 1280×720 and 390×844. Physical GTK/touch acceptance and audio-confirmed play/queue are pending. Whole-mix play/queue is not implemented; this beta offers bounded mix-track previews and individual-track controls. Stable remains v1.0.0; no remote installation/restart was performed.
+
 ## 1.0.0 — 4 October 2026
 
 - Consolidate current installation/configuration/recovery documentation; remove superseded Chromium kiosk and unused design/planning artefacts.

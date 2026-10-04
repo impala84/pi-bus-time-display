@@ -3,7 +3,10 @@ const mins = n => n === 0 ? 'Due' : `${n}<small>min</small>`;
 function tick(){const value=new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Singapore',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date());byId('clock').textContent=value;byId('rest-clock').textContent=value}
 function render(data){
   document.body.dataset.theme=data.display_theme==='roon'?'roon':'fresh-mint';
-  byId('roon-link').textContent=data.roon_display_name||'Roon';
+  byId('roon-link').textContent='Now Playing';
+  const nav=byId('roon-link').parentElement;
+  if(!nav.querySelector('[data-discover]')){const link=document.createElement('a');link.dataset.discover='';link.href='/roon/#discover/recent';link.textContent='Discover';byId('roon-link').after(link);nav.style.gridTemplateColumns='repeat(4,minmax(0,1fr))'}
+  nav.style.display='flex';for(const link of nav.children)link.style.flex='1';
   byId('app').hidden=!data.window_active;byId('resting').hidden=data.window_active;
   byId('stop').replaceChildren(document.createTextNode(data.stop_name+' '));
   const code=document.createElement('span');code.className='stop-code';code.textContent=data.stop_code;byId('stop').append(code);

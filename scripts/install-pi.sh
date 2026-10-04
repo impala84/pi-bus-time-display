@@ -13,7 +13,7 @@ if [[ -z ${desktop_user} || ${desktop_user} == root ]]; then
   exit 1
 fi
 apt-get update
-apt-get install -y git nodejs npm python3-venv python3-gi python3-gi-cairo gir1.2-gtk-4.0 fonts-inter avahi-utils wlr-randr grim curl openssl
+apt-get install -y git nodejs npm python3-venv python3-gi python3-gi-cairo gir1.2-gtk-4.0 gir1.2-graphene-1.0 fonts-inter avahi-utils wlr-randr grim curl openssl
 id morningbus >/dev/null 2>&1 || useradd --create-home --shell /bin/bash morningbus
 install -d -o morningbus -g morningbus /opt/pi-bus-time-display /etc/pi-bus-time-display /var/lib/pi-bus-time-display /var/lib/pi-bus-time-display/roon
 if [[ ${SOURCE_DIR} != /opt/pi-bus-time-display ]]; then

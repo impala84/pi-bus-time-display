@@ -43,6 +43,8 @@ that may reclaim the Roon source.
 
 ## Threading rule
 
+The v1.1 Beta adds `DiscoveryManager` beside (not inside) the official controller. It locates the authorised Core via the existing SOOD announcements, spawns a short-lived read-only protocol worker and supplies cached normalised data to web/GTK. The parent never imports the unsupported client. Discovery errors remain local to Discover; they do not replace Roon transport/queue subscriptions. See [Discovery notes](DISCOVERY.md) for limits and required hardware acceptance. Vendored MIT code has its retained notice under `roon-controller/vendor/roon-research/`.
+
 GTK construction and mutation run only on the GTK main thread. HTTP, image
 downloads and raw input reads run in workers and return through `GLib.idle_add`.
 The Python web server uses one thread per request. Privileged actions never run

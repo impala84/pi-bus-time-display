@@ -30,6 +30,34 @@ class Entry:
 
 
 class NativeBrowserControlsTests(unittest.TestCase):
+    def test_mix_duotone_preserves_alpha_and_maps_black_white_and_coloured_pixels(self):
+        tree = ast.parse(SOURCE.read_text(encoding="utf-8"))
+        function = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == "mix_duotone_matrix")
+        namespace = {}; exec(compile(ast.Module(body=[function], type_ignores=[]), str(SOURCE), "exec"), namespace)
+        matrix = namespace["mix_duotone_matrix"]()
+        transform = lambda pixel: [sum(matrix[row * 4 + column] * pixel[row] for row in range(4)) for column in range(4)]
+        self.assertEqual(transform([0, 0, 0, 1]), [0, 0, 0, 1])
+        for actual, expected in zip(transform([1, 1, 1, 1]), [150/255, 144/255, 237/255, 1]): self.assertAlmostEqual(actual, expected)
+        red = transform([1, 0, 0, .5]); self.assertAlmostEqual(red[3], .5); self.assertGreater(red[2], red[0]); self.assertGreater(red[0], red[1])
+
+    def test_discovery_drops_stale_results_without_touching_gtk(self):
+        owner = SimpleNamespace(discovery_request=2, discovery_active=True)
+        self.assertFalse(native_method("render_discover")(owner, 1, {"status":"ready"}))
+        self.assertFalse(native_method("apply_discovery_item")(owner, 1, {"items":[]}))
+
+    def test_discovery_keeps_short_tabs_and_moves_browse_out_of_now_playing(self):
+        code = SOURCE.read_text(encoding="utf-8")
+        self.assertIn('("releases", "NEW")', code)
+        self.assertIn('self.browser_tab.set_visible(False)', code)
+        self.assertIn('self.roon_views.add_named(self.discovery_scroll, "discover")', code)
+        self.assertIn('background: transparent; background-image: none; box-shadow: none;', code)
+
+    def test_discovery_thumbnail_has_its_own_proxy_not_official_image_keys(self):
+        code = SOURCE.read_text(encoding="utf-8")
+        self.assertIn('/api/discovery/image?key=', code)
+        self.assertIn('key.startswith("discover:")', code)
+        self.assertIn('self.discovery_pictures.get(key, [])', code)
+
     def test_grouped_results_have_separate_scrollers_not_nested_in_browser_viewport(self):
         code = SOURCE.read_text(encoding="utf-8")
         self.assertIn('content.append(self.browser_search_columns)', code)
@@ -130,9 +158,10 @@ class NativeBrowserControlsTests(unittest.TestCase):
         calls = []
         owner = SimpleNamespace(settings_data={},window=SimpleNamespace(add_css_class=calls.append,remove_css_class=calls.append),browser_scrubber=SimpleNamespace(queue_draw=lambda:calls.append('draw')))
         owner.touch_theme_buttons = {value: SimpleNamespace(add_css_class=lambda cls, value=value:calls.append((value,cls)),remove_css_class=lambda cls:None) for value in ('fresh-mint','roon')}
+        owner.discovery_pictures = {'discover:art': [SimpleNamespace(queue_draw=lambda:calls.append('portrait'))]}
         native_method('apply_theme')(owner, 'roon')
         self.assertEqual(owner.settings_data['display_theme'], 'roon')
-        self.assertEqual(calls, ['theme-roon',('roon','active'),'draw'])
+        self.assertEqual(calls, ['theme-roon',('roon','active'),'draw','portrait'])
         self.assertFalse(owner.theme_updating)
         native_method('change_theme')(SimpleNamespace(theme_updating=True), 'roon')
 

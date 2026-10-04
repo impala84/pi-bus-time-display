@@ -14,6 +14,16 @@ const {playingMetadata, loadDetails, loadArtistProfile} = require('./details-sta
 const artistProfileCache = new Map();
 const {BluOSClient, discoverPlayers} = require('./bluos-client');
 const {BrowseManager} = require('./browse-state');
+const {DiscoveryManager} = require('./discovery-state');
+const {openDiscovery} = require('./discovery-bridge');
+const {brokerWireId} = require('../tools/discovery-wire.cjs');
+const discovery = new DiscoveryManager();
+const discoveryCores = new Map();
+function discoveryTarget() {
+  const host = core?.moo?.transport?.host;
+  const found = discoveryCores.get(host);
+  discovery.setTarget(core && found ? {...found,coreId:core.core_id} : null);
+}
 
 const port = Number(process.env.PORT || 8766);
 const staticDir = path.join(__dirname, 'static');
@@ -228,12 +238,13 @@ function cachedImage(key, size, callback) {
 const roon = new RoonApi({
   extension_id: 'com.impala84.pi-bus-time-display',
   display_name: 'Pi Home Roon Controller',
-  display_version: '0.11.8',
+  display_version: require('./package.json').version,
   publisher: 'Pi Home',
   email: 'noreply@example.invalid',
   website: 'https://github.com/impala84/pi-home',
   core_paired: pairedCore => {
     core = pairedCore;
+    discoveryTarget();
     transport = core.services.RoonApiTransport;
     imageService = core.services.RoonApiImage;
     browseService = core.services.RoonApiBrowse;
@@ -245,6 +256,7 @@ const roon = new RoonApi({
     stopQueueSubscription();
     browser.clear();
     core = transport = imageService = browseService = null;
+    discovery.setTarget(null);
     details = {status: 'unavailable'}; detailsKey = ''; detailsRequest += 1;
     zones.clear();
     status.set_status('Waiting for Roon authorisation', false);
@@ -255,6 +267,18 @@ const status = new RoonApiStatus(roon);
 roon.init_services({required_services: [RoonApiTransport, RoonApiImage, RoonApiBrowse], provided_services: [status]});
 status.set_status('Waiting for Roon authorisation', false);
 roon.start_discovery();
+roon._sood.on('message', message => {
+  if (message.props.service_id !== '00720724-5143-4a9b-abac-0e50cba674bb') return;
+  try {
+    const local = Object.values(require('node:os').networkInterfaces()).flat().some(address=>address?.address===message.from.ip);
+    const host = local ? '127.0.0.1' : message.from.ip;
+    const httpPort = Number(message.props.http_port);
+    if (!Number.isInteger(httpPort) || httpPort < 1 || httpPort > 65535) return;
+    discoveryCores.set(host,{host,httpPort,brokerId:brokerWireId(message.props.unique_id)});
+    if(discoveryCores.size>16) discoveryCores.delete(discoveryCores.keys().next().value);
+    discoveryTarget();
+  } catch { /* Malformed announcements must not affect official playback. */ }
+});
 
 function json(response, statusCode, body) {
   const data = Buffer.from(JSON.stringify(body));
@@ -314,6 +338,19 @@ http.createServer(async (request, response) => {
         response.writeHead(200, {'Content-Type': type || 'image/jpeg', 'Cache-Control': 'private, max-age=3600'}); response.end(data);
       });
     }
+    if (request.method === 'GET' && url.pathname === '/api/discovery') return json(response,200,discovery.state(url.searchParams.get('section') || 'recent',url.searchParams.get('id') || ''));
+    if (request.method === 'GET' && url.pathname === '/api/discovery/image') {
+      const imageUrl = discovery.imageUrl(url.searchParams.get('key'));
+      if(!imageUrl) return response.writeHead(404).end();
+      const upstream = await fetch(imageUrl,{signal:AbortSignal.timeout(4000),redirect:'error'});
+      if(!upstream.ok) return response.writeHead(404).end();
+      const chunks=[]; let length=0;
+      for await(const chunk of upstream.body) {length+=chunk.length;if(length>3*1024*1024) throw new Error('Artwork exceeds the size limit');chunks.push(chunk);}
+      const bytes=Buffer.concat(chunks);
+      const jpeg=bytes[0]===255&&bytes[1]===216, png=bytes.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]));
+      if(!jpeg&&!png) return response.writeHead(404).end();
+      response.writeHead(200,{'Content-Type':jpeg?'image/jpeg':'image/png','Cache-Control':'private, max-age=300'});return response.end(bytes);
+    }
     if (request.method === 'POST' && url.pathname.startsWith('/api/')) {
       const data = await body(request); const zone = selectedZone();
       if (url.pathname === '/api/bluos/input') {
@@ -322,6 +359,13 @@ http.createServer(async (request, response) => {
       if (url.pathname === '/api/bluos/volume') { await bluos.setVolume(data.value); return json(response, 200, {ok: true}); }
       if (url.pathname === '/api/bluos/mute') { await bluos.toggleMute(); return json(response, 200, {ok: true}); }
       if (!transport || !zone) return json(response, 409, {error: 'Roon is not connected'});
+      if(url.pathname === '/api/discovery/open') {
+        if(!discovery.find(data.key) && data.section) {
+          discovery.state(data.section,data.id||'');
+          await discovery.tail;
+        }
+        return json(response,200,await openDiscovery(browser,data.session,discovery.find(data.key)));
+      }
       if (url.pathname === '/api/browse') {
         if (!configuredRuntime().browserEnabled) return json(response, 404, {error: 'Roon Browse is disabled'});
         const action = ['root', 'open', 'back', 'more', 'previous', 'jump', 'section', 'search', 'surprise', 'surprise_play', 'current', 'route'].includes(data.action) ? data.action : 'current';

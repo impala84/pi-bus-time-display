@@ -10,6 +10,8 @@ The `v1.0.0` baseline includes repository cleanup, documented installation/recov
 
 Augment the official Roon API; do not replace it. Investigate Arthur Soares' reverse-engineered Roon client project, initially read-only and isolated. Do not integrate RoonMCP. Unsupported discovery failures must leave official playback, zones, queue and browse/search working.
 
+Live research on `discover-v1.1` has proven all four read-only data sources, including current Daily Picks compatibility and nested mix metadata. See [the actual-server proof findings](docs/DISCOVERY.md). Sample albums/tracks resolve to official playback/queue menus without playing audio. Worker isolation, artwork/action delivery and native/web UI implementation remain; this is not a completed beta.
+
 Before UI work, prove against the actual Roon Server that Daily Mixes, Daily Picks/equivalent recommendations, New Releases for You and recent listening/history are accessible. Document title, artist, album, artwork, descriptions/context, source/availability and playback references. Prove whether the existing official playback/queue integration can consume those references. Stop and report unavailable/unreliable data instead of building UI around assumptions.
 
 Once proven:

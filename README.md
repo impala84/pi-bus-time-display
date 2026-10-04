@@ -2,7 +2,7 @@
 
 Pi Home is an independent Raspberry Pi touchscreen interface for Roon, with optional Singapore bus arrivals and Home Assistant controls. It runs a native GTK4 display in Cage/Wayland, alongside a phone/desktop web interface. Chromium is not required.
 
-The Stable baseline is **v1.0.0**. Discover is future v1.1 work, not part of v1.0. Automated local checks cover the release; a running-Pi audit, fresh installation and physical touchscreen acceptance have not been verified for this release.
+The Stable baseline is **v1.0.0**. The separate **v1.1.0-beta.1** candidate adds Discover; select the Beta update channel to try it. Actual-server discovery reads and a local browser preview were verified. Physical GTK acceptance, audio-confirmed Discover playback and fresh installation remain unverified; this is not stable v1.1.
 
 ## Features
 
@@ -15,6 +15,7 @@ The Stable baseline is **v1.0.0**. Discover is future v1.1 work, not part of v1.
 - Scheduled sleep, touch wake, brightness/orientation controls and playback-aware wake behaviour. TV/record inputs do not independently hold the display awake.
 - Password-protected web settings, diagnostics, actual display capture and controlled system actions.
 - Published-release updates with Stable/Beta selection, preserving appliance configuration and credentials.
+- In v1.1 Beta: artwork-led Recent, personalised mixes and Daily Picks, New Releases for You, with existing Browse/Surprise under Discover. Its five tabs are Recent, Browse, Daily Mixes, NEW and Surprise. Mixes currently open bounded track previews, not one-button whole-mix playback.
 
 Pi Home is not affiliated with Roon Labs. Roon Server and a Roon subscription are separate requirements. Roon Bridge is optional: it makes the Pi an audio endpoint, but is not needed to control an existing Roon zone.
 
@@ -40,7 +41,7 @@ Required system components are installed by `scripts/install-pi.sh`: Python/venv
 
 The Python service listens on port **8765**. The Node controller listens only on **127.0.0.1:8766**; web clients reach it through `/roon/` on the Python service. GTK talks to the local services directly. A path-activated privileged broker permits a fixed set of system actions; neither application has general sudo access.
 
-Roon owns transport, zones, playback, queue and library/catalogue data. Optional bus/Home failures do not replace that integration. Future unsupported discovery augmentation must be isolated and must not break the official controller. No RoonMCP dependency is used or planned.
+Roon owns transport, zones, playback, queue and library/catalogue data. Optional bus/Home failures do not replace that integration. Beta augments the official API with an isolated, read-only worker for unsupported discovery data; official playback remains authoritative. No RoonMCP dependency is used or planned. [Discovery notes](docs/DISCOVERY.md) cover the pinned MIT client, unsupported-protocol risks, bounded caching and beta limitations.
 
 ## Fresh Raspberry Pi installation
 

@@ -126,6 +126,7 @@ function render(next) {
   $('queue-view').hidden = musicView !== 'queue';
   $('browser-view').hidden = musicView !== 'browse';
   $('details-view').hidden = musicView !== 'details';
+  syncDiscoveryNavigation();
   $('now-tab').disabled = $('queue-tab').disabled = $('browse-tab').disabled = false;
   if (externalView) return;
   if (!zone) {
@@ -240,12 +241,13 @@ function setMusicView(view, record = true) {
   const browse = view === 'browse';
   const details = view === 'details';
   const source = view === 'source';
-  $('now-view').hidden = queue || browse || details || source; $('queue-view').hidden = !queue; $('browser-view').hidden = !browse; $('details-view').hidden = !details; $('source-view').hidden = !source;
+  $('now-view').hidden = view !== 'now'; $('queue-view').hidden = !queue; $('browser-view').hidden = !browse; $('details-view').hidden = !details; $('source-view').hidden = !source;
   $('now-tab').classList.toggle('active', view === 'now'); $('queue-tab').classList.toggle('active', queue); $('browse-tab').classList.toggle('active', browse);
   document.querySelectorAll('.source-input').forEach(button => button.classList.toggle('active', source && String(button.dataset.inputId) === String(state?.amplifier?.active_input?.id)));
   if (queue) requestAnimationFrame(scrollQueueToCurrent);
-  if (browse && !browserState && !location.hash.startsWith('#browse/')) browseCommand('section', {section: 'albums'});
-  if (record && !(view === 'browse' && location.hash.startsWith('#browse/')) && location.hash !== `#${view}`) history.pushState(null, '', `#${view}`);
+  if (browse && record && !browserState && !location.hash.startsWith('#browse/')) browseCommand('section', {section: 'albums'});
+  if (record && !(view === 'browse' && location.hash.startsWith('#browse/'))) { if (location.hash !== `#${view}`) history.pushState(null, '', `#${view}`); lastRestoredHash = `#${view}`; }
+  syncDiscoveryNavigation();
 }
 
 function browserRow(item) {
@@ -360,6 +362,7 @@ function renderBrowser(data) {
   $('browser-surprise').classList.toggle('active', activeSection === 'surprise');
   $('browser-surprise').hidden = false;
   $('browser-surprise').textContent = 'SURPRISE!';
+  syncDiscoveryNavigation();
   $('browser-scrubber').hidden = !data.alpha_scrub;
   $('browser-message').hidden = !data.message; $('browser-message').textContent = data.message || ''; $('browser-message').classList.toggle('error', Boolean(data.error));
   const list = $('browser-list'); list.replaceChildren(); list.className = `browser-list layout-${data.layout || 'list'}`;
@@ -516,6 +519,7 @@ function renderDetails(info) {
   });
 }
 
+initDiscover();
 fetch(api('/api/state'), {cache: 'no-store'})
   .then(response => response.ok ? response.json() : Promise.reject(new Error('Roon state unavailable')))
   .then(render)
@@ -587,8 +591,14 @@ function restoreMusicRoute() {
   lastRestoredHash = location.hash;
   const [route, queryString = ''] = location.hash.slice(1).split('?');
   const [view, section] = route.split('/');
+  if(view==='discover') {
+    const params=new URLSearchParams(queryString);
+    if(section==='item'){setMusicView('discover',false);openDiscoveryItem(params.get('key'),false,params.get('section')||'recent',params.get('mix')||'');return;}
+    openDiscover(section,params.get('mix')||'',false);return;
+  }
   setMusicView(['now', 'queue', 'browse', 'details', 'source'].includes(view) ? view : 'now', false);
   if (view === 'browse' && section) {
+    discoveryTab='browse';syncDiscoveryNavigation();
     const params = new URLSearchParams(queryString); const query = params.get('query') || '';
     if (section === 'search' && !query) { $('browser-search-panel').hidden = false; $('browser-search-input').focus(); return; }
     let steps = []; try { steps = JSON.parse(params.get('path') || '[]'); } catch (_) {}
