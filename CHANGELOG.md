@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.1.0-beta.4 — 4 October 2026
+
+- Keep music and Discover menus mutually exclusive across native periodic settings refreshes; remove Browse from Now Playing.
+- Use the full New Releases label and remove redundant Recent, Daily Mixes and New Releases page headings.
+- Add rounded clipping to native Discover artwork, larger fixed-size covers, centred two-line title space and theme-matched light scrollbars.
+- Replace the full-width mix Back control with compact Back, use “Loading your mix…”, and collapse track previews behind View Tracks.
+- Add explicit Play This Mix / Queue This Mix buttons using one experimental native Roon PlayMix call, exact zone/mix matching, bounded duplicate-request receipts and no automatic playback retries. Normal controls retain the official API.
+
+Verification: 120 Python and 80 Node checks pass. Real-server read-only preflight verified the selected zone and mix identity; no playback call was executed. Local browser checks cover full navigation, card layout and collapsed mix controls at 1280×720 and 390×844. Whole-mix audio acceptance and physical GTK rendering remain pending. Stable remains v1.0.0; no remote installation/restart.
+
 ## 1.1.0-beta.3 — 4 October 2026
 
 - Recent shows unique albums rather than repeated tracks, newest listen first, and opens album controls on both interfaces. Inspect up to 100 history events to produce up to 20 recent albums; skip entries without an album.

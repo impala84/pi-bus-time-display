@@ -6,6 +6,7 @@ class DiscoveryManager {
   constructor({spawn = fork, now = Date.now, timeoutMs = 20000} = {}) {
     this.spawn = spawn; this.now = now; this.timeoutMs = timeoutMs;
     this.target = null; this.cache = new Map(); this.pending = new Map(); this.tail = Promise.resolve(); this.child = null; this.images = new Map();
+    this.actions = new Map(); this.actionBusy = false;
   }
   setTarget(target) {
     if (JSON.stringify(target) === JSON.stringify(this.target)) return;
@@ -16,7 +17,7 @@ class DiscoveryManager {
     if (section === 'mix' && (!/^[a-f0-9]{2,160}$/i.test(id) || id.length % 2)) throw new Error('Invalid mix reference');
     if (!this.target) return {status: 'unavailable', message: 'Connect and authorise Roon to use Discover.', items: []};
     const key = `${section}:${id}`; const cached = this.cache.get(key);
-    if ((!cached || cached.expires <= this.now()) && !this.pending.has(key) && this.pending.size < 4) {
+    if ((!cached || cached.expires <= this.now()) && !this.actionBusy && !this.pending.has(key) && this.pending.size < 4) {
       const target = this.target;
       const job = this.tail.catch(() => {}).then(() => target === this.target ? this.run(target, section, id) : null).then(data => {
         if (!data || target !== this.target) return;
@@ -55,7 +56,21 @@ class DiscoveryManager {
     if(/^broker:\/\/\/image\/[A-Za-z0-9_-]+\.__ROON_IMAGE_SIZE__\.jpg$/.test(url)) return `http://${this.target.host}:${this.target.httpPort||9330}/${url.slice('broker:///'.length).replace('__ROON_IMAGE_SIZE__','256')}`;
     try {const target=new URL(url); return target.protocol==='https:'&&target.hostname==='images.tidal.com'?url:null;} catch {return null;}
   }
-  run(target, section, id) {
+  async mixAction(id,zoneId,action,nonce) {
+    if(!this.target)throw Error('Roon is not connected');
+    if(!/^[a-f0-9]{2,160}$/i.test(id||'')||id.length%2||!/^[a-f0-9]{36}$/i.test(zoneId||'')||!['play','queue'].includes(action)||!/^[a-zA-Z0-9-]{16,64}$/.test(nonce||''))throw Error('Invalid mix request');
+    const identity=JSON.stringify([this.target.coreId,id,zoneId,action,nonce]);
+    if(this.actions.has(identity))return this.actions.get(identity);
+    if(this.actionBusy||this.pending.size)throw Error('Discover is busy. Wait for loading to finish.');
+    const target=this.target; this.actionBusy=true;
+    const job=this.run(target,'mix-action',id,{zoneId,action}).then(data=>{
+      if(target!==this.target||!data.accepted)throw Error('The mix request could not be confirmed. Check the Roon queue before trying again.');
+      return {accepted:true,count:data.count,action:data.action};
+    }).finally(()=>{this.actionBusy=false;});
+    this.actions.set(identity,job);while(this.actions.size>64)this.actions.delete(this.actions.keys().next().value);
+    return job;
+  }
+  run(target, section, id, extra={}) {
     return new Promise(resolve => {
       let child, timer, settled = false;
       const finish = result => {
@@ -69,7 +84,7 @@ class DiscoveryManager {
         this.child = child; timer = setTimeout(unavailable, this.timeoutMs);
         child.once('message', result => result?.ok ? finish({status: 'ready', ...result.data, updated_at: new Date(this.now()).toISOString()}) : unavailable());
         child.once('error', unavailable); child.once('exit', unavailable);
-        child.send({...target, section, id});
+        child.send({...target, section, id, ...extra});
       } catch {unavailable();}
     });
   }

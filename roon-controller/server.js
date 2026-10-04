@@ -359,6 +359,7 @@ http.createServer(async (request, response) => {
       if (url.pathname === '/api/bluos/volume') { await bluos.setVolume(data.value); return json(response, 200, {ok: true}); }
       if (url.pathname === '/api/bluos/mute') { await bluos.toggleMute(); return json(response, 200, {ok: true}); }
       if (!transport || !zone) return json(response, 409, {error: 'Roon is not connected'});
+      if(url.pathname === '/api/discovery/mix-action') return json(response,200,await discovery.mixAction(data.id,zone.zone_id,data.action,data.nonce));
       if(url.pathname === '/api/discovery/open') {
         if(!discovery.find(data.key) && data.section) {
           discovery.state(data.section,data.id||'');

@@ -13,6 +13,7 @@ import threading
 import time
 import unicodedata
 import urllib.request
+import uuid
 from queue import Queue
 from datetime import datetime
 from pathlib import Path
@@ -22,8 +23,9 @@ from zoneinfo import ZoneInfo
 import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("Graphene", "1.0")
+gi.require_version("Gsk", "4.0")
 gi.require_foreign("cairo")
-from gi.repository import Gdk, Gio, GLib, Graphene, Gtk, Pango
+from gi.repository import Gdk, Gio, GLib, Graphene, Gsk, Gtk, Pango
 
 BUS = "http://127.0.0.1:8765"
 ROON = "http://127.0.0.1:8766"
@@ -38,8 +40,9 @@ def mix_duotone_matrix():
 
 class MixPicture(Gtk.Box):
     """Presentation-only tint; shared artwork textures stay unmodified."""
-    def __init__(self):
+    def __init__(self, duotone=True):
         super().__init__()
+        self.duotone = duotone
         self.picture = Gtk.Picture(); self.picture.set_hexpand(True); self.picture.set_vexpand(True); self.append(self.picture)
 
     def set_can_shrink(self, value): self.picture.set_can_shrink(value)
@@ -48,13 +51,17 @@ class MixPicture(Gtk.Box):
     def set_paintable(self, value): self.picture.set_paintable(value)
 
     def do_snapshot(self, snapshot):
+        bounds = Graphene.Rect(); bounds.init(0, 0, self.get_width(), self.get_height())
+        clip = Gsk.RoundedRect(); clip.init_from_rect(bounds, 8)
+        snapshot.push_rounded_clip(clip)
         root = self.get_root()
-        if not root or not root.has_css_class("theme-roon"):
-            self.snapshot_child(self.picture, snapshot); return
-        matrix = Graphene.Matrix(); matrix.init_from_float(mix_duotone_matrix())
-        offset = Graphene.Vec4(); offset.init(0, 0, 0, 0)
-        snapshot.push_color_matrix(matrix, offset)
+        tinted = self.duotone and root and root.has_css_class("theme-roon")
+        if tinted:
+            matrix = Graphene.Matrix(); matrix.init_from_float(mix_duotone_matrix())
+            offset = Graphene.Vec4(); offset.init(0, 0, 0, 0)
+            snapshot.push_color_matrix(matrix, offset)
         self.snapshot_child(self.picture, snapshot)
+        if tinted: snapshot.pop()
         snapshot.pop()
 
 
@@ -195,6 +202,8 @@ CSS += b"""
 .theme-roon .detail-takeover { background: rgba(21,21,21,.96); }
 .discovery-card, .discovery-card:hover, .discovery-card:active { padding: 8px; background: transparent; background-image: none; box-shadow: none; }
 .discovery-card .queue-title { font-size: 18px; }.discovery-card .queue-subtitle { font-size: 14px; color: #aaa; }
+.discovery-scroll scrollbar { background: transparent; min-width: 6px; }.discovery-scroll scrollbar slider { background: #a7a5ac; min-width: 6px; border-radius: 4px; }
+.theme-roon .discovery-scroll scrollbar slider { background: #aaa3ed; }
 """
 
 
@@ -389,7 +398,7 @@ class Display(Gtk.Application):
         header_overlay.add_overlay(subnav); page.append(header_overlay)
         self.discover_subnav = Gtk.Box(spacing=8); self.discover_subnav.add_css_class("roon-subnav"); self.discover_subnav.set_halign(Gtk.Align.CENTER); self.discover_subnav.set_valign(Gtk.Align.START)
         self.discover_tabs = {}
-        for section, title in (("recent", "RECENT"), ("browse", "BROWSE"), ("daily", "DAILY MIXES"), ("releases", "NEW"), ("surprise", "SURPRISE")):
+        for section, title in (("recent", "RECENT"), ("browse", "BROWSE"), ("daily", "DAILY MIXES"), ("releases", "NEW RELEASES"), ("surprise", "SURPRISE")):
             button = self.button(title, lambda _button, value=section: self.open_discover(value), "")
             self.discover_tabs[section] = button; self.discover_subnav.append(button)
         header_overlay.add_overlay(self.discover_subnav); self.discover_subnav.set_visible(False); self.browser_tab.set_visible(False)
@@ -397,6 +406,7 @@ class Display(Gtk.Application):
         self.roon_views.set_hhomogeneous(False); self.roon_views.set_vhomogeneous(False)
         self.discovery_list = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18)
         self.discovery_scroll = Gtk.ScrolledWindow(); self.discovery_scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC); self.discovery_scroll.set_kinetic_scrolling(True); self.discovery_scroll.set_propagate_natural_height(False); self.discovery_scroll.set_min_content_height(1); self.discovery_scroll.set_size_request(-1, 1); self.discovery_scroll.set_vexpand(True); self.discovery_scroll.set_hexpand(True); self.discovery_scroll.set_child(self.discovery_list)
+        self.discovery_scroll.add_css_class("discovery-scroll")
         self.roon_views.add_named(self.discovery_scroll, "discover")
         content = Gtk.Box(spacing=26); content.set_vexpand(True); content.set_margin_start(8); content.set_margin_end(8); content.set_margin_top(8); content.set_margin_bottom(8)
         self.artwork = Gtk.Picture(); self.artwork.add_css_class("artwork"); self.artwork.set_size_request(280, 280); self.artwork.set_valign(Gtk.Align.CENTER); self.artwork.set_content_fit(Gtk.ContentFit.COVER)
@@ -676,9 +686,9 @@ class Display(Gtk.Application):
             self.now_playing_tab.set_label((config.get("roon_now_playing_name") or "Now Playing").upper())
             self.queue_tab.set_label((config.get("roon_queue_name") or "Queue").upper())
             self.controls.set_visible(config.get("roon_show_controls", True)); self.roon_clock.set_visible(config.get("roon_show_clock", True))
-            self.roon_subnav.set_visible(True); self.queue_tab.set_visible(config.get("roon_show_queue", True))
+            self.sync_music_navigation(); self.queue_tab.set_visible(config.get("roon_show_queue", True))
             if not config.get("roon_show_queue", True) and self.roon_views.get_visible_child_name() == "queue": self.set_roon_view("now")
-            self.browser_tab.set_visible(config.get("roon_show_browser", True))
+            self.browser_tab.set_visible(False)
             if not config.get("roon_show_browser", True) and self.roon_views.get_visible_child_name() in {"browse", "search"}: self.set_roon_view("now")
             show_sleep_clock = config.get("sleep_show_clock", False); self.sleep_clock.set_visible(show_sleep_clock); self.sleep_hint.set_visible(show_sleep_clock)
             for button in self.home_nav_buttons: button.set_visible(bool(config.get("home_assistant_enabled") and config.get("home_assistant_entities")))
@@ -918,12 +928,18 @@ class Display(Gtk.Application):
         value = ((((self.state or {}).get("amplifier") or {}).get("volume")) or {}).get("value")
         if value is not None: threading.Thread(target=post_json, args=(ROON + "/api/bluos/volume", {"value": round(float(value) + amount)}), daemon=True).start()
 
+    def sync_music_navigation(self, name=None):
+        name = name or self.roon_views.get_visible_child_name()
+        exploring = self.discovery_active and name in {"discover", "browse", "search"}
+        self.roon_subnav.set_visible(not exploring); self.discover_subnav.set_visible(exploring)
+        self.browser_tab.set_visible(False)
+
     def set_roon_view(self, name):
         if name in {"now", "queue", "browse", "source", "discover"}: self.requested_audio_view = name
         if name in {"now", "queue", "source", "details"}:
             self.discovery_active = False; self.discovery_request += 1
         exploring = self.discovery_active and name in {"discover", "browse", "search"}
-        self.roon_subnav.set_visible(not exploring); self.discover_subnav.set_visible(exploring)
+        self.sync_music_navigation(name)
         for button in self.roon_nav_buttons:
             if exploring: button.remove_css_class("active")
             elif button.navigation_page == "roon": button.add_css_class("active")
@@ -961,7 +977,7 @@ class Display(Gtk.Application):
             self.request_browser("surprise")
         else:
             while child := self.discovery_list.get_first_child(): self.discovery_list.remove(child)
-            self.discovery_list.append(self.label("Loading your Roon recommendations…", "browser-section"))
+            self.discovery_list.append(self.label("Loading your mix…" if mix else "Loading your Roon recommendations…", "browser-section"))
             self.discovery_scroll.get_vadjustment().set_value(0)
             self.start_poll()
 
@@ -973,23 +989,40 @@ class Display(Gtk.Application):
         self.discovery_signature = signature
         while child := self.discovery_list.get_first_child(): self.discovery_list.remove(child)
         self.discovery_pictures = {}
-        if self.discovery_mix: self.discovery_list.append(self.button("BACK TO DAILY MIXES", lambda *_: self.open_discover("daily"), "utility"))
+        if self.discovery_mix:
+            back = self.button("BACK", lambda *_: self.open_discover("daily"), "browser-back"); back.set_halign(Gtk.Align.START); self.discovery_list.append(back)
         if data.get("status") != "ready":
-            self.discovery_list.append(self.label(data.get("message", "Loading…"), "browser-section")); return False
+            self.discovery_list.append(self.label("Loading your mix…" if self.discovery_mix and data.get("status") == "loading" else data.get("message", "Loading…"), "browser-section")); return False
+        if self.discovery_mix:
+            title = self.label((data.get("mix") or {}).get("title", "Your Daily Mix"), "queue-title")
+            self.discovery_list.append(title)
+            controls = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+            for action, label in (("play", "PLAY THIS MIX"), ("queue", "QUEUE THIS MIX")):
+                control = self.button(label, lambda _button, value=action: self.request_mix_action(value, controls), "artist-play" if action == "play" else "browser-back")
+                controls.append(control)
+            self.discovery_list.append(controls)
         monitors = Gdk.Display.get_default().get_monitors()
         monitor = monitors.get_item(0) if monitors.get_n_items() else None
         columns = 4 if monitor and monitor.get_geometry().width >= 1200 else 2
-        size = 190 if columns == 4 else 160
+        size = 220 if columns == 4 else 180
+        content = self.discovery_list
+        if self.discovery_mix:
+            preview = Gtk.Expander(label="VIEW TRACKS")
+            content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+            preview.set_child(content); self.discovery_list.append(preview)
         def group(title, items):
-            heading = self.label(title, "browser-section"); heading.set_wrap(True); self.discovery_list.append(heading)
+            if title:
+                heading = self.label(title, "browser-section"); heading.set_wrap(True); content.append(heading)
             grid = Gtk.Grid(column_spacing=20, row_spacing=20); grid.set_column_homogeneous(True); grid.set_hexpand(True)
             for index, item in enumerate(items):
                 card = Gtk.Button(); card.add_css_class("discovery-card"); card.set_hexpand(True)
                 body = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
-                picture = MixPicture() if item.get("kind") == "mix" else Gtk.Picture(); picture.set_can_shrink(True); picture.set_content_fit(Gtk.ContentFit.COVER); self.set_browser_placeholder(picture)
+                picture = MixPicture(duotone=item.get("kind") == "mix"); picture.set_can_shrink(True); picture.set_content_fit(Gtk.ContentFit.COVER); self.set_browser_placeholder(picture)
                 art = Gtk.AspectFrame(xalign=.5, yalign=.5, ratio=1, obey_child=False); art.set_size_request(size, size); art.set_halign(Gtk.Align.CENTER); art.set_child(picture); body.append(art)
                 title_label = self.label(item.get("title", ""), "queue-title", .5); title_label.set_wrap(True); title_label.set_max_width_chars(23); title_label.set_lines(2); title_label.set_ellipsize(Pango.EllipsizeMode.END); body.append(title_label)
+                title_label.set_justify(Gtk.Justification.CENTER); title_label.set_size_request(-1, 48)
                 credit = self.label(item.get("artist") or " · ".join(item.get("context") or []), "queue-subtitle", .5); credit.set_wrap(True); credit.set_max_width_chars(25); credit.set_lines(2); credit.set_ellipsize(Pango.EllipsizeMode.END); body.append(credit)
+                credit.set_justify(Gtk.Justification.CENTER)
                 card.set_child(body); card.connect("clicked", lambda _button, value=item: self.open_discover("daily", value.get("id", "")) if value.get("kind") == "mix" else self.open_discovery_item(value.get("key")))
                 grid.attach(card, index % columns, index // columns, 1, 1)
                 if key := item.get("artwork_key"):
@@ -997,16 +1030,36 @@ class Display(Gtk.Application):
                     if cached := self.queue_thumbnail_cache.get(key): picture.set_paintable(cached)
                     elif key not in self.queue_thumbnail_pending:
                         self.queue_thumbnail_pending.add(key); self.queue_thumbnail_jobs.put(key)
-            self.discovery_list.append(grid)
-        group("MIX TRACKS" if self.discovery_mix else {"recent": "RECENT", "daily": "DAILY MIXES", "releases": "NEW RELEASES FOR YOU"}.get(self.discovery_section, "DISCOVER"), data.get("items", []))
+            content.append(grid)
+        group(None, data.get("items", []))
         for recommendation in data.get("groups", []):
             reason = {"recent": "Because you listened to", "added": "Because you added"}.get(recommendation.get("reason"), "Inspired by")
             seed = (recommendation.get("seed") or {}).get("title")
             group(f"{reason} {seed}" if seed else "Picked for you", recommendation.get("items", []))
         if not data.get("items") and not data.get("groups"): self.discovery_list.append(self.label("Nothing available here yet.", "browser-message"))
         if self.discovery_mix and data.get("total", 0) > len(data.get("items", [])):
-            self.discovery_list.append(self.label("Mix preview · choose an individual track to play or queue.", "browser-message"))
+            content.append(self.label("Track preview · the mix buttons request the whole mix.", "browser-message"))
         return False
+
+    def request_mix_action(self, action, controls):
+        request, mix = self.discovery_request, self.discovery_mix
+        self.discovery_opening = True
+        child = controls.get_first_child()
+        while child:
+            child.set_sensitive(False); child = child.get_next_sibling()
+        message = self.label("Requesting your mix…", "browser-message"); self.discovery_list.append(message)
+        def load():
+            result = post_json(ROON + "/api/discovery/mix-action", {"id": mix, "action": action, "nonce": str(uuid.uuid4())}, timeout=25.0)
+            GLib.idle_add(finish, result)
+        def finish(result):
+            if request != self.discovery_request or not self.discovery_active: return False
+            message.set_text(f"{'Play requested for' if action == 'play' else 'Queued'} {result.get('count', 0)} mix selections." if result and result.get("accepted") else (result or {}).get("error") or "Roon did not confirm the request. Check its queue before trying again.")
+            child = controls.get_first_child()
+            while child:
+                child.set_sensitive(True); child = child.get_next_sibling()
+            # Keep the result visible until navigation; never automatically retry playback.
+            return False
+        threading.Thread(target=load, daemon=True).start()
 
     def open_discovery_item(self, key):
         self.discovery_opening = True

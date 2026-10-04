@@ -5,6 +5,7 @@ from types import SimpleNamespace
 import unittest
 import base64
 import subprocess
+import uuid
 from unittest.mock import Mock
 
 
@@ -47,7 +48,7 @@ class NativeBrowserControlsTests(unittest.TestCase):
 
     def test_discovery_keeps_short_tabs_and_moves_browse_out_of_now_playing(self):
         code = SOURCE.read_text(encoding="utf-8")
-        self.assertIn('("releases", "NEW")', code)
+        self.assertIn('("releases", "NEW RELEASES")', code)
         self.assertIn('self.browser_tab.set_visible(False)', code)
         self.assertIn('self.roon_views.add_named(self.discovery_scroll, "discover")', code)
         self.assertIn('background: transparent; background-image: none; box-shadow: none;', code)
@@ -57,6 +58,49 @@ class NativeBrowserControlsTests(unittest.TestCase):
         self.assertIn('/api/discovery/image?key=', code)
         self.assertIn('key.startswith("discover:")', code)
         self.assertIn('self.discovery_pictures.get(key, [])', code)
+
+    def test_discovery_menu_stays_exclusive_across_repeated_config_refreshes(self):
+        sync = native_method('sync_music_navigation')
+        for active, view in ((True,'discover'),(True,'browse'),(True,'search'),(False,'now'),(False,'queue')):
+            music, discover, browse = Mock(), Mock(), Mock()
+            owner = SimpleNamespace(discovery_active=active,roon_views=SimpleNamespace(get_visible_child_name=lambda:view),roon_subnav=music,discover_subnav=discover,browser_tab=browse)
+            for _ in range(3): sync(owner)
+            music.set_visible.assert_called_with(not active)
+            discover.set_visible.assert_called_with(active)
+            browse.set_visible.assert_called_with(False)
+        code = SOURCE.read_text(encoding='utf-8')
+        self.assertIn('self.sync_music_navigation(); self.queue_tab', code)
+        self.assertNotIn('self.roon_subnav.set_visible(True)', code)
+
+    def test_discovery_art_and_titles_have_fixed_space_and_rounded_snapshot(self):
+        code=SOURCE.read_text(encoding='utf-8')
+        self.assertIn('snapshot.push_rounded_clip(clip)',code)
+        self.assertIn('MixPicture(duotone=item.get("kind") == "mix")',code)
+        self.assertIn('title_label.set_justify(Gtk.Justification.CENTER)',code)
+        self.assertIn('title_label.set_size_request(-1, 48)',code)
+        self.assertIn('back.set_halign(Gtk.Align.START)',code)
+        self.assertIn('group(None, data.get("items", []))',code)
+
+    def test_mix_action_is_explicit_single_request_and_stale_result_does_not_update_ui(self):
+        controls = Mock(); controls.get_first_child.return_value = None
+        message = Mock(); posts = Mock(return_value={"accepted":True,"count":22})
+        callbacks = []
+        owner = SimpleNamespace(discovery_request=4,discovery_mix="aabb",discovery_active=True,label=Mock(return_value=message),discovery_list=Mock())
+        class Thread:
+            def __init__(self,target,daemon): self.target=target
+            def start(self): self.target()
+        method = native_method("request_mix_action", {"threading":SimpleNamespace(Thread=Thread),"GLib":SimpleNamespace(idle_add=lambda fn,result:callbacks.append((fn,result))),"uuid":uuid,"post_json":posts,"ROON":"http://fixture"})
+        method(owner,"queue",controls)
+        self.assertEqual(posts.call_count,1)
+        self.assertEqual(posts.call_args.args[1]["action"],"queue")
+        self.assertEqual(posts.call_args.args[1]["id"],"aabb")
+        self.assertTrue(owner.discovery_opening)
+        owner.discovery_request=5
+        fn,result=callbacks.pop(); fn(result)
+        message.set_text.assert_not_called()
+        code=SOURCE.read_text(encoding='utf-8')
+        self.assertIn('Gtk.Expander(label="VIEW TRACKS")',code)
+        self.assertIn('"PLAY THIS MIX"',code)
 
     def test_grouped_results_have_separate_scrollers_not_nested_in_browser_viewport(self):
         code = SOURCE.read_text(encoding="utf-8")

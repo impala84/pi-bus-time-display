@@ -49,7 +49,7 @@ async function readDiscovery(client, sdk, section, id) {
     if (!result.success) throw new Error('The mix track list could not be loaded');
     const tracks = client.graph.decodeReturnValue(Uint8Array.from(result.payload));
     await new Promise(resolve => setTimeout(resolve, 1000));
-    return {items: model.list(client.graph, tracks, 20).flatMap(group => model.list(client.graph, model.field(group, 'Tracks'), 5).map(track => model.item(client.graph, track, 'track'))).filter(Boolean), total: Number(model.field(model.resolve(client.graph, tracks), '$count') || 0)};
+    return {mix: model.mixes(client.graph, {$items:[root]}, 1)[0] || null, items: model.list(client.graph, tracks, 20).flatMap(group => model.list(client.graph, model.field(group, 'Tracks'), 5).map(track => model.item(client.graph, track, 'track'))).filter(Boolean), total: Number(model.field(model.resolve(client.graph, tracks), '$count') || 0)};
   }
   if (section !== 'releases') throw new Error('Unknown Discover section');
   result = await call('GetNewReleasesForYou', buildArgs([Arg.sooid(client.profile())]), `Base.ResultCallback<${namespace}.DataList<${namespace}.AlbumWithExtras>>`);
