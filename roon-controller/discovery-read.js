@@ -21,12 +21,8 @@ async function readDiscovery(client, sdk, section, id) {
   const call = (method, args, result) => client.remoting.callMethod(client.serviceOid('Library'), `${namespace}.Library::${method}(System.Sooid, ${result})`, args);
   let result;
   if (section === 'recent') {
-    const history = await exportPlayHistory(client, {limit: 20, pageSize: 20, timeoutMs: 5000});
-    return {items: history.events.map(event => {
-      const albums = [...client.graph.objects.values()].filter(object => /\.Album(?:Lite)?$/.test(object.typeName) && model.text(model.field(object, 'Title')) === event.album && model.text(model.field(object, 'PerformedBy')) === model.text(event.artist));
-      const artwork = albums.length === 1 ? model.image(client.graph, model.field(albums[0], 'Image')) : {url:null,id:null};
-      return {kind: 'track', ...event, artist: model.text(event.artist), id: event.roonTrackId || '', artwork};
-    }), total: history.total};
+    const history = await exportPlayHistory(client, {limit: 100, pageSize: 50, timeoutMs: 5000});
+    return {items: model.recentAlbums(client.graph, history.events)};
   }
   if (section === 'daily') {
     result = await dailyPicks(client, sdk, new Date().toISOString());

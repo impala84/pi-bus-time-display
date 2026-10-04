@@ -64,4 +64,22 @@ function picks(graph, root, limit = 5) {
       items: list(graph, field(box, 'Albums'), limit).map(v => item(graph, v)).filter(Boolean)};
   }).filter(box => box.items.length);
 }
-module.exports = {field, resolve, list, text, image, item, mixes, picks};
+function recentAlbums(graph, events, limit = 20) {
+  const normal = value => text(value).normalize('NFKC').toLocaleLowerCase();
+  const seen = new Set(), result = [];
+  const albums = [...graph.objects.values()].filter(object => /\.Album(?:Lite)?$/.test(object.typeName));
+  const newest = [...events].sort((a,b) => (Date.parse(b.playedAt)||0) - (Date.parse(a.playedAt)||0));
+  for (const event of newest) {
+    const title = text(event.album), artist = text(event.artist);
+    if (!title) continue;
+    const identity = JSON.stringify([normal(title), normal(artist)]);
+    if (seen.has(identity)) continue;
+    seen.add(identity);
+    const matches = albums.filter(album => normal(field(album,'Title')) === normal(title) && normal(field(album,'PerformedBy')) === normal(artist));
+    const metadata = matches.length === 1 ? item(graph,matches[0],'album') : null;
+    result.push({...metadata, kind:'album', title, album:title, artist, id:metadata?.id||'', playedAt:event.playedAt, artwork:metadata?.artwork||{url:null,id:null}});
+    if (result.length >= limit) break;
+  }
+  return result;
+}
+module.exports = {field, resolve, list, text, image, item, mixes, picks, recentAlbums};

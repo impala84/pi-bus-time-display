@@ -1262,7 +1262,7 @@ class Display(Gtk.Application):
     def render_browser(self, data):
         self.browser_rendering = True; self.browser_loading = True; self.browser_state = data; self.browser_back.set_visible(bool(data.get("can_back")) and not data.get("surprise_preview")); self.browser_back.set_sensitive(bool(data.get("can_back"))); self.browser_scrubber.set_visible(bool(data.get("alpha_scrub")))
         active_section = "surprise" if data.get("surprise_preview") else (data.get("section") or "albums")
-        self.browser_sidebar.set_visible(True)
+        self.browser_sidebar.set_visible(not data.get("surprise_preview"))
         self.browser_surprise_button.set_visible(False); self.browser_surprise_button.set_label("SURPRISE!")
         self.browser_surprise_button.get_child().set_xalign(0)
         if active_section == "surprise": self.browser_surprise_button.add_css_class("active")

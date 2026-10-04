@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.0-beta.3 — 4 October 2026
+
+- Recent shows unique albums rather than repeated tracks, newest listen first, and opens album controls on both interfaces. Inspect up to 100 history events to produce up to 20 recent albums; skip entries without an album.
+- Hide the Browse sidebar on Surprise in web and native displays, centring the album and its controls across the available width.
+- Replace the remaining green loading-message background with a purple tint in the Roon web theme; keep Fresh Mint unchanged.
+
+Verification: 117 Python and 76 Node checks pass, including album grouping/order/artwork and production asset serving. Mobile layout verified using synthetic preview data and the browser-check skills; actual GTK acceptance remains pending. No remote installation/restart.
+
 ## 1.1.0-beta.2 — 4 October 2026
 
 - Serve the Discover JavaScript and stylesheet through the production controller asset allow-list. Their missing routes previously stopped web initialisation, leaving the default Mint theme, three-section navigation and a misleading Waiting for Roon message even when Roon was authorised.

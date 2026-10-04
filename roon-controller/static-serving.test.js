@@ -17,7 +17,7 @@ function request(url) {
 test('production serves every script and stylesheet referenced by the Roon page', () => {
   const html = fs.readFileSync(path.join(staticDir, 'index.html'), 'utf8');
   const assets = [...html.matchAll(/(?:src|href)="([^"#]+\.(?:js|css)(?:\?[^" ]*)?)"/g)].map(match => match[1]);
-  assert.ok(assets.includes('discovery.js?v=1102'));
+  assert.ok(assets.some(asset => asset.startsWith('discovery.js?')));
   for (const asset of assets) {
     const response = request('/' + asset);
     assert.equal(response.served, true, asset);

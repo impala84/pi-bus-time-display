@@ -9,5 +9,9 @@ body[data-theme="roon"] .discovery-art.mix-duotone{background:#9690ed;isolation:
 .discovery-card strong{font-size:20px;line-height:1.2}.discovery-card small{font-size:14px;color:var(--muted,#999);line-height:1.3}.discovery-card strong,.discovery-card small{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
 #discover-nav{gap:14px}#discover-nav button{min-height:48px;padding-inline:12px;font-size:17px;white-space:nowrap}
 .discovery-view .browser-section{font-size:18px;margin:6px 0 16px}
+body[data-theme="roon"] .browser-message{background:rgba(129,122,235,.09);color:var(--mint);}
+.browser-view.surprise-takeover{grid-template-columns:minmax(0,1fr)!important;}
+.surprise-takeover .browser-sidebar{display:none!important;}
+.browser-view.surprise-takeover .surprise-stage{width:100%;max-width:760px;margin-inline:auto;}
 @media(max-width:900px){.discovery-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}#discover-nav{gap:2px;max-width:calc(100% - 40px);flex-wrap:wrap;justify-content:center}#discover-nav button{font-size:13px;padding-inline:8px;min-height:44px}.discovery-view{inset:118px 18px 92px}.discovery-card strong{font-size:17px}}
 @media(max-width:600px){#discover-nav{max-width:none;gap:2px 8px}#discover-nav button{flex:0 0 auto;min-width:80px}.discovery-view{top:164px}body:has(#discover-nav:not([hidden])) .browser-view{top:164px}}
