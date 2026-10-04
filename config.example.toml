@@ -1,7 +1,10 @@
-bus_enabled = true
-bus_stop_code = "83249"
-bus_stop_name = "Flamingo Valley · Siglap Rd"
-services = ["40", "42"]
+release_channel = "stable"
+display_theme = "fresh-mint"
+# New installs are music-first. Existing appliance settings are preserved.
+bus_enabled = false
+bus_stop_code = "00000"
+bus_stop_name = "Bus stop"
+services = []
 walking_minutes = 7
 poll_seconds = 20
 stale_after_seconds = 75

@@ -1,7 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=Pi Home
-Comment=Full-screen bus display
-Exec=/opt/pi-bus-time-display/kiosk/launch-kiosk.sh
-Terminal=false
-X-GNOME-Autostart-enabled=true

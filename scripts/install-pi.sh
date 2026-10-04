@@ -7,11 +7,21 @@ if [[ ${EUID} -ne 0 ]]; then
 fi
 
 SOURCE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+desktop_user=${SUDO_USER:-}
+if [[ -z ${desktop_user} || ${desktop_user} == root ]]; then
+  echo "Run this installer with sudo from the Raspberry Pi desktop user."
+  exit 1
+fi
 apt-get update
-apt-get install -y git nodejs npm python3-venv python3-gi python3-gi-cairo gir1.2-gtk-4.0 fonts-inter avahi-utils wlr-randr grim
+apt-get install -y git nodejs npm python3-venv python3-gi python3-gi-cairo gir1.2-gtk-4.0 fonts-inter avahi-utils wlr-randr grim curl openssl
 id morningbus >/dev/null 2>&1 || useradd --create-home --shell /bin/bash morningbus
 install -d -o morningbus -g morningbus /opt/pi-bus-time-display /etc/pi-bus-time-display /var/lib/pi-bus-time-display /var/lib/pi-bus-time-display/roon
-cp -a "${SOURCE_DIR}/." /opt/pi-bus-time-display/
+if [[ ${SOURCE_DIR} != /opt/pi-bus-time-display ]]; then
+  # Export tracked source only: never copy local keys, node_modules or a Mac
+  # virtualenv into the Pi. Keep Git metadata for release-tag updates.
+  git -c safe.directory="${SOURCE_DIR}" -C "${SOURCE_DIR}" archive HEAD | tar -x -C /opt/pi-bus-time-display
+  cp -a "${SOURCE_DIR}/.git" /opt/pi-bus-time-display/
+fi
 python3 -m venv --system-site-packages /opt/pi-bus-time-display/.venv
 /opt/pi-bus-time-display/.venv/bin/pip install --no-deps /opt/pi-bus-time-display
 npm --prefix /opt/pi-bus-time-display/roon-controller ci --omit=dev --no-audit --no-fund
@@ -30,11 +40,6 @@ install -m 0644 /opt/pi-bus-time-display/systemd/*.path /etc/systemd/system/
 install -m 0755 /opt/pi-bus-time-display/scripts/pi-bus-update /usr/local/sbin/pi-bus-update
 install -m 0755 /opt/pi-bus-time-display/scripts/pi-bus-system-action /usr/local/sbin/pi-bus-system-action
 install -m 0755 /opt/pi-bus-time-display/scripts/pi-bus-appliance-mode /usr/local/sbin/pi-bus-appliance-mode
-desktop_user=${SUDO_USER:-}
-if [[ -z ${desktop_user} || ${desktop_user} == root ]]; then
-  echo "Run this installer with sudo from the Raspberry Pi desktop user."
-  exit 1
-fi
 desktop_home=$(getent passwd "${desktop_user}" | cut -d: -f6)
 install -d -o "${desktop_user}" -g "${desktop_user}" "${desktop_home}/.config/autostart"
 install -m 0644 -o "${desktop_user}" -g "${desktop_user}" /opt/pi-bus-time-display/native-display/pi-bus-native.desktop "${desktop_home}/.config/autostart/pi-bus-native.desktop"

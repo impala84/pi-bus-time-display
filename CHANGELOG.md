@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.0.0 — 4 October 2026
+
+- Consolidate current installation/configuration/recovery documentation; remove superseded Chromium kiosk and unused design/planning artefacts.
+- Use generic music-first new-install configuration and ignore private/runtime/build state; preserve saved appliance settings.
+- Add persisted Stable/Beta release-channel selection and an authenticated release-availability endpoint; select exact published GitHub tags by semantic version and never silently downgrade.
+- Display installed version, selected channel, latest release and update availability in Software settings; distinguish unavailable release checks from up-to-date status.
+- Harden installer source copying, include missing capture/download dependencies and add CI checks.
+- Keep the official Roon API as the v1.0 foundation and document gated Discover research separately.
+
+Verification limits: the running-Pi audit, fresh-install rebuild and physical touchscreen acceptance remain unverified. Publication proceeds at the user's explicit request without changing the running Pi.
+
 ## 0.11.35 — 4 October 2026
 
 - Give native search results two directly allocated scroll areas instead of nesting them inside the ordinary browser viewport; load all bounded preview artwork independently of that hidden viewport.

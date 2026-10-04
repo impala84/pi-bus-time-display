@@ -193,7 +193,7 @@ def get_bytes(url: str, timeout: float = 1.2):
 
 class Display(Gtk.Application):
     def __init__(self):
-        super().__init__(application_id="uk.co.dallabs.PiBusNative")
+        super().__init__(application_id="org.pihome.Native")
         self.polling = False
         self.state = None
         self.settings_open = False

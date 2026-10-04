@@ -1,4 +1,14 @@
 .env
+.env.*
+!.env.example
+config.toml
+secrets.env
+roon.env
+*.egg-info/
+build/
+dist/
+.DS_Store
+.state/
 .venv/
 __pycache__/
 *.pyc

@@ -24,6 +24,7 @@ from .domain import normalise
 from .lta import LTAError, fetch, simulated
 from .observability import OpenObserveLogger, openobserve_endpoint
 from . import __version__
+from .releases import ReleaseChecker
 
 
 CONTROL_REQUEST_LOCK = threading.Lock()
@@ -256,6 +257,7 @@ def home_assistant_poll(state: State, stop: threading.Event, events: OpenObserve
 def write_config(path: Path, config: Config) -> None:
     services = ", ".join(json.dumps(item) for item in config.services)
     content = "\n".join((
+        f"release_channel = {json.dumps(config.release_channel)}",
         f"bus_stop_code = {json.dumps(config.bus_stop_code)}",
         f"bus_stop_name = {json.dumps(config.bus_stop_name)}",
         f"services = [{services}]",
@@ -656,6 +658,7 @@ def write_control_request(state_dir: Path, request: dict) -> bool:
 def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Path, events: OpenObserveLogger | None = None):
     static = Path(__file__).with_name("static")
     sessions: dict[str, float] = {}
+    releases = ReleaseChecker()
 
     class Handler(SimpleHTTPRequestHandler):
         def __init__(self, *args, **kwargs):
@@ -750,12 +753,19 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                     "openobserve_username": config.openobserve_username,
                     "has_openobserve_password": bool(os.getenv("OPENOBSERVE_PASSWORD")),
                     "app_version": __version__,
+                    "release_channel": config.release_channel,
                     "admin_username": os.getenv("ADMIN_USERNAME", "admin"),
                     "admin_auth_enabled": os.getenv("ADMIN_AUTH_ENABLED", "true").lower() != "false",
                     "display_mode": read_display_mode(mode_path),
                     "has_lta_key": bool(os.getenv("LTA_ACCOUNT_KEY")),
                 }).encode()
                 self.send_json(200, body)
+                return
+            if self.path in {"/api/admin/releases", "/api/admin/releases?refresh=1"}:
+                if not self.authorised():
+                    return
+                result = releases.check(state.config.release_channel, __version__, refresh=self.path.endswith("refresh=1"))
+                self.send_json(200, json.dumps(result).encode())
                 return
             if self.path in {"/api/admin/system", "/api/admin/system?diagnostics=1"}:
                 if not self.authorised():
@@ -1041,6 +1051,7 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                     raise ValueError("Home Assistant address must start with http:// or https://")
                 openobserve_url = str(data.get("openobserve_url", current.openobserve_url)).strip().rstrip("/")
                 candidate = Config(
+                    release_channel=str(data.get("release_channel", current.release_channel)),
                     bus_stop_code=str(data.get("bus_stop_code", current.bus_stop_code)).strip(),
                     bus_stop_name=str(data.get("bus_stop_name", current.bus_stop_name)).strip(),
                     services=values("services", current.services),
@@ -1083,6 +1094,8 @@ def make_handler(state: State, config_path: Path, env_path: Path, mode_path: Pat
                     raise ValueError("Bus stop code must be five digits")
                 if candidate.display_theme not in {"fresh-mint", "roon"}:
                     raise ValueError("Choose Fresh Mint or Roon for the display style")
+                if candidate.release_channel not in {"stable", "beta"}:
+                    raise ValueError("Choose Stable or Beta for the release channel")
                 if len(candidate.roon_display_name) > 16:
                     raise ValueError("Roon display name must be 16 characters or fewer")
                 if len(candidate.roon_now_playing_name) > 16 or len(candidate.roon_queue_name) > 16:

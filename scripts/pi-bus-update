@@ -45,8 +45,25 @@ if [[ ${PI_HOME_UPDATE_LOCKED:-0} != 1 ]]; then
 fi
 trap fail_cleanly EXIT
 
-update_stage="checking the installed version"
-progress "Checking the installed version…"
+update_stage="checking published releases for the selected channel"
+progress "Checking published releases for the selected channel…"
+if [[ ${PI_HOME_UPDATE_REEXECUTED:-0} != 1 || -z ${PI_HOME_UPDATE_TARGET:-} ]]; then
+  # Legacy main-following updaters re-exec this script without a release target.
+  # Resolve it here too so the first upgrade can enter the tagged workflow.
+  installed_version=$("${app_dir}/.venv/bin/python" -c 'from pi_bus_time_display import __version__; print(__version__)')
+  release_tag=$(python3 "${app_dir}/src/pi_bus_time_display/releases.py" --config /etc/pi-bus-time-display/config.toml --installed "${installed_version}")
+  if [[ -z ${release_tag} ]]; then
+    progress "No newer published release for this channel; no changes made."
+    printf '%s\n' "Update unchanged. No newer published release for this channel; no downgrade performed." >"${status_file}"
+    trap - EXIT
+    exit 0
+  fi
+  export PI_HOME_UPDATE_TARGET="${release_tag}"
+fi
+if [[ ! ${PI_HOME_UPDATE_TARGET:-} =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
+  echo "Invalid published release target."
+  exit 1
+fi
 if [[ -n $(git -c safe.directory="${app_dir}" -C "${app_dir}" status --porcelain) ]]; then
   backup_name="pi-bus-update backup $(date -u +%Y-%m-%dT%H:%M:%SZ)"
   progress "Preserving local appliance changes…"
@@ -54,9 +71,9 @@ if [[ -n $(git -c safe.directory="${app_dir}" -C "${app_dir}" status --porcelain
 fi
 progress "Downloading the latest Pi Home release…"
 update_stage="downloading the latest release"
-timeout --signal=TERM --kill-after=10s 2m git -c safe.directory="${app_dir}" -c http.lowSpeedLimit=1024 -c http.lowSpeedTime=30 -C "${app_dir}" fetch origin main
+timeout --signal=TERM --kill-after=10s 2m git -c safe.directory="${app_dir}" -c http.lowSpeedLimit=1024 -c http.lowSpeedTime=30 -C "${app_dir}" fetch origin "refs/tags/${PI_HOME_UPDATE_TARGET}:refs/tags/${PI_HOME_UPDATE_TARGET}"
 update_stage="switching to the downloaded release"
-timeout --signal=TERM --kill-after=10s 1m git -c safe.directory="${app_dir}" -C "${app_dir}" checkout -B main origin/main
+timeout --signal=TERM --kill-after=10s 1m git -c safe.directory="${app_dir}" -C "${app_dir}" checkout --detach "refs/tags/${PI_HOME_UPDATE_TARGET}"
 
 # Continue with the updater from the checkout we just fetched. This makes
 # updater/install changes effective in this run instead of the next one.
@@ -66,7 +83,7 @@ if [[ ${PI_HOME_UPDATE_REEXECUTED:-0} != 1 ]]; then
   exec /usr/bin/env bash "${app_dir}/scripts/pi-bus-update"
 fi
 
-required_packages=(python3-gi python3-gi-cairo gir1.2-gtk-4.0 fonts-inter avahi-utils wlr-randr)
+required_packages=(python3-gi python3-gi-cairo gir1.2-gtk-4.0 fonts-inter avahi-utils wlr-randr grim)
 missing_packages=()
 for package in "${required_packages[@]}"; do
   if ! dpkg-query -W -f='${Status}' "${package}" 2>/dev/null | grep -q '^install ok installed$'; then

@@ -1,6 +1,6 @@
 # Pi Home runtime architecture
 
-This document records the supported runtime boundaries for the V8 line. It is
+This document records the runtime boundaries for the v1.0 Stable baseline. It is
 intentionally brief: each component should have one clear authority and avoid
 duplicating state owned elsewhere.
 
@@ -48,3 +48,48 @@ downloads and raw input reads run in workers and return through `GLib.idle_add`.
 The Python web server uses one thread per request. Privileged actions never run
 inside either application service.
 
+## Baseline audit — 4 October 2026
+
+Status: v1.0.0 is released at the user's explicit request with local verification.
+Running-Pi inspection, fresh-install reproducibility and physical acceptance
+remain unverified; no remote installation or restart was performed.
+
+- Removed the unused Chromium kiosk launcher, desktop entry, touch-controls
+  extension and iframe display shell. No installed service/startup script
+  referenced them; production uses native GTK/Cage. Removed the unreferenced
+  icon study and consolidated obsolete stabilization/planning documentation.
+- Retained active web dashboards, simulation, fixed-action broker, Roon Bridge
+  helper, orientation utilities and existing compatibility configuration.
+  Files were not removed merely because their names still mention Pi Bus.
+- Python has no pip runtime dependencies. All five direct Node dependencies
+  are imported by the controller and pinned to RoonLabs revisions; keep them.
+  Locked transitive dependencies: `node-uuid` (MIT) and `ws` (MIT). Official
+  Roon modules: Apache-2.0. Installed package licence files remain intact.
+  Pi Home's MIT licence covers its own code, not those dependencies.
+  `npm audit --omit=dev` reported zero known vulnerabilities on 4 October 2026;
+  that report is point-in-time and does not guarantee all dependencies are safe.
+- GTK, Cairo, Cage, fonts, Avahi and other OS dependencies retain distribution
+  licences. Roon Bridge is downloaded separately, not copied into this repo.
+  Producing an OS image will require a separate redistribution/licence audit.
+- Local env/config, build output, pairing state and Node modules are ignored.
+  No tracked live `.env`, `config.toml` or Roon pairing `config.json` appeared
+  in the Git filename-history check. That is not a substitute for a dedicated
+  secret scanner across every historical blob before public distribution.
+- Generic new-install configuration disables buses/Home/BluOS; saved personal
+  configuration remains outside the repository and is not migrated/reset.
+- Installer exports tracked source rather than copying developer secrets,
+  ignored dependencies or host-specific virtualenvs. The updater now resolves
+  published GitHub release metadata and checks out an exact release tag.
+
+### Verification gates still required
+
+Inspect the known-good Pi's model, OS, package versions, effective units,
+display profile/rotation/overlay and non-secret settings. Verify fresh-install
+steps against them and record differences. Then test real Roon pairing,
+playback/queue/search, GTK touch scroll, sleep/wake, TV/records sleep, optional
+modules, capture, saved settings and update/recovery. Local logic/browser
+tests must not be presented as proof of hardware behaviour.
+
+Backlight applied-state acknowledgement, mutable-state protection and larger
+handler/display module splits remain known future reliability considerations,
+not reasons to undertake unrelated architecture changes during this freeze.

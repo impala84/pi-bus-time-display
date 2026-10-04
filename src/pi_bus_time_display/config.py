@@ -8,9 +8,10 @@ from pathlib import Path
 
 @dataclass(frozen=True)
 class Config:
+    release_channel: str = "stable"
     bus_enabled: bool = True
-    bus_stop_code: str = "83249"
-    bus_stop_name: str = "Flamingo Valley · Siglap Rd"
+    bus_stop_code: str = "00000"
+    bus_stop_name: str = "Bus stop"
     services: tuple[str, ...] = ()
     walking_minutes: int = 7
     poll_seconds: int = 20
@@ -78,6 +79,8 @@ def load_config(path: Path) -> Config:
     if "bluos_input_names" in data:
         data["bluos_input_names"] = tuple(str(item) for item in data["bluos_input_names"])
     config = Config(**data)
+    if config.release_channel not in {"stable", "beta"}:
+        raise ValueError("release_channel must be stable or beta")
     if config.display_theme not in {"fresh-mint", "roon"}:
         raise ValueError("display_theme must be fresh-mint or roon")
     if not (5 <= config.poll_seconds <= 300):

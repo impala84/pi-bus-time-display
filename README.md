@@ -1,152 +1,185 @@
 # Pi Home
 
-For a music-only installation, switch off **Services → Bus → Show Bus Times** in Settings. Bus Times stays enabled by default; disabling it hides bus navigation, stops LTA polling, and keeps automatic navigation on Roon instead of the bus page. The equivalent configuration option is `bus_enabled = false`.
+Pi Home is an independent Raspberry Pi touchscreen interface for Roon, with optional Singapore bus arrivals and Home Assistant controls. It runs a native GTK4 display in Cage/Wayland, alongside a phone/desktop web interface. Chromium is not required.
 
-A single-card Raspberry Pi home dashboard that combines **Roon Bridge**, Roon Now Playing, Singapore bus arrivals and selected Home Assistant controls on the official touchscreen.
+The Stable baseline is **v1.0.0**. Discover is future v1.1 work, not part of v1.0. Automated local checks cover the release; a running-Pi audit, fresh installation and physical touchscreen acceptance have not been verified for this release.
 
-Planned display automation, multi-service layouts, Touch Display 2 support and performance work are tracked in the [roadmap](ROADMAP.md).
+## Features
 
-The included configuration is ready for **Flamingo Valley, Siglap Road (83249)** and services **40 and 42**. It shows up to four adaptive, colour-separated service rows with three arrivals each. Automatic mode can move from Bus Times to Now Playing when music starts, retain it through a configurable pause, then return to buses—or sleep during overnight hours—while Roon Bridge continues running normally.
+- Roon artwork, lead artist, track information, progress, playback, mute and volume.
+- Queue, library browsing, combined library/connected TIDAL search and Surprise playback, through Roon's official extension API. Catalogue availability depends on the connected Roon Server.
+- Optional BluOS amplifier/source controls, separate from Roon playback.
+- Optional Singapore LTA arrivals: up to four service rows and three arrivals per service.
+- Optional Home Assistant controls for up to eight allow-listed `fan`, `light`, `switch` and `input_boolean` entities.
+- Fresh Mint and Roon-inspired themes, shared across touchscreen and web.
+- Scheduled sleep, touch wake, brightness/orientation controls and playback-aware wake behaviour. TV/record inputs do not independently hold the display awake.
+- Password-protected web settings, diagnostics, actual display capture and controlled system actions.
+- Published-release updates with Stable/Beta selection, preserving appliance configuration and credentials.
 
-This deliberately replaces RoPieee. It does not try to fork or preserve RoPieee; the public RoPieee repository does not contain its full appliance build. If necessary, the card can simply be reflashed with RoPieee later.
+Pi Home is not affiliated with Roon Labs. Roon Server and a Roon subscription are separate requirements. Roon Bridge is optional: it makes the Pi an audio endpoint, but is not needed to control an existing Roon zone.
 
-## Install on the Pi
+## Hardware and runtime
 
-You need one microSD card (16 GB or larger) and an LTA DataMall AccountKey.
+The personal installation uses a Raspberry Pi and an official Touch Display 2 in landscape (1280×720). The exact Pi model, OS image and saved rotation have not been audited remotely; the fresh-install procedure below is documented but not proven by a clean hardware rebuild. Original Touch Display (800×480) and Touch Display 2 profiles exist, but that does not mean every panel/model combination has been hardware-tested.
 
-1. Register at [LTA DataMall](https://datamall.lta.gov.sg/) and obtain an AccountKey.
-2. Flash **Raspberry Pi OS with desktop, 64-bit** using Raspberry Pi Imager. Configure Wi-Fi, timezone `Asia/Singapore`, a username and SSH in Imager's settings.
-3. Boot the Pi, open a terminal and clone this repository.
-4. Run `sudo ./scripts/install-pi.sh`.
-5. Run `sudo ./scripts/install-roon-bridge.sh`. This uses Roon's official installer for the detected ARM architecture.
-6. Put the LTA key in `/etc/pi-bus-time-display/secrets.env` and review `/etc/pi-bus-time-display/config.toml`.
-7. Run `sudo pi-bus-appliance-mode enable` to replace the full desktop with the lightweight kiosk session.
-8. Reboot. In the Roon app, open **Settings → Audio**, find this Raspberry Pi and enable its audio output. Then open **Settings → Extensions** and enable **Pi Home Roon Controller**.
+Use **Raspberry Pi OS with desktop, 64-bit**, with Python 3.11 or newer, systemd, NetworkManager and working official-display drivers. Initial setup uses the desktop; appliance mode then boots only Cage and GTK. Keep Ethernet or SSH available as a recovery path.
 
-The installer creates an unprivileged service account, keeps credentials outside the repository and launches a lightweight native GTK4 touchscreen. Chromium is not installed or used. The native application changes between Bus, Roon, Home, Settings and Sleep without browser loading screens, desktop flashes or keyring prompts. Roon's installer starts Roon Bridge at boot and manages its own updates.
+Required system components are installed by `scripts/install-pi.sh`: Python/venv, PyGObject/GTK4/Cairo, Node.js/npm, Git, Inter fonts, Avahi tools, `wlr-randr`, `grim`, curl and OpenSSL. Appliance mode installs Cage. Python application code has no pip runtime dependencies; native GTK bindings come from the OS. Node dependencies are locked to specific official Roon API revisions and transitive versions.
 
-## Web settings
+## Architecture and repository
 
-From a phone or computer on the same network, open `http://<pi-address>:8765/admin`. The dedicated sign-in page uses username `admin` and the `ADMIN_PASSWORD` stored in `/etc/pi-bus-time-display/secrets.env`. Its ordinary username and password fields allow browsers and password managers to save and autofill the credentials; a successful sign-in lasts for 30 days. The touchscreen itself opens Settings directly.
+| Directory | Responsibility |
+| --- | --- |
+| `src/pi_bus_time_display/` | Python HTTP service: configuration, schedules, optional LTA/Home, admin, release selection and Roon proxy |
+| `roon-controller/` | Official Roon API integration, subscriptions, browse/search, queue, artwork, metadata and optional BluOS |
+| `native-display/` | GTK4 touchscreen and local SVG assets |
+| `scripts/` | Installation, tagged-release updates, appliance setup and privileged action broker |
+| `systemd/` | Production service/path definitions |
+| `tests/` | Python regression tests; controller tests live beside the JavaScript modules |
+| `docs/ARCHITECTURE.md` | Runtime boundaries and audit/verification notes |
 
-The web admin is organised into **Schedule**, **Bus stop**, **Roon**, **Home** and **System**. It controls display schedules, stop and LTA credentials, Now Playing preferences, Roon Bridge start/stop/restart, the optional Home Assistant panel, device name, Wi-Fi and software updates. Web authentication can be renamed, reset or disabled under System; disabling it exposes every setting to the home network. Existing API keys, access tokens and Wi-Fi passwords are never displayed back to the browser. Because this admin server uses ordinary HTTP, keep it on a trusted home network and use authentication unless the network itself is trusted.
+The Python service listens on port **8765**. The Node controller listens only on **127.0.0.1:8766**; web clients reach it through `/roon/` on the Python service. GTK talks to the local services directly. A path-activated privileged broker permits a fixed set of system actions; neither application has general sudo access.
 
-On the touchscreen, tap the title at top left for Settings and tap the clock at top right to sleep. The bottom navigation switches directly between **Now Playing**, **Bus Times** and the optional **Home** panel. Touchscreen Settings can start or stop Roon Bridge and temporarily show or hide configured buses; adding services and changing credentials remains protected in web administration. By default sleep powers off the display backlight; touch remains active, so tap anywhere to wake it.
+Roon owns transport, zones, playback, queue and library/catalogue data. Optional bus/Home failures do not replace that integration. Future unsupported discovery augmentation must be isolated and must not break the official controller. No RoonMCP dependency is used or planned.
 
-### Home Assistant
+## Fresh Raspberry Pi installation
 
-Under web Settings → Home, enable the integration, enter the local Home Assistant address and a Long-Lived Access Token, then list up to eight entity IDs in display order. The Home touchscreen panel supports `fan`, `light`, `switch` and `input_boolean` entities in a fixed 4×2 grid. Tap a device icon to toggle it; supported lights and variable-speed fans also provide a vertical touch control for brightness or speed. Only those allow-listed entities can be controlled; locks, alarms, covers and other sensitive domains are deliberately rejected. The token is stored in `/etc/pi-bus-time-display/secrets.env` and is never sent to the touchscreen UI.
+Do not run these production commands on a development Mac.
 
-The installer generates a unique admin password and prints it once. You can retrieve or change it later in `/etc/pi-bus-time-display/secrets.env`.
+1. Flash Raspberry Pi OS with desktop, 64-bit using Raspberry Pi Imager. Set a normal user, network, SSH and timezone. Connect the official display and verify touch works in the desktop.
+2. From that normal user's terminal, clone a published tag. For the current release:
 
-### Connect the Roon controller
+   ```sh
+   git clone --branch v1.0.0 https://github.com/impala84/pi-home.git pi-home
+   cd pi-home
+   sudo ./scripts/install-pi.sh
+   ```
 
-1. After installation, open **Roon → Settings → Extensions**.
-2. Find **Pi Home Roon Controller** and choose **Enable**. This is the one-time authorisation required by Roon's extension API.
-3. In Pi Bus Settings, optionally enter the exact Roon zone name. Leave it blank to follow the currently playing zone.
+3. Configure `/etc/pi-bus-time-display/config.toml` and `/etc/pi-bus-time-display/secrets.env`. The installer prints a generated web-admin password once. Do not commit these files. New configuration is music-first; enable optional modules explicitly. Existing installations retain their saved settings.
+4. If the Pi should also be an audio endpoint, run `sudo ./scripts/install-roon-bridge.sh`. This downloads Roon's official architecture-specific installer; Roon Bridge is separately distributed and not bundled in Pi Home.
+5. Enable appliance mode from the same normal user:
 
-The controller shows album artwork rather than artist photography, track and artist text, elapsed/remaining progress, previous/play-pause/next controls, mute and volume. Its optional **Browse** view exposes Roon search and the live Roon library hierarchy in a touch-scrollable window while keeping both navigation rows fixed. Browse can be enabled or hidden under web **Settings → Roon & BluOS**. Long titles pause and scroll only when needed, and transport controls use consistent SVG artwork. If the selected output exposes no adjustable volume, it shows **Fixed volume** instead. Roon Server and the Pi must be on the same network.
+   ```sh
+   sudo pi-bus-appliance-mode enable
+   sudo reboot
+   ```
 
-### Connect an NAD / BluOS amplifier
+6. In Roon, open **Settings → Extensions**, enable **Pi Home Roon Controller**, then select the desired zone in Pi Home. If you installed Roon Bridge, separately enable the Pi's output under Roon **Settings → Audio**.
+7. Open `http://<pi-address>:8765/admin` on a trusted local network. Sign in with `admin` and the installer-generated password. Configure display profile/orientation under **Display → Screen hardware**. Touch Display 2 overlay changes require one reboot; select the exact panel rather than using an assumed rotation.
 
-Under web **Settings → Roon**, enable BluOS control and discover the player or enter its local hostname/IP address. Save once, then use **Load amplifier inputs** to choose exactly which live inputs appear in Pi Home and optionally give each one a shorter Pi Home display name such as “TV” or “Rega”. An empty initial selection shows every input. Enabled sources sit directly beside **Now Playing** and **Queue**, without a dropdown. Pi Home listens to BluOS status changes using the player's long-polling API rather than repeatedly polling it. When a physical input is active, its screen provides a large volume number, minus/plus controls and mute. Now Playing and Queue are view-only: browsing them leaves the physical source untouched, and pressing Play from Now Playing is the explicit action that makes Roon reclaim the zone.
+For a frozen v1.0 rebuild, use the `v1.0.0` tag, not an untagged `main` checkout. Back up the configuration/state listed below; Git alone cannot recreate private credentials, Roon authorisation or local display choices.
 
-## Updates
+### Production files
 
-After the initial installation, update the appliance with one command:
+| Path | Purpose |
+| --- | --- |
+| `/opt/pi-bus-time-display/` | Git checkout, Node modules and `.venv` |
+| `/etc/pi-bus-time-display/config.toml` | Non-secret application configuration |
+| `/etc/pi-bus-time-display/secrets.env` | LTA, Home Assistant, OpenObserve and admin credentials |
+| `/etc/pi-bus-time-display/roon.env` | Optional Node environment overrides |
+| `/etc/pi-bus-time-display/display-user`, `display-profile`, `display-transform` | Saved native-session user, panel and orientation |
+| `/var/lib/pi-bus-time-display/` | Persistent display preferences, action queue, update status and Roon pairing state |
+
+Use encrypted/off-device backups for `/etc/pi-bus-time-display/` and `/var/lib/pi-bus-time-display/`. These contain secrets and personal state. Do not put them in the public repository.
+
+## Configuration
+
+`config.example.toml` documents the application settings. Configuration persists across updates. Use the web admin to save settings; manual edits require `sudo systemctl restart pi-bus-time-display.service`.
+
+Required for Roon: a reachable Roon Server on the local network and extension authorisation. `roon_zone_name` may be blank to follow the active zone. Do not expose ports 8765/8766 directly to the Internet. HTTP admin is intended for a trusted LAN. The backend trusts loopback requests for native control: any local reverse proxy must enforce its own authentication/access restrictions. HTTPS alone does not make that proxy safe. Prefer a restricted VPN for remote access.
+
+Optional integrations:
+
+- **Bus Times:** enable **Services → Bus → Show Bus Times**, choose an actual LTA five-digit stop code/service list, and set an LTA AccountKey. Disabling buses hides navigation, stops polling and prevents automatic bus-page selection. LTA outages retain last successful arrivals and mark them stale.
+- **Home:** enable Home Assistant, supply its base URL/token and entity allow-list. Sensitive domains such as locks and alarms are deliberately rejected. Disabling Home hides its navigation.
+- **BluOS:** enable it, discover or enter the player address, and choose visible inputs/names. Opening Now Playing is view-only; pressing Play explicitly reclaims the Roon source.
+- **Logging:** optional OpenObserve connection. It is not required for music or bus/Home operation.
+
+Secrets/environment variables belong in `secrets.env`, not TOML:
+
+| Variable | Requirement |
+| --- | --- |
+| `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `ADMIN_AUTH_ENABLED` | Web authentication; installer creates a unique password |
+| `LTA_ACCOUNT_KEY` | Only for live Singapore buses |
+| `HOME_ASSISTANT_TOKEN` | Only for Home Assistant |
+| `OPENOBSERVE_PASSWORD` | Only for authenticated OpenObserve logging |
+
+Node overrides in `roon.env`: `ROON_ZONE_NAME`, `CONFIG_PATH`, `PORT`. Keep the production port at 8766 because GTK/proxy routes expect it. Roon pairing is saved in `/var/lib/pi-bus-time-display/roon/`, not an environment variable.
+
+## Updates and release channels
+
+Under **System → Software**, choose **Release Channel: Stable or Beta**, save, then check availability. The page shows installed version, selected channel, latest published version and whether an update exists.
+
+- Stable excludes draft/prerelease releases and semantic prerelease tags.
+- Beta includes published Stable and prerelease releases, selecting the highest semantic version.
+- `v1.1.0-beta.10` is newer than `v1.1.0-beta.2`; `v1.1.0` supersedes both.
+- Beta → Stable never silently downgrades. If the installed beta is newer than the latest Stable, it stays installed and reports that state until a newer Stable appears.
+- Failed/offline release checks report **unavailable**, not **up to date**.
+
+The new updater installs exact published GitHub release tags, not development `main`. Start it in Settings or with:
 
 ```sh
 sudo pi-bus-update
 ```
 
-The updater follows the supported `main` branch, preserves any local checkout differences in a recoverable Git stash, reinstalls the application, reapplies saved display/input orientation, refreshes and verifies its services, then restarts the native touchscreen without rebooting the Pi. Already-installed operating-system components are not downloaded again. Touch Display 2 orientation updates its hardware touch overlay and requests one reboot only when that boot configuration actually changes. Updates can be started from the protected web System section or the restricted touchscreen Settings screen. Your settings and secrets remain untouched in `/etc/pi-bus-time-display/`. Both interfaces show live installation stages while an update is running. Releases use semantic versions, shown in Settings and recorded in [CHANGELOG.md](CHANGELOG.md). The current release is **v0.11.35**.
+It stashes local checkout changes for recovery, installs dependencies only when needed, retains private configuration, reapplies display settings and verifies service startup. A normal app update does not reboot the Pi. Never edit live application source as a substitute for configuration.
 
-Display brightness is shared between touchscreen Settings and web Settings → System. It is applied through Linux's hardware backlight interface, persisted across reboots and limited to 10–100% so the panel cannot accidentally become unusable. The System page also reports the real `netdata.service` state when Netdata is installed and can enable/start or disable/stop that single service through Pi Home's existing fixed-action privileged broker; no general sudo access is granted. The same page can turn the Raspberry Pi ACT/PWR status lights on or off; they default to off, persist across reboots, and are reapplied by a one-shot boot service rather than a resident process.
+Pre-v1.0 updaters follow `main`; the first update to the baseline installs the channel-aware updater. Do not put Discover or experimental code on `main` before that transition. Downgrades/rollback require an explicit maintenance procedure and a compatible backup; automatic updates never perform them.
 
-## Lightweight appliance mode
+## Troubleshooting and recovery
 
-The ordinary Raspberry Pi desktop is useful for initial setup but unnecessary in daily use. Enable the included Cage-based Wayland kiosk after installation:
+Use **System → Diagnostics** and **Capture display** first. A captured native display shows actual GTK rendering; a desktop browser simulation does not.
 
 ```sh
-sudo pi-bus-appliance-mode enable
-sudo reboot
+systemctl status pi-bus-time-display.service pi-bus-roon-controller.service pi-bus-native.service
+journalctl -u pi-bus-time-display.service -u pi-bus-roon-controller.service -u pi-bus-native.service -n 100 --no-pager
+curl --fail http://127.0.0.1:8765/api/status
+curl --fail http://127.0.0.1:8766/api/state
+sudo systemctl restart pi-bus-time-display.service pi-bus-roon-controller.service
+sudo systemctl restart pi-bus-native.service
 ```
 
-This boots to a minimal compositor running only Pi Bus, while networking, SSH, Roon Bridge and web administration continue normally. It disables the graphical desktop without uninstalling it, so recovery is simple:
+Restarting the display does not restart Roon Server; Roon Bridge is independent. If the touchscreen is unusable, use SSH to restore the desktop:
 
 ```sh
 sudo pi-bus-appliance-mode disable
 sudo reboot
 ```
 
-Check the current mode with `sudo pi-bus-appliance-mode status`.
+Rotation setup keeps backups of the boot command line and managed Touch Display 2 boot configuration. Do not apply a second manual input rotation on top of the saved device-tree configuration.
 
-Display orientation can be changed remotely under **Display → Screen hardware**. The original Touch Display retains its libinput calibration path. Touch Display 2 is natively portrait, so Pi Home rotates its Cage/Wayland output and configures the matching Raspberry Pi Device Tree touch axes; select the exact 5-, 7- or 10-inch model and reboot once after applying a new orientation. The same setting rotates the boot console. The native display hides its pointer without disabling input devices.
+## Development (not production installation)
 
-### Official touchscreen
-
-Current Raspberry Pi OS releases normally detect the official display automatically. Set rotation in Screen Configuration if necessary before enabling appliance mode. Pi Bus manages backlight sleep itself.
-
-## Configuration
-
-Edit `/etc/pi-bus-time-display/config.toml`:
-
-- `bus_stop_code`: LTA stop code (`83249`)
-- `bus_stop_name`: heading shown on screen
-- `services`: one or more service numbers; an empty list shows all returned services
-- `walking_minutes`: time from home to the stop
-- `poll_seconds`: defaults to 20 seconds, matching LTA's published refresh cadence
-- `morning_start` and `morning_end`: touchscreen bus-display window
-- `sleep_start` and `sleep_end`: automatic black-screen window
-- `roon_zone_name`: exact preferred Roon zone; blank follows the playing zone
-- `roon_display_name`: short name for the Roon section in touchscreen navigation
-- `bluos_enabled`, `bluos_player_address` and `bluos_visible_inputs`: optional NAD/BluOS source and amplifier controls
-- `sleep_when_roon_idle`: sleep outside the bus window unless the selected Roon zone is playing
-- `auto_switch_to_roon`: let active playback temporarily take over Automatic mode
-- `roon_idle_return_seconds`: delay before returning to buses after playback stops
-- `outside_hours_wake_seconds`: how long a touch wake lasts during overnight hours
-- `daytime_inactivity_seconds`: seconds without a touch before the display sleeps during the day; `0` disables it
-- `home_assistant_enabled`, `home_assistant_url` and `home_assistant_entities`: optional Home panel connection and allow-list (the token remains in `secrets.env`)
-- `openobserve_enabled`, `openobserve_url`, `openobserve_org`, `openobserve_stream` and `openobserve_username`: optional central operational logging; set the password through System settings or as `OPENOBSERVE_PASSWORD` in `secrets.env`
-
-Restart after changes with `sudo systemctl restart pi-bus-time-display`.
-
-## Try it without the Pi
-
-Simulation needs no API key:
+Use Python 3.11+, Node.js and npm. A browser simulation does not need GTK or an LTA key:
 
 ```sh
 python3 -m venv .venv
 .venv/bin/pip install -e .
 cp config.example.toml config.toml
-.venv/bin/pi-bus-time-display --simulate
+cp .env.example .env
+# Set a local admin password; optionally enable simulated bus display.
+.venv/bin/pi-bus-time-display --simulate --config config.toml --env .env
 ```
 
-Open <http://127.0.0.1:8765>. For live data, copy `.env.example` to `.env`, add the AccountKey and start without `--simulate`.
+For the controller, in another terminal:
 
-This is also the quickest design-preview loop: leave simulation running, refresh the browser after a code change, and no Raspberry Pi rebuild is needed.
+```sh
+npm --prefix roon-controller ci
+mkdir -p .state/roon
+cd .state/roon
+CONFIG_PATH=../../config.toml node ../../roon-controller/server.js
+```
 
-## Reliability and privacy
-
-The browser never receives the LTA key. If LTA or the network fails, the display retains the last successful arrivals and marks them offline/stale. The backend validates configuration, floors arrival minutes following LTA's published guidance, and polls no faster than configured.
-
-Roon Bridge uses ALSA directly and runs independently of the GTK display. The controller uses Roon's official extension services for transport, volume and artwork, and listens only on the Pi's loopback interface. Raspberry Pi OS 64-bit uses Roon's supported ARMv8 build; the helper selects ARMv7 only on a 32-bit system.
-
-## Tests
+Authorise the development extension in Roon if testing against a real server. This is not an offline Roon simulation. Native GTK requires a supported Linux graphics/input environment; actual backlight/rotation/touch acceptance requires the Pi.
 
 ```sh
 PYTHONPATH=src python3 -m unittest discover -s tests -v
+npm --prefix roon-controller test
+bash -n scripts/install-pi.sh scripts/install-roon-bridge.sh scripts/pi-bus-update scripts/pi-bus-appliance-mode scripts/pi-bus-cage-launch
 ```
 
-## Sources
+## Licence and next phase
 
-- [LTA DataMall API guide](https://datamall.lta.gov.sg/content/dam/datamall/datasets/LTA_DataMall_API_User_Guide.pdf) — Bus Arrival v3 fields, 20-second update frequency and rounding guidance.
-- [Roon's Linux installation guide](https://help.roonlabs.com/portal/en/kb/articles/linux-install) — official ARMv8/ARMv7 installers and service behaviour.
-- [Roon system requirements](https://help.roonlabs.com/portal/en/kb/articles/faq-what-are-the-minimum-requirements) — current Raspberry Pi OS support for Roon Bridge.
-- [Roon JavaScript API](https://github.com/RoonLabs/node-roon-api) — official extension pairing and service API.
-- [Roon transport API](https://github.com/RoonLabs/node-roon-api-transport) — zone metadata, playback, seek and volume controls.
-- [Home Assistant REST API](https://developers.home-assistant.io/docs/api/rest/) — authenticated entity state and service calls.
+Pi Home's own code is [MIT](LICENSE). The official Roon Node libraries are Apache-2.0; their MIT/BSD-style transitive dependencies retain separate notices in installed packages. System packages have their own licences. Roon Bridge is proprietary and installed separately. See [architecture and audit notes](docs/ARCHITECTURE.md); this repository is not yet a distributable OS image.
 
-## Licence
-
-MIT
+[CHANGELOG.md](CHANGELOG.md) records releases. [ROADMAP.md](ROADMAP.md) defines the gated v1.1 Discover work and later public-appliance goals. No unsupported Roon protocol is part of the v1.0 baseline.
